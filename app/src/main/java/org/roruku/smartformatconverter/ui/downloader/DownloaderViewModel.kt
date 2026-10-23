@@ -1,6 +1,7 @@
 package org.roruku.smartformatconverter.ui.downloader
 
 import android.app.Application
+import org.roruku.smartformatconverter.R
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,7 +54,7 @@ class DownloaderViewModel(application: Application) : AndroidViewModel(applicati
                     )
                 }
             } else {
-                val err = result.exceptionOrNull()?.message ?: "Failed to inspect URL"
+                val err = result.exceptionOrNull()?.message ?: context.getString(R.string.download_inspection_failed)
                 _uiState.update {
                     it.copy(
                         isLoadingInfo = false,
@@ -92,7 +93,7 @@ class DownloaderViewModel(application: Application) : AndroidViewModel(applicati
                     urlInput = "",
                     mediaInfo = null,
                     selectedFormat = null,
-                    message = "Download queued: ${info.title}"
+                    message = context.getString(R.string.download_queued_message, info.title)
                 )
             }
         }

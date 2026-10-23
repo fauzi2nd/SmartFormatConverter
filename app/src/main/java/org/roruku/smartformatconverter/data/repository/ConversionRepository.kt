@@ -169,6 +169,11 @@ class ConversionRepository(
                         VideoSettingsValidator.validate(advanced)?.let {
                             throw IllegalArgumentException(it)
                         }
+                        if (advanced.encoder == "hardware" && !settings.hardwareAcceleration) {
+                            throw IllegalArgumentException(
+                                "Hardware encoder is disabled in Settings. Enable it or select Software."
+                            )
+                        }
                     }
                     FFmpegEngine.convertVideo(
                         context = context,

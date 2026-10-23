@@ -43,7 +43,7 @@ import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
     object Home : BottomNavItem("home", "Home", Icons.Default.Home)
     object Converter : BottomNavItem("converter", "Converter", Icons.Default.Transform)
-    object Downloader : BottomNavItem("downloader", "Downloader", Icons.Default.Download)
+    object Downloader : BottomNavItem("downloader", "Download", Icons.Default.Download)
     object Queue : BottomNavItem("queue", "Queue", Icons.AutoMirrored.Filled.ListAlt)
     object Settings : BottomNavItem("settings", "Settings", Icons.Default.Settings)
 }
@@ -83,20 +83,31 @@ fun MainAppScreen() {
                 val currentRoute = navBackStackEntry?.destination?.route
 
                 navItems.forEach { item ->
-                    val isSelected = currentRoute?.startsWith(item.route) == true
+                    val isSelected = currentRoute?.substringBefore("?") == item.route
                     NavigationBarItem(
                         selected = isSelected,
                         onClick = {
-                            navController.navigate(item.route) {
+                            // Always navigate to a canonical destination. In
+                            // particular the converter route requires a tab
+                            // argument, and restoring a prior back stack can
+                            // unexpectedly reopen the converter from Home.
+                            val destination = if (item == BottomNavItem.Converter) {
+                                "converter?tab=0"
+                            } else {
+                                item.route
+                            }
+                            navController.navigate(destination) {
                                 popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                                    inclusive = false
+                                    saveState = false
                                 }
                                 launchSingleTop = true
-                                restoreState = true
+                                restoreState = false
                             }
                         },
                         icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
-                        label = { Text(item.title) }
+                        label = { Text(item.title, maxLines = 1) },
+                        alwaysShowLabel = false
                     )
                 }
             }
@@ -110,7 +121,9 @@ fun MainAppScreen() {
             composable(BottomNavItem.Home.route) {
                 HomeScreen(
                     onNavigateToConverterTab = { tabIndex ->
-                        navController.navigate("${BottomNavItem.Converter.route}?tab=$tabIndex")
+                        navController.navigate("${BottomNavItem.Converter.route}?tab=$tabIndex") {
+                            launchSingleTop = true
+                        }
                     },
                     onNavigateToDownloader = {
                         navController.navigate(BottomNavItem.Downloader.route)

@@ -55,6 +55,31 @@ References:
 - https://developer.android.com/build/releases/agp-9-5-0-release-notes
 - https://docs.gradle.org/9.8.2/userguide/upgrading_version_9.html#deprecate-visible-property
 
+## Strict Android Lint cleanup and native dependency exception
+
+Enabling `warningsAsErrors` exposed 25 existing findings on the initial
+audit. The project-owned issues have been corrected individually:
+
+- Removed the redundant activity label and the seven unused colors inherited
+  from the Android Studio template.
+- Moved adaptive icon resources out of the redundant `mipmap-anydpi-v26`
+  qualifier (the app already has `minSdk=26`).
+- Fixed the Compose Modifier argument order and replaced identified Java-style
+  Kotlin calls with Android KTX equivalents.
+- Converted file-count and status strings to proper plural resources;
+  corrected typographical ellipses; annotated just the legitimate AV1 codec
+  identifier to avoid the dictionary typo false positive.
+
+**Important unresolved external binary risk:** RxFFmpeg 4.9.0 bundles
+`x86_64/librxffmpeg-core.so` without 16 KB page alignment.
+`app/lint.xml` narrowly excludes `Aligned16KB` reports *only when they
+contain the exact pinned coordinate* `RxFFmpeg:4.9.0`. This is a scoped
+known-issue waiver, not a compatibility fix, and every other library or
+code issue is still checked with `warningsAsErrors`. A GitHub Actions
+workflow warning calls out the risk on every run. Remove this exception
+after updating or rebuilding RxFFmpeg's ELF binaries and verifying on a
+16 KB Android device.
+
 ## What is deliberately NOT localized
 
 Not every string literal is a UI hardcode. The following are stable

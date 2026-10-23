@@ -104,6 +104,7 @@ dependencies {
 
     // Image Loading
     implementation(libs.coil.compose)
+    implementation(libs.coil.video)
 
     // Source previews: ExoPlayer for video and audio.
     implementation(libs.androidx.media3.exoplayer)

@@ -13,7 +13,21 @@ object VideoCommandBuilder {
         val args = mutableListOf("ffmpeg", "-hide_banner", "-nostdin", "-y", "-i", inputPath)
 
         if (settings.isRemux) {
-            args += listOf("-map", "0", "-c", "copy")
+            // Do not blindly map every input stream. Attachments and unknown
+            // subtitles frequently cannot be copied into MP4/MOV/AVI.
+            args += listOf("-map", "0:v:0")
+            if (settings.audioCodec != "none" && settings.audioStream != "none") {
+                args += listOf("-map", when (settings.audioStream) {
+                    "all" -> "0:a?"
+                    "second" -> "0:a:1"
+                    else -> "0:a:0?"
+                })
+            }
+            if (settings.subtitleMode == "copy" ||
+                (settings.subtitleMode == "auto" && settings.format == "mkv")) {
+                args += listOf("-map", "0:s?")
+            }
+            args += listOf("-c", "copy")
             if (settings.preserveMetadata) args += listOf("-map_metadata", "0")
             else args += listOf("-map_metadata", "-1")
             if (settings.format == "mp4" && settings.fastStart) {

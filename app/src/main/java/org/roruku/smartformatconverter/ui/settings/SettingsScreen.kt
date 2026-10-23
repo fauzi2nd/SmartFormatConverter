@@ -323,6 +323,7 @@ fun SettingsScreenPreview() {
                 hardwareAcceleration = true
             ),
             onUpdateDefaultOutputUri = {},
+            onSelectOutputFolder = {},
             onUpdateCustomPrefix = {},
             onUpdateFilenameFormat = {},
             onUpdatePreserveMetadata = {},

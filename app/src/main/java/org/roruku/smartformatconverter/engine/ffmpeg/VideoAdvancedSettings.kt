@@ -140,8 +140,11 @@ object VideoSettingsValidator {
         if (s.audioStream !in setOf("first", "all", "second", "none")) return "Invalid audio stream selection"
         if (s.subtitleMode !in setOf("auto", "none", "copy")) return "Invalid subtitle selection"
         if ((s.width == null) != (s.height == null)) return "Set both width and height"
-        if (s.width != null && (s.width !in 16..8192 || s.height !in 16..8192 ||
-                    s.width % 2 != 0 || s.height % 2 != 0)) {
+        val width = s.width
+        val height = s.height
+        if (width != null && height != null &&
+            (width !in 16..8192 || height !in 16..8192 ||
+                width % 2 != 0 || height % 2 != 0)) {
             return "Resolution must use even dimensions between 16 and 8192"
         }
         if (s.fps != null && (s.fps.toDoubleOrNull() == null ||

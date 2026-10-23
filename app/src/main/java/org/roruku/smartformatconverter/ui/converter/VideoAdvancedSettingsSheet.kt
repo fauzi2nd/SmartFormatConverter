@@ -94,10 +94,16 @@ fun VideoAdvancedSettingsControl(
     }
 
     Text(
-        text = "${if (settings.width == null) "Source" else "${settings.width}×${settings.height}"} · " +
-            "${settings.fps ?: "Source"} FPS · " +
-            "${settings.videoCodec.uppercase()} · ${settings.rateControl.uppercase()}" +
-            if (settings.rateControl == "crf") " ${settings.crf}" else " ${settings.videoBitrateKbps} kbps",
+        text = stringResource(
+            R.string.advanced_summary,
+            if (settings.width == null) stringResource(R.string.source_value)
+                else "${settings.width}×${settings.height}",
+            settings.fps ?: stringResource(R.string.source_value),
+            settings.videoCodec.uppercase(),
+            settings.rateControl.uppercase(),
+            if (settings.rateControl == "crf") stringResource(R.string.advanced_rate_crf, settings.crf)
+                else stringResource(R.string.advanced_rate_kbps, settings.videoBitrateKbps)
+        ),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         style = MaterialTheme.typography.bodySmall
     )
@@ -121,31 +127,31 @@ fun VideoAdvancedSettingsControl(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                "Settings are saved per queued job. Source means the setting is left unchanged for each input file.",
+                stringResource(R.string.advanced_job_snapshot_explanation),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             HorizontalDivider()
-            SectionHeader("Video")
+            SectionHeader(stringResource(R.string.media_video))
 
             val remux = draft.isRemux
             if (remux) {
                 Text(
-                    "Remux copies media streams; changing resolution, FPS, bitrate, pixel format or volume requires re-encoding. Switch to Custom first.",
+                    stringResource(R.string.advanced_remux_explanation),
                     style = MaterialTheme.typography.bodyMedium
                 )
             } else {
                 ChoiceField(
-                    label = "Resolution",
+                    label = stringResource(R.string.video_setting_resolution),
                     value = resolutionChoice,
                     options = listOf(
-                        "source" to "Source / original",
-                        "3840x2160" to "4K UHD · 3840 × 2160",
-                        "2560x1440" to "1440p · 2560 × 1440",
-                        "1920x1080" to "1080p · 1920 × 1080",
-                        "1280x720" to "720p · 1280 × 720",
-                        "854x480" to "480p · 854 × 480",
-                        "custom" to "Custom"
+                        "source" to stringResource(R.string.source_original),
+                        "3840x2160" to stringResource(R.string.option_4k),
+                        "2560x1440" to stringResource(R.string.option_1440p),
+                        "1920x1080" to stringResource(R.string.option_1080p),
+                        "1280x720" to stringResource(R.string.option_720p),
+                        "854x480" to stringResource(R.string.option_480p),
+                        "custom" to stringResource(R.string.preset_custom)
                     ),
                     onChange = { selection ->
                         resolutionChoice = selection
@@ -189,25 +195,25 @@ fun VideoAdvancedSettingsControl(
                     }
                 }
                 ToggleOption(
-                    "Prevent upscaling",
+                    stringResource(R.string.video_setting_prevent_upscaling),
                     draft.preventUpscale,
                     onChange = { draft = draft.copy(preventUpscale = it) }
                 )
 
                 ChoiceField(
-                    label = "Frame rate",
+                    label = stringResource(R.string.video_setting_frame_rate),
                     value = fpsChoice,
                     options = listOf(
-                        "source" to "Source / original",
-                        "23.976" to "23.976 FPS",
-                        "24" to "24 FPS",
-                        "25" to "25 FPS",
-                        "29.97" to "29.97 FPS",
-                        "30" to "30 FPS",
-                        "50" to "50 FPS",
-                        "59.94" to "59.94 FPS",
-                        "60" to "60 FPS",
-                        "custom" to "Custom"
+                        "source" to stringResource(R.string.source_original),
+                        "23.976" to stringResource(R.string.fps_23976),
+                        "24" to stringResource(R.string.fps_24),
+                        "25" to stringResource(R.string.fps_25),
+                        "29.97" to stringResource(R.string.fps_2997),
+                        "30" to stringResource(R.string.fps_30),
+                        "50" to stringResource(R.string.fps_50),
+                        "59.94" to stringResource(R.string.fps_5994),
+                        "60" to stringResource(R.string.fps_60),
+                        "custom" to stringResource(R.string.preset_custom)
                     ),
                     onChange = {
                         fpsChoice = it
@@ -233,33 +239,33 @@ fun VideoAdvancedSettingsControl(
 
                 val videoChoices = when (draft.format) {
                     "webm" -> listOf(
-                        "auto" to "Auto (VP9)", "vp9" to "VP9", "av1" to "AV1"
+                        "auto" to stringResource(R.string.video_option_auto_vp9), "vp9" to stringResource(R.string.advanced_vp9), "av1" to stringResource(R.string.advanced_av1)
                     )
                     "avi" -> listOf(
-                        "auto" to "Auto (H.264)", "h264" to "H.264 / AVC",
-                        "copy" to "Copy video stream"
+                        "auto" to stringResource(R.string.video_option_auto_h264), "h264" to stringResource(R.string.video_option_h264_avc),
+                        "copy" to stringResource(R.string.video_option_copy)
                     )
                     "mp4", "mov" -> listOf(
-                        "auto" to "Auto (H.264)", "h264" to "H.264 / AVC",
-                        "h265" to "H.265 / HEVC", "av1" to "AV1",
-                        "copy" to "Copy video stream"
+                        "auto" to stringResource(R.string.video_option_auto_h264), "h264" to stringResource(R.string.video_option_h264_avc),
+                        "h265" to stringResource(R.string.video_option_h265_hevc), "av1" to stringResource(R.string.advanced_av1),
+                        "copy" to stringResource(R.string.video_option_copy)
                     )
                     else -> listOf(
-                        "auto" to "Auto (H.264)", "h264" to "H.264 / AVC",
-                        "h265" to "H.265 / HEVC", "vp9" to "VP9",
-                        "av1" to "AV1", "copy" to "Copy video stream"
+                        "auto" to stringResource(R.string.video_option_auto_h264), "h264" to stringResource(R.string.video_option_h264_avc),
+                        "h265" to stringResource(R.string.video_option_h265_hevc), "vp9" to stringResource(R.string.advanced_vp9),
+                        "av1" to stringResource(R.string.advanced_av1), "copy" to stringResource(R.string.video_option_copy)
                     )
                 }
-                ChoiceField("Video codec", draft.videoCodec, videoChoices) {
+                ChoiceField(stringResource(R.string.video_setting_video_codec), draft.videoCodec, videoChoices) {
                     draft = draft.copy(videoCodec = it)
                 }
                 ChoiceField(
-                    "Video encoder",
+                    stringResource(R.string.video_setting_video_encoder),
                     draft.encoder,
                     listOf(
-                        "auto" to "Auto (software default)",
-                        "software" to "Software (CPU)",
-                        "hardware" to "Hardware / MediaCodec (experimental)"
+                        "auto" to stringResource(R.string.video_option_auto_software),
+                        "software" to stringResource(R.string.video_option_software_cpu),
+                        "hardware" to stringResource(R.string.video_option_hardware_experimental)
                     )
                 ) {
                     draft = draft.copy(
@@ -271,17 +277,17 @@ fun VideoAdvancedSettingsControl(
                 }
 
                 ChoiceField(
-                    "Rate control",
+                    stringResource(R.string.video_setting_rate_control),
                     draft.rateControl,
                     listOf(
-                        "crf" to "CRF · constant quality",
-                        "vbr" to "VBR · target bitrate",
-                        "cbr" to "CBR · target/peak bitrate"
+                        "crf" to stringResource(R.string.video_option_crf_constant),
+                        "vbr" to stringResource(R.string.video_option_vbr_target),
+                        "cbr" to stringResource(R.string.video_option_cbr_target_peak)
                     )
                 ) { draft = draft.copy(rateControl = it) }
 
                 if (draft.rateControl == "crf") {
-                    Text("CRF: ${draft.crf}", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.crf_label, draft.crf), fontWeight = FontWeight.SemiBold)
                     Slider(
                         value = draft.crf.toFloat(),
                         onValueChange = { draft = draft.copy(crf = it.roundToInt()) },
@@ -289,7 +295,7 @@ fun VideoAdvancedSettingsControl(
                         steps = 50
                     )
                     Text(
-                        "Lower CRF = higher quality and larger output. Default 23 for H.264.",
+                        stringResource(R.string.advanced_crf_explanation),
                         style = MaterialTheme.typography.bodySmall
                     )
                 } else {
@@ -306,20 +312,20 @@ fun VideoAdvancedSettingsControl(
                     )
                 }
                 ChoiceField(
-                    "Pixel format",
+                    stringResource(R.string.video_setting_pixel_format),
                     draft.pixelFormat,
                     listOf(
-                        "auto" to "Auto",
-                        "yuv420p" to "YUV 4:2:0 · 8-bit",
-                        "yuv420p10le" to "YUV 4:2:0 · 10-bit",
-                        "yuv422p" to "YUV 4:2:2 · 8-bit",
-                        "yuv444p" to "YUV 4:4:4 · 8-bit"
+                        "auto" to stringResource(R.string.advanced_auto),
+                        "yuv420p" to stringResource(R.string.video_option_yuv420p),
+                        "yuv420p10le" to stringResource(R.string.video_option_yuv420p10le),
+                        "yuv422p" to stringResource(R.string.video_option_yuv422p),
+                        "yuv444p" to stringResource(R.string.video_option_yuv444p)
                     )
                 ) { draft = draft.copy(pixelFormat = it) }
 
                 if (draft.encoder == "hardware") {
                     Text(
-                        "Hardware encoding requires an encoder supported by the bundled FFmpeg binary and Android device. CRF and some pixel formats are unavailable.",
+                        stringResource(R.string.advanced_hardware_explanation),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -327,33 +333,33 @@ fun VideoAdvancedSettingsControl(
             }
 
             HorizontalDivider()
-            SectionHeader("Audio")
+            SectionHeader(stringResource(R.string.media_audio))
 
             if (!remux) {
                 val audioChoices = when (draft.format) {
                     "webm" -> listOf(
-                        "auto" to "Auto (Opus)", "opus" to "Opus",
-                        "vorbis" to "Vorbis", "copy" to "Copy audio",
-                        "none" to "No audio"
+                        "auto" to stringResource(R.string.audio_option_auto_opus), "opus" to stringResource(R.string.advanced_opus),
+                        "vorbis" to stringResource(R.string.format_desc_vorbis), "copy" to stringResource(R.string.audio_option_copy),
+                        "none" to stringResource(R.string.audio_option_none)
                     )
                     "avi" -> listOf(
-                        "auto" to "Auto (MP3)", "mp3" to "MP3",
-                        "pcm" to "PCM", "copy" to "Copy audio",
-                        "none" to "No audio"
+                        "auto" to stringResource(R.string.audio_option_auto_mp3), "mp3" to stringResource(R.string.advanced_mp3),
+                        "pcm" to stringResource(R.string.format_desc_pcm), "copy" to stringResource(R.string.audio_option_copy),
+                        "none" to stringResource(R.string.audio_option_none)
                     )
                     "mp4", "mov" -> listOf(
-                        "auto" to "Auto (AAC)", "aac" to "AAC",
-                        "mp3" to "MP3", "copy" to "Copy audio",
-                        "none" to "No audio"
+                        "auto" to stringResource(R.string.audio_option_auto_aac), "aac" to stringResource(R.string.advanced_aac),
+                        "mp3" to stringResource(R.string.advanced_mp3), "copy" to stringResource(R.string.audio_option_copy),
+                        "none" to stringResource(R.string.audio_option_none)
                     )
                     else -> listOf(
-                        "auto" to "Auto (AAC)", "aac" to "AAC",
-                        "mp3" to "MP3", "opus" to "Opus", "vorbis" to "Vorbis",
-                        "flac" to "FLAC", "pcm" to "PCM",
-                        "copy" to "Copy audio", "none" to "No audio"
+                        "auto" to stringResource(R.string.audio_option_auto_aac), "aac" to stringResource(R.string.advanced_aac),
+                        "mp3" to stringResource(R.string.advanced_mp3), "opus" to stringResource(R.string.advanced_opus), "vorbis" to stringResource(R.string.format_desc_vorbis),
+                        "flac" to stringResource(R.string.advanced_flac), "pcm" to stringResource(R.string.format_desc_pcm),
+                        "copy" to stringResource(R.string.audio_option_copy), "none" to stringResource(R.string.audio_option_none)
                     )
                 }
-                ChoiceField("Audio codec", draft.audioCodec, audioChoices) {
+                ChoiceField(stringResource(R.string.video_setting_audio_codec), draft.audioCodec, audioChoices) {
                     draft = when (it) {
                         "copy" -> draft.copy(
                             audioCodec = "copy",
@@ -372,13 +378,13 @@ fun VideoAdvancedSettingsControl(
                 }
                 if (draft.audioCodec != "none") {
                     ChoiceField(
-                        "Audio stream",
+                        stringResource(R.string.video_setting_audio_stream),
                         draft.audioStream,
                         listOf(
-                            "first" to "First audio track",
-                            "second" to "Second audio track",
-                            "all" to "All audio tracks",
-                            "none" to "No audio"
+                            "first" to stringResource(R.string.audio_option_first),
+                            "second" to stringResource(R.string.audio_option_second),
+                            "all" to stringResource(R.string.audio_option_all),
+                            "none" to stringResource(R.string.audio_option_none)
                         )
                     ) { draft = draft.copy(audioStream = it) }
                 }
@@ -393,34 +399,34 @@ fun VideoAdvancedSettingsControl(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Text("Volume: ${draft.volumePercent}%", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.volume_label, draft.volumePercent), fontWeight = FontWeight.SemiBold)
                     Slider(
                         value = draft.volumePercent.toFloat(),
                         onValueChange = { draft = draft.copy(volumePercent = it.roundToInt()) },
                         valueRange = 0f..200f
                     )
                     if (draft.volumePercent > 100) Text(
-                        "Warning: raising volume can cause clipping.",
+                        stringResource(R.string.advanced_volume_warning),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall
                     )
                     ChoiceField(
-                        "Sample rate",
+                        stringResource(R.string.video_setting_sample_rate),
                         draft.sampleRate?.toString() ?: "source",
                         listOf(
-                            "source" to "Source / original",
-                            "32000" to "32 kHz", "44100" to "44.1 kHz",
-                            "48000" to "48 kHz", "96000" to "96 kHz"
+                            "source" to stringResource(R.string.source_original),
+                            "32000" to stringResource(R.string.audio_rate_32k), "44100" to stringResource(R.string.audio_rate_44k),
+                            "48000" to stringResource(R.string.audio_rate_48k), "96000" to stringResource(R.string.audio_rate_96k)
                         )
                     ) {
                         draft = draft.copy(sampleRate = it.toIntOrNull())
                     }
                     ChoiceField(
-                        "Audio channels",
+                        stringResource(R.string.video_setting_audio_channels),
                         draft.channels?.toString() ?: "source",
                         listOf(
-                            "source" to "Source / original",
-                            "1" to "Mono", "2" to "Stereo", "6" to "5.1"
+                            "source" to stringResource(R.string.source_original),
+                            "1" to stringResource(R.string.audio_option_mono), "2" to stringResource(R.string.audio_option_stereo), "6" to stringResource(R.string.advanced_5_1)
                         )
                     ) { draft = draft.copy(channels = it.toIntOrNull()) }
                 }
@@ -429,24 +435,24 @@ fun VideoAdvancedSettingsControl(
             }
 
             HorizontalDivider()
-            SectionHeader("Other")
+            SectionHeader(stringResource(R.string.video_setting_other))
             ChoiceField(
                 "Subtitle",
                 draft.subtitleMode,
                 listOf(
-                    "auto" to "Auto (preserve if compatible)",
-                    "none" to "Do not include subtitles",
-                    "copy" to "Copy subtitles (MKV only)"
+                    "auto" to stringResource(R.string.subtitle_option_auto),
+                    "none" to stringResource(R.string.subtitle_option_none),
+                    "copy" to stringResource(R.string.subtitle_option_copy)
                 )
             ) { draft = draft.copy(subtitleMode = it) }
 
             ToggleOption(
-                "Keep metadata",
+                stringResource(R.string.video_setting_keep_metadata),
                 draft.preserveMetadata
             ) { draft = draft.copy(preserveMetadata = it) }
             if (draft.format == "mp4") {
                 ToggleOption(
-                    "MP4 Fast Start",
+                    stringResource(R.string.video_setting_mp4_fast_start),
                     draft.fastStart
                 ) { draft = draft.copy(fastStart = it) }
             }

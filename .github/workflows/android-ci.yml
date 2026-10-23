@@ -30,8 +30,11 @@ jobs:
           cache: gradle
 
       - name: Create local.properties
-        run: echo sdk.dir=C:/Users/space/AppData/Local/Android/Sdk>local.properties
-        shell: cmd
+        shell: powershell
+        run: |
+          # Java .properties syntax requires an escaped Windows drive colon.
+          $sdk = $env:ANDROID_HOME.Replace('\', '/').Replace(':', '\:')
+          Set-Content -Path local.properties -Value "sdk.dir=$sdk" -Encoding ascii -NoNewline
 
       - name: Build Debug APK
         run: gradlew.bat assembleDebug --stacktrace

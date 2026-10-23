@@ -3,6 +3,8 @@ package org.roruku.smartformatconverter.ui.converter
 import android.app.Application
 import android.net.Uri
 import android.util.Log
+import androidx.annotation.StringRes
+import org.roruku.smartformatconverter.R
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -146,14 +148,14 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 val rejected = uris.size - filtered.size
                 _uiState.update {
                     it.copy(message = if (rejected > 0) {
-                        "Added ${filtered.size} matching files; skipped $rejected other media files."
+                        messageFor(R.string.vm_files_added_skipped, filtered.size, rejected)
                     } else {
-                        "Added ${filtered.size} files."
+                        messageFor(R.string.vm_files_added, filtered.size)
                     })
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed selecting media files", e)
-                _uiState.update { it.copy(message = "Could not read selected files: ${e.message}") }
+                _uiState.update { it.copy(message = messageFor(R.string.vm_files_read_failed, e.message ?: messageFor(R.string.vm_unknown_reason))) }
             }
         }
     }
@@ -172,7 +174,7 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 val outputUri = settings.defaultOutputUri
                 if (outputUri.isNullOrBlank()) {
                     _uiState.update {
-                        it.copy(message = "Set your parent folder in Settings before scanning batches.")
+                        it.copy(message = messageFor(R.string.vm_parent_folder_scan_required))
                     }
                     return@launch
                 }
@@ -214,14 +216,14 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 val added = _uiState.value.selectedFiles.size - oldCount
                 _uiState.update {
                     it.copy(message = if (added == 0) {
-                        "No new matching files found. Output folders named Converter/Converted are excluded."
+                        messageFor(R.string.vm_scan_empty)
                     } else {
-                        "Added $added ${mediaType.name.lowercase()} files. Folder structure will be preserved."
+                        messageFor(R.string.vm_scan_added, added, mediaTypeLabel(mediaType))
                     })
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed scanning batch folder", e)
-                _uiState.update { it.copy(message = "Folder scan failed: ${e.message}") }
+                _uiState.update { it.copy(message = messageFor(R.string.vm_scan_failed, e.message ?: messageFor(R.string.vm_unknown_reason))) }
             } finally {
                 _uiState.update { it.copy(isScanning = false) }
             }
@@ -327,7 +329,7 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 val settings = preferences.userSettingsFlow.first()
                 if (settings.defaultOutputUri.isNullOrBlank()) {
                     _uiState.update {
-                        it.copy(message = "Choose a parent output folder in Settings first.")
+                        it.copy(message = messageFor(R.string.vm_parent_folder_conversion_required))
                     }
                     return@launch
                 }
@@ -353,13 +355,13 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                         selectedFiles = emptyList(),
                         perFileVideoSettings = emptyMap(),
                         isEditorOpen = false,
-                        message = "Queued ${jobs.size} files. Output: parent/Converter/ (batch folders preserved)."
+                        message = messageFor(R.string.vm_jobs_queued, jobs.size)
                     )
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed starting conversion", e)
                 _uiState.update {
-                    it.copy(message = "Conversion queue could not start: ${e.message}")
+                    it.copy(message = messageFor(R.string.vm_queue_failed, e.message ?: messageFor(R.string.vm_unknown_reason)))
                 }
             } finally {
                 _uiState.update { it.copy(isConverting = false) }
@@ -370,6 +372,18 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
     fun clearMessage() {
         _uiState.update { it.copy(message = null) }
     }
+
+    private fun messageFor(@StringRes resId: Int, vararg arguments: Any): String =
+        getApplication<Application>().getString(resId, *arguments)
+
+    private fun mediaTypeLabel(type: MediaType): String = messageFor(
+        when (type) {
+            MediaType.VIDEO -> R.string.media_video
+            MediaType.IMAGE -> R.string.media_image
+            MediaType.AUDIO -> R.string.media_audio
+            MediaType.DOWNLOAD -> R.string.media_download
+        }
+    )
 
     private fun typeForTab(index: Int): MediaType = when (index) {
         0 -> MediaType.VIDEO

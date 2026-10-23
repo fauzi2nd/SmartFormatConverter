@@ -105,6 +105,10 @@ dependencies {
     // Image Loading
     implementation(libs.coil.compose)
 
+    // Source previews: ExoPlayer for video and audio.
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
+
     // FFmpeg Multimedia Engine
     // WARNING:
     // RxFFmpeg 4.9.0 contains native binaries

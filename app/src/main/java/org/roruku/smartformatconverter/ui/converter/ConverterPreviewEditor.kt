@@ -281,12 +281,12 @@ fun ConverterPreviewEditor(
                 Text(stringResource(R.string.preview_and_convert), fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "${editorCategoryName(state.selectedTab)} → ${state.targetFormat.uppercase()}",
+                    stringResource(R.string.editor_category_format, editorCategoryName(state.selectedTab), state.targetFormat.uppercase()),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Text("${files.size} files", style = MaterialTheme.typography.labelMedium)
+            Text(stringResource(R.string.files_count_format, files.size), style = MaterialTheme.typography.labelMedium)
         }
         HorizontalDivider()
 
@@ -373,7 +373,7 @@ fun ConverterPreviewEditor(
                     Row(verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            "${pager.currentPage + 1} / ${files.size}",
+                            stringResource(R.string.media_index_format, pager.currentPage + 1, files.size),
                             style = MaterialTheme.typography.labelMedium
                         )
                         Spacer(Modifier.weight(1f))
@@ -574,7 +574,7 @@ fun ConverterPreviewEditor(
                         Column(Modifier.padding(14.dp)) {
                             Text(stringResource(R.string.output_location), style = MaterialTheme.typography.labelMedium)
                             Text(
-                                "<Folder induk>/${outputFolder}/",
+                                stringResource(R.string.parent_output_location, outputFolder),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -603,7 +603,7 @@ fun ConverterPreviewEditor(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     if (state.isConverting) stringResource(R.string.preparing_queue)
-                    else "${stringResource(R.string.start_conversion)} (${files.size})"
+                    else stringResource(R.string.start_conversion_count, files.size)
                 )
             }
         }

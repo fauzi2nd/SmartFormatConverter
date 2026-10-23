@@ -181,7 +181,16 @@ class ConversionRepository(
                     }
                     val config = AudioConversionConfig(
                         outputFormat = format,
-                        audioCodec = codec
+                        audioCodec = codec,
+                        // libopus does not accept 44.1 kHz. Other lossless
+                        // formats should keep the original sample rate.
+                        sampleRate = when (format) {
+                            AudioOutputFormat.OPUS -> 48000
+                            AudioOutputFormat.WAV,
+                            AudioOutputFormat.FLAC,
+                            AudioOutputFormat.OGG -> null
+                            else -> 44100
+                        }
                     )
                     FFmpegEngine.convertAudio(
                         context = context,

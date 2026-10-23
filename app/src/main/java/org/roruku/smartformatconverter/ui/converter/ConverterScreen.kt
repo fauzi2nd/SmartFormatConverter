@@ -56,6 +56,7 @@ import org.roruku.smartformatconverter.data.storage.MediaDetails
 import org.roruku.smartformatconverter.data.storage.OutputPathPolicy
 import org.roruku.smartformatconverter.data.storage.StorageManager
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
+import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 
 @Composable
 fun ConverterScreen(
@@ -69,6 +70,7 @@ fun ConverterScreen(
             onSelectTab = {},
             onUpdateTargetFormat = {},
             onUpdatePreset = {},
+            onUpdateVideoSettings = {},
             onRemoveSelectedFile = {},
             onAddSelectedUris = {},
             onScanAndAddFolder = {},
@@ -93,6 +95,7 @@ fun ConverterScreen(
             onSelectTab = viewModel::selectTab,
             onUpdateTargetFormat = viewModel::updateTargetFormat,
             onUpdatePreset = viewModel::updatePreset,
+            onUpdateVideoSettings = viewModel::updateVideoSettings,
             onRemoveSelectedFile = viewModel::removeSelectedFile,
             onAddSelectedUris = viewModel::addSelectedUris,
             onScanAndAddFolder = viewModel::scanAndAddFolder,
@@ -108,6 +111,7 @@ fun ConverterScreenContent(
     onSelectTab: (Int) -> Unit,
     onUpdateTargetFormat: (String) -> Unit,
     onUpdatePreset: (String) -> Unit,
+    onUpdateVideoSettings: (VideoAdvancedSettings) -> Unit,
     onRemoveSelectedFile: (SelectedMediaFile) -> Unit,
     onAddSelectedUris: (List<Uri>) -> Unit,
     onScanAndAddFolder: (Uri) -> Unit,
@@ -255,7 +259,15 @@ fun ConverterScreenContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (uiState.selectedTab == 0) {
+            VideoAdvancedSettingsControl(
+                settings = uiState.videoSettings,
+                onApply = onUpdateVideoSettings
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
         Text(
             text = "Selected Files (${uiState.selectedFiles.size})",
@@ -430,6 +442,7 @@ fun ConverterScreenPreview() {
             onSelectTab = {},
             onUpdateTargetFormat = {},
             onUpdatePreset = {},
+            onUpdateVideoSettings = {},
             onRemoveSelectedFile = {},
             onAddSelectedUris = {},
             onScanAndAddFolder = {},

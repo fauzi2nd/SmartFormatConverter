@@ -50,6 +50,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import org.roruku.smartformatconverter.R
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -286,7 +287,7 @@ fun ConverterPreviewEditor(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Text(stringResource(R.string.files_count_format, files.size), style = MaterialTheme.typography.labelMedium)
+            Text(pluralStringResource(R.plurals.files_count_format, files.size, files.size), style = MaterialTheme.typography.labelMedium)
         }
         HorizontalDivider()
 

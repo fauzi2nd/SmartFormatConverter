@@ -22,16 +22,12 @@ jobs:
           fetch-depth: 0
           clean: false
 
-      - name: Set up JDK 17
+      - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'murine'
+          java-version: '25'
+          distribution: 'temurin'
           cache: gradle
-
-      - name: Patch libjpeg-turbo CMakeLists.txt
-        run: (Get-Content third_party/libjpeg-turbo/CMakeLists.txt) -replace 'message\(FATAL_ERROR "The \$\{CMAKE_PROJECT_NAME\}', '# message(FATAL_ERROR "The \$\{CMAKE_PROJECT_NAME\}' | Set-Content third_party/libjpeg-turbo/CMakeLists.txt
-        shell: powershell
 
       - name: Create local.properties
         run: echo sdk.dir=C:/Users/space/AppData/Local/Android/Sdk>local.properties

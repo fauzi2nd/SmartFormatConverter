@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "org.roruku.smartformatconverter"
     compileSdk = 35
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "org.roruku.smartformatconverter"

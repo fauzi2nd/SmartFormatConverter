@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">Smart Format Converter</string>
 
     <!-- Home Screen -->
@@ -22,7 +22,10 @@
     <!-- Converter Screen & Preview Editor -->
     <string name="preview_and_convert">Preview &amp; Convert</string>
     <string name="no_media_selected">No media available. Go back and select another file.</string>
-    <string name="files_count_format">%d files</string>
+    <plurals name="files_count_format">
+        <item quantity="one">%d file</item>
+        <item quantity="other">%d files</item>
+    </plurals>
     <string name="output_format">Output Format</string>
     <string name="chosen_in_catalog">Selected in catalog</string>
     <string name="preset">Preset</string>
@@ -50,7 +53,7 @@
     <string name="convert_to_format">Convert to %s</string>
     <string name="select_media_source">Select media source</string>
     <string name="original_filename_preserved">Original filename preserved · extension .%s</string>
-    <string name="preparing_queue">Preparing queue...</string>
+    <string name="preparing_queue">Preparing queue…</string>
     <string name="back">Back</string>
     <string name="source_image_preview">Source image preview</string>
     <string name="remove_from_list">Remove from list</string>
@@ -108,7 +111,7 @@
     <string name="downloader_subtitle">Download media from supported web URLs</string>
     <string name="media_url">Media URL</string>
     <string name="media_url_placeholder">https://…</string>
-    <string name="inspecting_url">Inspecting URL...</string>
+    <string name="inspecting_url">Inspecting URL…</string>
     <string name="inspect_url">Inspect URL</string>
     <string name="start_download">Start Download</string>
 
@@ -216,7 +219,8 @@
     <string name="audio_rate_96k">96 kHz</string>
     <string name="advanced_auto">Auto</string>
     <string name="advanced_vp9">VP9</string>
-    <string name="advanced_av1">AV1</string>
+    <!-- AV1 is the official video codec name, not the typo "AV!". -->
+    <string name="advanced_av1" tools:ignore="Typos">AV1</string>
     <string name="advanced_opus">Opus</string>
     <string name="advanced_mp3">MP3</string>
     <string name="advanced_aac">AAC</string>
@@ -254,15 +258,32 @@
     <string name="job_status_interrupted">Interrupted</string>
 
     <!-- Conversion selection and job submission status messages -->
-    <string name="vm_files_added">Added %1$d files.</string>
-    <string name="vm_files_added_skipped">Added %1$d matching files; skipped %2$d other media files.</string>
+    <plurals name="vm_files_added">
+        <item quantity="one">Added %d file.</item>
+        <item quantity="other">Added %d files.</item>
+    </plurals>
+    <plurals name="vm_matching_added">
+        <item quantity="one">Added %d matching file</item>
+        <item quantity="other">Added %d matching files</item>
+    </plurals>
+    <plurals name="vm_media_skipped">
+        <item quantity="one">skipped %d other media file</item>
+        <item quantity="other">skipped %d other media files</item>
+    </plurals>
+    <string name="vm_files_added_skipped">%1$s; %2$s.</string>
     <string name="vm_files_read_failed">Could not read selected files: %1$s</string>
     <string name="vm_parent_folder_scan_required">Set your parent folder in Settings before scanning batches.</string>
     <string name="vm_scan_empty">No new matching files found. Output folders named Converter/Converted are excluded.</string>
-    <string name="vm_scan_added">Added %1$d %2$s files. Folder structure will be preserved.</string>
+    <plurals name="vm_scan_added">
+        <item quantity="one">Added %1$d %2$s file. Folder structure will be preserved.</item>
+        <item quantity="other">Added %1$d %2$s files. Folder structure will be preserved.</item>
+    </plurals>
     <string name="vm_scan_failed">Folder scan failed: %1$s</string>
     <string name="vm_parent_folder_conversion_required">Choose a parent output folder in Settings first.</string>
-    <string name="vm_jobs_queued">Queued %1$d files. Output: parent/Converter/ (batch folders preserved).</string>
+    <plurals name="vm_jobs_queued">
+        <item quantity="one">Queued %d file. Output: parent/Converter/ (batch folders preserved).</item>
+        <item quantity="other">Queued %d files. Output: parent/Converter/ (batch folders preserved).</item>
+    </plurals>
     <string name="vm_queue_failed">Conversion queue could not start: %1$s</string>
     <string name="vm_unknown_reason">Unknown error</string>
 
@@ -271,7 +292,7 @@
     <string name="download_queued_message">Download queued: %1$s</string>
     <string name="conversion_notification_channel">Media Conversion Service</string>
     <string name="conversion_notification_channel_description">Shows ongoing media conversion progress</string>
-    <string name="conversion_notification_processing">Processing media files...</string>
+    <string name="conversion_notification_processing">Processing media files…</string>
     <string name="conversion_notification_title">Converting %1$s</string>
     <string name="conversion_notification_progress">%1$d%% complete</string>
 </resources>

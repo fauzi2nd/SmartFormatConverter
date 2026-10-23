@@ -61,6 +61,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -80,6 +82,8 @@ import coil.request.videoFrameMillis
 import kotlinx.coroutines.launch
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 import org.roruku.smartformatconverter.data.storage.OutputPathPolicy
+import org.roruku.smartformatconverter.data.storage.MediaDetails
+import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 
 /**
  * Preview source media before conversion. The fixed action area is outside the
@@ -98,13 +102,15 @@ fun ConverterPreviewEditor(
 ) {
     val files = state.selectedFiles
     val context = LocalContext.current
-    val videoThumbLoader = remember(context) {
+    val isPreview = LocalInspectionMode.current
+    // Design-time preview must not instantiate decoders, players or file IO.
+    val videoThumbLoader = if (isPreview) null else remember(context) {
         ImageLoader.Builder(context).components {
             add(VideoFrameDecoder.Factory())
         }.build()
     }
     DisposableEffect(videoThumbLoader) {
-        onDispose { videoThumbLoader.shutdown() }
+        onDispose { videoThumbLoader?.shutdown() }
     }
     BackHandler { onBack() }
     val pager = rememberPagerState(pageCount = { files.size })
@@ -170,10 +176,14 @@ fun ConverterPreviewEditor(
                                 // One active player only; neighboring pager items
                                 // have placeholders and never decode simultaneously.
                                 if (page == pager.currentPage) {
-                                    when (state.selectedTab) {
-                                        0 -> SourcePlayer(media.uri, audio = false)
-                                        1 -> ZoomableImage(media.uri)
-                                        else -> SourcePlayer(media.uri, audio = true)
+                                    if (isPreview) {
+                                        SourceMediaDesignPreview(state.selectedTab)
+                                    } else {
+                                        when (state.selectedTab) {
+                                            0 -> SourcePlayer(media.uri, audio = false)
+                                            1 -> ZoomableImage(media.uri)
+                                            else -> SourcePlayer(media.uri, audio = true)
+                                        }
                                     }
                                 } else {
                                     Box(
@@ -254,19 +264,20 @@ fun ConverterPreviewEditor(
                                     modifier = Modifier.width(100.dp).padding(8.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    when (state.selectedTab) {
-                                        0 -> AsyncImage(
-                                            model = ImageRequest.Builder(context)
-                                                .data(file.uri)
-                                                .videoFrameMillis(1000)
-                                                .size(240, 140)
-                                                .build(),
-                                            imageLoader = videoThumbLoader,
-                                            contentDescription = "Video thumbnail",
-                                            modifier = Modifier.fillMaxWidth().height(56.dp),
-                                            contentScale = ContentScale.Crop
-                                        )
-                                        1 -> AsyncImage(
+                                    when {
+                                        !isPreview && state.selectedTab == 0 && videoThumbLoader != null ->
+                                            AsyncImage(
+                                                model = ImageRequest.Builder(context)
+                                                    .data(file.uri)
+                                                    .videoFrameMillis(1000)
+                                                    .size(240, 140)
+                                                    .build(),
+                                                imageLoader = videoThumbLoader,
+                                                contentDescription = "Video thumbnail",
+                                                modifier = Modifier.fillMaxWidth().height(56.dp),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        !isPreview && state.selectedTab == 1 -> AsyncImage(
                                             model = file.uri,
                                             contentDescription = "Image thumbnail",
                                             modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -276,8 +287,14 @@ fun ConverterPreviewEditor(
                                             Modifier.fillMaxWidth().height(56.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Icon(Icons.Default.Audiotrack,
-                                                contentDescription = null)
+                                            Icon(
+                                                when (state.selectedTab) {
+                                                    0 -> Icons.Default.Movie
+                                                    1 -> Icons.Default.Image
+                                                    else -> Icons.Default.Audiotrack
+                                                },
+                                                contentDescription = null
+                                            )
                                         }
                                     }
                                     Text(
@@ -535,6 +552,127 @@ private fun SourcePlayer(uri: Uri, audio: Boolean) {
             },
             update = { it.player = player },
             modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+        )
+    }
+}
+
+
+/** Renderer used only by Android Studio Preview; never pretends to play a file. */
+@Composable
+private fun SourceMediaDesignPreview(tab: Int) {
+    Box(
+        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                when (tab) {
+                    0 -> Icons.Default.Movie
+                    1 -> Icons.Default.Image
+                    else -> Icons.Default.Audiotrack
+                },
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                when (tab) {
+                    0 -> "Video source preview"
+                    1 -> "Image source preview"
+                    else -> "Audio player preview"
+                },
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                "Playback / image loading tersedia di perangkat",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+private fun previewFiles(tab: Int): List<SelectedMediaFile> {
+    val filenames = when (tab) {
+        0 -> listOf("Hasumi_001.mov", "Hasumi_002.mkv", "Hasumi_003.mp4")
+        1 -> listOf("IMG_001.png", "IMG_002.webp", "IMG_003.heic")
+        else -> listOf("Track_01.flac", "Track_02.wav", "Track_03.m4a")
+    }
+    val mime = when (tab) {
+        0 -> "video/mp4"
+        1 -> "image/jpeg"
+        else -> "audio/flac"
+    }
+    return filenames.mapIndexed { i, filename ->
+        SelectedMediaFile(
+            uri = Uri.parse("content://preview/${tab}/${i + 1}"),
+            details = MediaDetails(
+                fileName = filename,
+                fileSize = (i + 1) * 12L * 1024L * 1024L,
+                mimeType = mime,
+                width = if (tab == 0 || tab == 1) 1920 else 0,
+                height = if (tab == 0 || tab == 1) 1080 else 0
+            ),
+            relativeFolderPath = "Hasumi"
+        )
+    }
+}
+
+@Composable
+private fun PreviewEditorSample(tab: Int) {
+    SmartFormatConverterTheme {
+        ConverterPreviewEditor(
+            state = ConverterUiState(
+                selectedTab = tab,
+                selectedFiles = previewFiles(tab),
+                targetFormat = when (tab) {
+                    0 -> "mp4"
+                    1 -> "jpg"
+                    else -> "flac"
+                }
+            ),
+            onBack = {},
+            onStart = {},
+            onRemove = {},
+            onUpdatePreset = {},
+            onUpdateVideoSettings = {},
+            onUpdateVideoFileSettings = { _, _ -> },
+            onClearVideoFileSettings = {}
+        )
+    }
+}
+
+@Preview(name = "Preview & Convert - Video", showBackground = true, widthDp = 393, heightDp = 840)
+@Composable
+fun ConverterVideoEditorPreview() {
+    PreviewEditorSample(tab = 0)
+}
+
+@Preview(name = "Preview & Convert - Image", showBackground = true, widthDp = 393, heightDp = 840)
+@Composable
+fun ConverterImageEditorPreview() {
+    PreviewEditorSample(tab = 1)
+}
+
+@Preview(name = "Preview & Convert - Audio", showBackground = true, widthDp = 393, heightDp = 840)
+@Composable
+fun ConverterAudioEditorPreview() {
+    PreviewEditorSample(tab = 2)
+}
+
+@Preview(name = "Preview & Convert - Empty", showBackground = true, widthDp = 393, heightDp = 840)
+@Composable
+fun ConverterEmptyEditorPreview() {
+    SmartFormatConverterTheme {
+        ConverterPreviewEditor(
+            state = ConverterUiState(selectedTab = 0, selectedFiles = emptyList()),
+            onBack = {},
+            onStart = {},
+            onRemove = {},
+            onUpdatePreset = {},
+            onUpdateVideoSettings = {},
+            onUpdateVideoFileSettings = { _, _ -> },
+            onClearVideoFileSettings = {}
         )
     }
 }

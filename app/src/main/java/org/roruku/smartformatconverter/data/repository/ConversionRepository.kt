@@ -18,6 +18,12 @@ import org.roruku.smartformatconverter.data.db.JobStatus
 import org.roruku.smartformatconverter.data.db.MediaType
 import org.roruku.smartformatconverter.data.preferences.UserPreferencesRepository
 import org.roruku.smartformatconverter.data.storage.StorageManager
+import org.roruku.smartformatconverter.data.storage.OutputPathPolicy
+import org.roruku.smartformatconverter.engine.ffmpeg.VideoOutputFormat
+import org.roruku.smartformatconverter.engine.ffmpeg.VideoPreset
+import org.roruku.smartformatconverter.engine.ffmpeg.VideoCodec
+import org.roruku.smartformatconverter.engine.ffmpeg.AudioOutputFormat
+import org.roruku.smartformatconverter.engine.ffmpeg.AudioCodec
 import org.roruku.smartformatconverter.engine.downloader.HttpDownloaderEngine
 import org.roruku.smartformatconverter.engine.downloader.HttpMediaFormatOption
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioConversionConfig
@@ -94,6 +100,12 @@ class ConversionRepository(
         try {
             dao.updateProgress(job.id, JobStatus.RUNNING, 0.05f, "0.0x", "Estimating...")
             val settings = userPrefs.userSettingsFlow.first()
+            val outputRootUri = settings.defaultOutputUri
+                ?.takeIf { it.isNotBlank() }
+                ?.let(Uri::parse)
+                ?: throw IllegalStateException(
+                    "Select a parent output folder in Settings before converting."
+                )
 
             val tempOutFile = StorageManager.createTempFileInCache(
                 context,
@@ -125,7 +137,24 @@ class ConversionRepository(
                     )
                 }
                 MediaType.VIDEO -> {
-                    val config = VideoConversionConfig()
+                    val format = VideoOutputFormat.entries.firstOrNull {
+                        it.extension.equals(job.outputFormat, ignoreCase = true)
+                    } ?: VideoOutputFormat.MP4
+                    val preset = VideoPreset.entries.firstOrNull {
+                        it.displayName.equals(job.presetName, ignoreCase = true)
+                    } ?: VideoPreset.BALANCED
+                    val config = VideoConversionConfig(
+                        outputFormat = format,
+                        preset = preset,
+                        remuxMode = preset == VideoPreset.REMUX,
+                        videoCodec = if (format == VideoOutputFormat.WEBM) VideoCodec.VP9 else VideoCodec.H264,
+                        audioCodec = when (format) {
+                            VideoOutputFormat.WEBM -> AudioCodec.OPUS
+                            VideoOutputFormat.AVI -> AudioCodec.MP3
+                            else -> AudioCodec.AAC
+                        },
+                        crf = preset.crf
+                    )
                     FFmpegEngine.convertVideo(
                         context = context,
                         inputUri = job.inputUri.toUri(),
@@ -139,7 +168,21 @@ class ConversionRepository(
                     )
                 }
                 MediaType.AUDIO -> {
-                    val config = AudioConversionConfig()
+                    val format = AudioOutputFormat.entries.firstOrNull {
+                        it.extension.equals(job.outputFormat, ignoreCase = true)
+                    } ?: AudioOutputFormat.MP3
+                    val codec = when (format) {
+                        AudioOutputFormat.MP3 -> AudioCodec.MP3
+                        AudioOutputFormat.AAC, AudioOutputFormat.M4A -> AudioCodec.AAC
+                        AudioOutputFormat.OGG -> AudioCodec.VORBIS
+                        AudioOutputFormat.OPUS -> AudioCodec.OPUS
+                        AudioOutputFormat.FLAC -> AudioCodec.FLAC
+                        AudioOutputFormat.WAV -> AudioCodec.PCM_S16LE
+                    }
+                    val config = AudioConversionConfig(
+                        outputFormat = format,
+                        audioCodec = codec
+                    )
                     FFmpegEngine.convertAudio(
                         context = context,
                         inputUri = job.inputUri.toUri(),
@@ -183,38 +226,41 @@ class ConversionRepository(
             val finalFile = conversionResult.getOrThrow()
             val outputSize = finalFile.length()
 
-            if (!settings.defaultOutputUri.isNullOrBlank()) {
-                val parentTreeUri = Uri.parse(settings.defaultOutputUri)
-                val destDocFile = StorageManager.createDestinationDocumentFile(
-                    context = context,
-                    treeUri = parentTreeUri,
-                    relativeSubfolder = job.relativeFolderPath,
-                    fileName = job.fileName,
-                    mimeType = StorageManager.getMimeType(context, Uri.fromFile(finalFile))
-                )
-
-                if (destDocFile != null) {
-                    val copied = StorageManager.copyFileToDocumentUri(context, finalFile, destDocFile)
-                    if (copied) {
-                        val finalOutputUri = destDocFile.uri.toString()
-                        dao.markCompleted(
-                            jobId = job.id,
-                            outputUri = finalOutputUri,
-                            outputFileSize = outputSize
-                        )
-                        return@withContext Result.success(finalOutputUri)
-                    }
-                }
-            }
-
-            val outputUriStr = finalFile.toURI().toString()
-            dao.markCompleted(
-                jobId = job.id,
-                outputUri = outputUriStr,
-                outputFileSize = outputSize
+            // Always save below <selected-parent>/Converter/.
+            // +Files => Converter/<name>.<ext>
+            // Folder => Converter/<relative-batch-path>/<name>.<ext>
+            val outputDirectory = OutputPathPolicy.outputDirectory(job.relativeFolderPath)
+            val outputName = OutputPathPolicy.outputFileName(
+                originalName = job.fileName,
+                extension = job.outputFormat,
+                format = settings.filenameFormat,
+                customPrefix = settings.customPrefix
+            )
+            val mimeType = StorageManager.getMimeType(context, Uri.fromFile(finalFile))
+            val destination = StorageManager.createDestinationDocumentFile(
+                context = context,
+                treeUri = outputRootUri,
+                relativeSubfolder = outputDirectory,
+                fileName = outputName,
+                mimeType = mimeType
+            ) ?: throw IllegalStateException(
+                "Could not create $outputDirectory/$outputName. Check folder permissions."
             )
 
-            Result.success(outputUriStr)
+            if (!StorageManager.copyFileToDocumentUri(context, finalFile, destination)) {
+                // A failed copy must not leave a corrupted destination document.
+                destination.delete()
+                throw IllegalStateException("Failed writing $outputDirectory/$outputName")
+            }
+
+            val outputUri = destination.uri.toString()
+            dao.markCompleted(
+                jobId = job.id,
+                outputUri = outputUri,
+                outputFileSize = outputSize
+            )
+            finalFile.delete()
+            Result.success(outputUri)
         } catch (e: Exception) {
             Log.e(TAG, "Error executing job ${job.id}", e)
             dao.markFailed(job.id, e.message ?: "Job failed with exception")

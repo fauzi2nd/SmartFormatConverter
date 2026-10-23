@@ -110,7 +110,7 @@ fun MainAppScreen() {
                         },
                         icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
                         label = { Text(item.title, maxLines = 1) },
-                        alwaysShowLabel = false
+                        alwaysShowLabel = true
                     )
                 }
             }

@@ -10,7 +10,7 @@ set(WITH_SIMD OFF CACHE BOOL "" FORCE)
 get_filename_component(LIBJPEG_TURBO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/libjpeg-turbo" REALPATH)
 
 set(SAVED_CMAKE_SOURCE_DIR "${CMAKE_SOURCE_DIR}")
-set(CMAKE_SOURCE_DIR "${LIBJPEG_TURBO_DIR}")
+set(CMAKE_SOURCE_DIR "${LIBJPEG_TURBO_DIR}" CACHE PATH "" FORCE)
 
 add_subdirectory(
     "${LIBJPEG_TURBO_DIR}"
@@ -18,7 +18,7 @@ add_subdirectory(
     EXCLUDE_FROM_ALL
 )
 
-set(CMAKE_SOURCE_DIR "${SAVED_CMAKE_SOURCE_DIR}")
+set(CMAKE_SOURCE_DIR "${SAVED_CMAKE_SOURCE_DIR}" CACHE PATH "" FORCE)
 
 add_library(
         jpeg_encoder_native

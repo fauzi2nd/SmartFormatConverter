@@ -28,6 +28,9 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Patch libjpeg-turbo CMakeLists.txt
+        run: powershell -Command "(Get-Content third_party/libjpeg-turbo/CMakeLists.txt) -replace 'message\(FATAL_ERROR \"The \$\{CMAKE_PROJECT_NAME\}', '# message(FATAL_ERROR \"The \$\{CMAKE_PROJECT_NAME\}' | Set-Content third_party/libjpeg-turbo/CMakeLists.txt"
+
       - name: Create local.properties
         run: echo sdk.dir=C:/Users/space/AppData/Local/Android/Sdk>local.properties
         shell: cmd

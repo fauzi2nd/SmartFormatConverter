@@ -72,8 +72,11 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerControlView
 import androidx.media3.ui.PlayerView
+import coil.ImageLoader
 import coil.compose.AsyncImage
+import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
+import coil.request.videoFrameMillis
 import kotlinx.coroutines.launch
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 import org.roruku.smartformatconverter.data.storage.OutputPathPolicy
@@ -95,6 +98,14 @@ fun ConverterPreviewEditor(
 ) {
     val files = state.selectedFiles
     val context = LocalContext.current
+    val videoThumbLoader = remember(context) {
+        ImageLoader.Builder(context).components {
+            add(VideoFrameDecoder.Factory())
+        }.build()
+    }
+    DisposableEffect(videoThumbLoader) {
+        onDispose { videoThumbLoader.shutdown() }
+    }
     BackHandler { onBack() }
     val pager = rememberPagerState(pageCount = { files.size })
     val coroutineScope = rememberCoroutineScope()
@@ -243,23 +254,30 @@ fun ConverterPreviewEditor(
                                     modifier = Modifier.width(100.dp).padding(8.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    if (state.selectedTab == 1) {
-                                        AsyncImage(
-                                            model = file.uri,
-                                            contentDescription = null,
+                                    when (state.selectedTab) {
+                                        0 -> AsyncImage(
+                                            model = ImageRequest.Builder(context)
+                                                .data(file.uri)
+                                                .videoFrameMillis(1000)
+                                                .size(240, 140)
+                                                .build(),
+                                            imageLoader = videoThumbLoader,
+                                            contentDescription = "Video thumbnail",
                                             modifier = Modifier.fillMaxWidth().height(56.dp),
                                             contentScale = ContentScale.Crop
                                         )
-                                    } else {
-                                        Box(
+                                        1 -> AsyncImage(
+                                            model = file.uri,
+                                            contentDescription = "Image thumbnail",
+                                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                        else -> Box(
                                             Modifier.fillMaxWidth().height(56.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Icon(
-                                                if (state.selectedTab == 0) Icons.Default.Movie
-                                                else Icons.Default.Audiotrack,
-                                                contentDescription = null
-                                            )
+                                            Icon(Icons.Default.Audiotrack,
+                                                contentDescription = null)
                                         }
                                     }
                                     Text(

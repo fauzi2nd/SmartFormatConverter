@@ -154,6 +154,7 @@ object FFmpegEngine {
         inputUri: Uri,
         tempOutputFile: File,
         config: VideoConversionConfig,
+        advancedSettings: VideoAdvancedSettings? = null,
         onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
         try {
@@ -169,58 +170,39 @@ object FFmpegEngine {
 
                 coroutineContext.ensureActive()
 
-                val cmdList = mutableListOf("ffmpeg", "-y", "-i", tempInputFile.absolutePath)
-
-                if (config.remuxMode || config.preset == VideoPreset.REMUX) {
-                    cmdList.addAll(listOf("-c", "copy"))
+                val cmdList = if (advancedSettings != null) {
+                    VideoCommandBuilder.build(
+                        inputPath = tempInputFile.absolutePath,
+                        outputPath = tempOutputFile.absolutePath,
+                        settings = advancedSettings
+                    )
                 } else {
-                    cmdList.addAll(listOf("-c:v", config.videoCodec.ffmpegName))
-                    // Encoder-specific options: libvpx-vp9 does not accept the
-                    // x264 -preset option, and stream copy cannot use -crf.
-                    when (config.videoCodec) {
-                        VideoCodec.H264, VideoCodec.H265 -> {
-                            cmdList.addAll(listOf("-preset", config.preset.presetSpeed))
-                            if (config.crf > 0) {
-                                cmdList.addAll(listOf("-crf", config.crf.toString()))
-                            }
+                    // Compatibility path for jobs queued before V3.
+                    val legacy = mutableListOf("ffmpeg", "-y", "-i", tempInputFile.absolutePath)
+                    if (config.remuxMode || config.preset == VideoPreset.REMUX) {
+                        legacy.addAll(listOf("-c", "copy"))
+                    } else {
+                        legacy.addAll(listOf("-c:v", config.videoCodec.ffmpegName))
+                        if (config.videoCodec in setOf(VideoCodec.H264, VideoCodec.H265)) {
+                            legacy.addAll(listOf("-preset", config.preset.presetSpeed))
+                            if (config.crf > 0) legacy.addAll(listOf("-crf", config.crf.toString()))
                         }
-                        VideoCodec.VP9 -> {
-                            if (config.bitrateKbps == null) {
-                                cmdList.addAll(listOf("-b:v", "0"))
-                            }
-                            if (config.crf > 0) {
-                                cmdList.addAll(listOf("-crf", config.crf.toString()))
-                            }
+                        if (config.videoCodec == VideoCodec.VP9 && config.bitrateKbps == null) {
+                            legacy.addAll(listOf("-b:v", "0", "-crf", config.crf.toString()))
                         }
-                        VideoCodec.AV1 -> {
-                            cmdList.addAll(listOf("-preset", "8"))
-                            if (config.crf > 0) {
-                                cmdList.addAll(listOf("-crf", config.crf.toString()))
-                            }
-                        }
-                        VideoCodec.COPY -> Unit
-                    }
-                    if (config.videoCodec != VideoCodec.COPY) {
-                        config.bitrateKbps?.let {
-                            cmdList.addAll(listOf("-b:v", "${it}k"))
-                        }
-                        config.resolution?.takeIf { it.isNotBlank() }?.let {
-                            cmdList.addAll(listOf("-vf", "scale=$it"))
-                        }
-                        config.frameRate?.let {
-                            cmdList.addAll(listOf("-r", it.toString()))
+                        config.bitrateKbps?.let { legacy.addAll(listOf("-b:v", "${it}k")) }
+                        config.resolution?.let { legacy.addAll(listOf("-vf", "scale=$it")) }
+                        config.frameRate?.let { legacy.addAll(listOf("-r", it.toString())) }
+                        legacy.addAll(listOf("-c:a", config.audioCodec.ffmpegName))
+                        if (config.audioCodec != AudioCodec.COPY) {
+                            legacy.addAll(listOf("-b:a", "${config.audioBitrateKbps}k"))
+                            config.audioChannels?.let { legacy.addAll(listOf("-ac", it.toString())) }
+                            config.audioSampleRate?.let { legacy.addAll(listOf("-ar", it.toString())) }
                         }
                     }
-
-                    cmdList.addAll(listOf("-c:a", config.audioCodec.ffmpegName))
-                    if (config.audioCodec != AudioCodec.COPY) {
-                        cmdList.addAll(listOf("-b:a", "${config.audioBitrateKbps}k"))
-                        config.audioChannels?.let { cmdList.addAll(listOf("-ac", it.toString())) }
-                        config.audioSampleRate?.let { cmdList.addAll(listOf("-ar", it.toString())) }
-                    }
+                    legacy.add(tempOutputFile.absolutePath)
+                    legacy
                 }
-
-                cmdList.add(tempOutputFile.absolutePath)
 
                 val ffmpegCmdArray = cmdList.toTypedArray()
                 Log.d(TAG, "Executing FFmpeg command: ${cmdList.joinToString(" ")}")

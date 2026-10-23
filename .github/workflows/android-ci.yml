@@ -43,23 +43,29 @@ jobs:
           Write-Host "SDK property: $(Get-Content local.properties)"
 
       - name: Build Debug APK
-        run: gradlew.bat assembleDebug --warning-mode all --stacktrace
+        run: gradlew.bat assembleDebug --warning-mode summary --stacktrace
         shell: cmd
 
       - name: Run Unit Tests
-        run: gradlew.bat testDebugUnitTest --warning-mode all --stacktrace
+        run: gradlew.bat testDebugUnitTest --warning-mode summary --stacktrace
         shell: cmd
 
       - name: Run Android Lint
         # Self-hosted runners retain Gradle outputs between jobs. Reanalyze
         # rather than reusing a stale lint report for generated local.properties.
-        run: gradlew.bat lintDebug --rerun-tasks --no-configuration-cache --warning-mode all --stacktrace
+        run: gradlew.bat lintDebug --rerun-tasks --no-configuration-cache --warning-mode summary --stacktrace
         shell: cmd
 
-      - name: Upload Test Results
+      - name: Print Lint Diagnostics on Failure
         if: failure()
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: app/build/reports/
+        shell: powershell
+        run: |
+          # Self-hosted runner retains reports on disk. Print diagnostics in
+          # the GitHub Actions log without artifact-storage quota failures.
+          $report = 'app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt'
+          if (Test-Path $report) {
+            Write-Host '===== FULL ANDROID LINT REPORT ====='
+            Get-Content $report
+          } else {
+            Write-Host 'No lint text report found (failure may be from build or unit tests).'
+          }

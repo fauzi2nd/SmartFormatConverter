@@ -1,3 +1,4 @@
+import org.gradle.api.tasks.testing.Test
 
 plugins {
     alias(libs.plugins.android.application)
@@ -148,4 +149,10 @@ dependencies {
     debugImplementation(
         libs.androidx.compose.ui.tooling
     )
+}
+
+// The JVM unit-test process loads libjpeg's JNI availability probe on JDK 25.
+// Explicitly grant native access rather than emitting JEP 472 warnings.
+tasks.withType<Test>().configureEach {
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
 }

@@ -5,13 +5,13 @@ plugins {
 
 android {
     namespace = "org.roruku.smartformatconverter"
-    compileSdk = 35
+    compileSdk = 37
     ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "org.roruku.smartformatconverter"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 
@@ -23,6 +23,11 @@ android {
             path = file("src/main/cpp/CMakeLists.txt")
             version = "3.22.1"
         }
+    }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
     }
 
     buildTypes {

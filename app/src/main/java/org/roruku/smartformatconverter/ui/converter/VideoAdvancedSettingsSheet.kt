@@ -437,7 +437,7 @@ fun VideoAdvancedSettingsControl(
             HorizontalDivider()
             SectionHeader(stringResource(R.string.video_setting_other))
             ChoiceField(
-                "Subtitle",
+                stringResource(R.string.video_setting_subtitle),
                 draft.subtitleMode,
                 listOf(
                     "auto" to stringResource(R.string.subtitle_option_auto),

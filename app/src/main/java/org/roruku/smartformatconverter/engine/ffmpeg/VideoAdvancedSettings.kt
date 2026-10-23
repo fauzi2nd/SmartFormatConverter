@@ -177,6 +177,9 @@ object VideoSettingsValidator {
         if (s.isRemux && s.format == "webm") {
             return "Remux to WebM requires source codec verification; use another preset"
         }
+        if (s.subtitleMode == "copy" && s.format != "mkv") {
+            return "Subtitle stream copy is supported only for MKV in this version"
+        }
         if (s.isRemux) return null // No transcode settings are applied.
         if (video == "copy" && (s.width != null || s.fps != null || s.pixelFormat != "auto")) {
             return "Video stream copy cannot resize, change FPS, or change pixel format"
@@ -203,9 +206,6 @@ object VideoSettingsValidator {
         }
         if (s.audioStream == "all" && s.volumePercent != 100) {
             return "Select a single audio stream before changing volume"
-        }
-        if (s.subtitleMode == "copy" && s.format != "mkv") {
-            return "Subtitle stream copy is supported only for MKV in this version"
         }
         return null
     }

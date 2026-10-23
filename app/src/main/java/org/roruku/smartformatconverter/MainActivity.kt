@@ -62,7 +62,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppScreen() {
     val navController = rememberNavController()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val snackBarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
     val navItems = listOf(
@@ -75,7 +75,7 @@ fun MainAppScreen() {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackBarHostState) },
         bottomBar = {
             NavigationBar {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -126,14 +126,14 @@ fun MainAppScreen() {
             ) { backStackEntry ->
                 val tabIndex = backStackEntry.arguments?.getInt("tab") ?: 0
                 ConverterScreen(
-                    snackbarHostState = snackbarHostState,
+                    snackbarHostState = snackBarHostState,
                     initialTab = tabIndex
                 )
             }
 
             composable(BottomNavItem.Downloader.route) {
                 DownloaderScreen(
-                    snackbarHostState = snackbarHostState
+                    snackbarHostState = snackBarHostState
                 )
             }
 
@@ -143,7 +143,7 @@ fun MainAppScreen() {
 
             composable(BottomNavItem.Settings.route) {
                 SettingsScreen(
-                    snackbarHostState = snackbarHostState,
+                    snackbarHostState = snackBarHostState,
                     coroutineScope = coroutineScope
                 )
             }

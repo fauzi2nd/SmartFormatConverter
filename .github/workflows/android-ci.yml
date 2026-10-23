@@ -9,8 +9,8 @@ on:
 
 jobs:
   build:
-    name: Build & Test Android App (Self-Hosted Runner)
-    runs-on: self-hosted
+    name: Build & Test Android App
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
@@ -26,17 +26,17 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Grant Execute Permission for Gradlew
+        run: chmod +x gradlew
+
       - name: Build Debug APK
-        run: gradlew.bat assembleDebug --stacktrace
-        shell: cmd
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Run Unit Tests
-        run: gradlew.bat testDebugUnitTest --stacktrace
-        shell: cmd
+        run: ./gradlew testDebugUnitTest --stacktrace
 
       - name: Run Android Lint
-        run: gradlew.bat lintDebug --stacktrace
-        shell: cmd
+        run: ./gradlew lintDebug --stacktrace
 
       - name: Upload Test Results
         if: failure()

@@ -56,6 +56,7 @@ fun SettingsScreen(
         SettingsScreenContent(
             settings = UserSettings(),
             onUpdateDefaultOutputUri = {},
+            onSelectOutputFolder = {},
             onUpdateCustomPrefix = {},
             onUpdateFilenameFormat = {},
             onUpdatePreserveMetadata = {},
@@ -65,10 +66,27 @@ fun SettingsScreen(
         )
     } else {
         val settings by viewModel.userSettings.collectAsState()
+        val context = LocalContext.current
+        // Keep SAF activity launchers out of the stateless UI: Compose Preview
+        // can now render Settings without an ActivityResultRegistryOwner.
+        val folderPickerLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.OpenDocumentTree()
+        ) { uri: Uri? ->
+            if (uri != null) {
+                StorageManager.persistUriPermission(context, uri)
+                viewModel.updateDefaultOutputUri(uri.toString())
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(
+                        "Parent folder selected. Output will be saved in its Converter subfolder."
+                    )
+                }
+            }
+        }
 
         SettingsScreenContent(
             settings = settings,
             onUpdateDefaultOutputUri = { viewModel.updateDefaultOutputUri(it) },
+            onSelectOutputFolder = { folderPickerLauncher.launch(null) },
             onUpdateCustomPrefix = { viewModel.updateCustomPrefix(it) },
             onUpdateFilenameFormat = { viewModel.updateFilenameFormat(it) },
             onUpdatePreserveMetadata = { viewModel.updatePreserveMetadata(it) },
@@ -87,6 +105,7 @@ fun SettingsScreen(
 fun SettingsScreenContent(
     settings: UserSettings,
     onUpdateDefaultOutputUri: (String) -> Unit,
+    onSelectOutputFolder: () -> Unit,
     onUpdateCustomPrefix: (String) -> Unit,
     onUpdateFilenameFormat: (FilenameFormat) -> Unit,
     onUpdatePreserveMetadata: (Boolean) -> Unit,
@@ -95,18 +114,6 @@ fun SettingsScreenContent(
     onShowSnackbar: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-
-    val folderPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocumentTree()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            StorageManager.persistUriPermission(context, uri)
-            onUpdateDefaultOutputUri(uri.toString())
-            onShowSnackbar("Parent folder selected. Output will be saved in its Converter subfolder.")
-        }
-    }
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -160,7 +167,7 @@ fun SettingsScreenContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(10.dp))
-                Button(onClick = { folderPickerLauncher.launch(null) }) {
+                Button(onClick = onSelectOutputFolder) {
                     Icon(imageVector = Icons.Default.FolderOpen, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Select Parent Folder", maxLines = 1)
@@ -316,6 +323,7 @@ fun SettingsScreenPreview() {
                 hardwareAcceleration = true
             ),
             onUpdateDefaultOutputUri = {},
+            onSelectOutputFolder = {},
             onUpdateCustomPrefix = {},
             onUpdateFilenameFormat = {},
             onUpdatePreserveMetadata = {},

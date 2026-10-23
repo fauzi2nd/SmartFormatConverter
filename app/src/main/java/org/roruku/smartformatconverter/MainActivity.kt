@@ -69,49 +69,28 @@ fun MainAppScreen() {
     val coroutineScope = rememberCoroutineScope()
     var editorVisible by remember { mutableStateOf(false) }
 
-    val navItems = listOf(
-        BottomNavItem.Home,
-        BottomNavItem.Converter,
-        BottomNavItem.Downloader,
-        BottomNavItem.Queue,
-        BottomNavItem.Settings
-    )
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackBarHostState) },
         bottomBar = {
-            if (!editorVisible) NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
-
-                navItems.forEach { item ->
-                    val isSelected = currentRoute?.substringBefore("?") == item.route
-                    NavigationBarItem(
-                        selected = isSelected,
-                        onClick = {
-                            // Always navigate to a canonical destination. In
-                            // particular the converter route requires a tab
-                            // argument, and restoring a prior back stack can
-                            // unexpectedly reopen the converter from Home.
-                            val destination = if (item == BottomNavItem.Converter) {
-                                "converter?tab=0"
-                            } else {
-                                item.route
-                            }
-                            navController.navigate(destination) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    inclusive = false
-                                    saveState = false
-                                }
-                                launchSingleTop = true
-                                restoreState = false
-                            }
-                        },
-                        icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
-                        label = { Text(item.title, maxLines = 1) },
-                        alwaysShowLabel = true
-                    )
+            if (!editorVisible) {
+                AppBottomNavigationBar(currentRoute = currentRoute) { item ->
+                    val destination = if (item == BottomNavItem.Converter) {
+                        "converter?tab=0"
+                    } else {
+                        item.route
+                    }
+                    navController.navigate(destination) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            inclusive = false
+                            saveState = false
+                        }
+                        launchSingleTop = true
+                        restoreState = false
+                    }
                 }
             }
         }
@@ -177,3 +156,46 @@ fun MainAppScreenPreview() {
     }
 }
 
+
+
+/** Stateless navigation bar shared between the app and Android Studio Preview. */
+@Composable
+fun AppBottomNavigationBar(
+    currentRoute: String?,
+    onNavigate: (BottomNavItem) -> Unit
+) {
+    val navItems = listOf(
+        BottomNavItem.Home,
+        BottomNavItem.Converter,
+        BottomNavItem.Downloader,
+        BottomNavItem.Queue,
+        BottomNavItem.Settings
+    )
+    NavigationBar {
+        navItems.forEach { item ->
+            NavigationBarItem(
+                selected = currentRoute?.substringBefore("?") == item.route,
+                onClick = { onNavigate(item) },
+                icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
+                label = { Text(item.title, maxLines = 1) },
+                alwaysShowLabel = true
+            )
+        }
+    }
+}
+
+@Preview(name = "Bottom Navigation - Converter", showBackground = true, widthDp = 393)
+@Composable
+fun BottomNavigationConverterPreview() {
+    SmartFormatConverterTheme {
+        AppBottomNavigationBar(currentRoute = "converter?tab={tab}", onNavigate = {})
+    }
+}
+
+@Preview(name = "Bottom Navigation - Home", showBackground = true, widthDp = 393)
+@Composable
+fun BottomNavigationHomePreview() {
+    SmartFormatConverterTheme {
+        AppBottomNavigationBar(currentRoute = "home", onNavigate = {})
+    }
+}

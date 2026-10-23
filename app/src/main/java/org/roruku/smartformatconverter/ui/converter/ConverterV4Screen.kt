@@ -1,12 +1,10 @@
 package org.roruku.smartformatconverter.ui.converter
 
-import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -29,7 +27,6 @@ import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -53,10 +50,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
+import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
+import org.roruku.smartformatconverter.AppBottomNavigationBar
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.roruku.smartformatconverter.data.storage.StorageManager
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 
 data class ConverterFormat(
     val tab: Int,
@@ -104,13 +103,9 @@ fun ConverterV4Screen(
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var selected by remember { mutableStateOf<ConverterFormat?>(null) }
-    val listState = rememberLazyListState()
 
     LaunchedEffect(initialTab) {
-        if (initialTab in 0..2) {
-            viewModel.selectTab(initialTab)
-            if (initialTab != 0) listState.scrollToItem(initialTab + 1)
-        }
+        if (initialTab in 0..2) viewModel.selectTab(initialTab)
     }
     LaunchedEffect(state.isEditorOpen) {
         onEditorVisibilityChanged(state.isEditorOpen)
@@ -159,7 +154,41 @@ fun ConverterV4Screen(
         return
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    ConverterCatalogContent(
+        selected = selected,
+        isScanning = state.isScanning,
+        initialTab = initialTab,
+        onSelect = { selected = it },
+        onFilesSelected = { format ->
+            viewModel.selectFormat(format.tab, format.extension)
+            filePicker.launch(arrayOf(when (format.tab) {
+                0 -> "video/*"
+                1 -> "image/*"
+                else -> "audio/*"
+            }))
+        },
+        onFolderSelected = { format ->
+            viewModel.selectFormat(format.tab, format.extension)
+            folderPicker.launch(null)
+        }
+    )
+}
+
+@Composable
+fun ConverterCatalogContent(
+    selected: ConverterFormat?,
+    isScanning: Boolean,
+    onSelect: (ConverterFormat?) -> Unit,
+    onFilesSelected: (ConverterFormat) -> Unit,
+    onFolderSelected: (ConverterFormat) -> Unit,
+    initialTab: Int = 0,
+    modifier: Modifier = Modifier
+) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(initialTab) {
+        if (initialTab in 1..2) listState.scrollToItem(initialTab + 1)
+    }
+    Column(modifier = modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f),
@@ -185,17 +214,17 @@ fun ConverterV4Screen(
             }
             item {
                 FormatCategory("Video Converter", "Video & container formats", 0,
-                    formats[0], selected) { selected = it }
+                    formats[0], selected) { onSelect(it) }
             }
             item {
                 HorizontalDivider()
                 FormatCategory("Image Converter", "Foto dan gambar", 1,
-                    formats[1], selected) { selected = it }
+                    formats[1], selected) { onSelect(it) }
             }
             item {
                 HorizontalDivider()
                 FormatCategory("Audio Converter", "Musik dan rekaman", 2,
-                    formats[2], selected) { selected = it }
+                    formats[2], selected) { onSelect(it) }
             }
         }
 
@@ -230,21 +259,14 @@ fun ConverterV4Screen(
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
-                            IconButton(onClick = { selected = null }) {
+                            IconButton(onClick = { onSelect(null) }) {
                                 Icon(Icons.Default.Close, contentDescription = "Tutup")
                             }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             OutlinedButton(
-                                onClick = {
-                                    viewModel.selectFormat(format.tab, format.extension)
-                                    filePicker.launch(arrayOf(when (format.tab) {
-                                        0 -> "video/*"
-                                        1 -> "image/*"
-                                        else -> "audio/*"
-                                    }))
-                                },
-                                enabled = !state.isScanning,
+                                onClick = { onFilesSelected(format) },
+                                enabled = !isScanning,
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Icon(Icons.Default.InsertDriveFile, contentDescription = null)
@@ -252,14 +274,11 @@ fun ConverterV4Screen(
                                 Text("Files", maxLines = 1)
                             }
                             Button(
-                                onClick = {
-                                    viewModel.selectFormat(format.tab, format.extension)
-                                    folderPicker.launch(null)
-                                },
-                                enabled = !state.isScanning,
+                                onClick = { onFolderSelected(format) },
+                                enabled = !isScanning,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                if (state.isScanning) {
+                                if (isScanning) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.width(20.dp).height(20.dp),
                                         strokeWidth = 2.dp
@@ -366,5 +385,76 @@ private fun FormatCategory(
                 }
             }
         }
+    }
+}
+
+
+// Preview functions use the exact production catalog composable with fake state.
+// No ViewModel, Storage Access Framework picker, or database is initialized.
+@Preview(name = "Converter - Format Catalog", showBackground = true, widthDp = 393, heightDp = 820)
+@Composable
+fun ConverterCatalogPreview() {
+    SmartFormatConverterTheme {
+        ConverterCatalogContent(
+            selected = null,
+            isScanning = false,
+            onSelect = {},
+            onFilesSelected = {},
+            onFolderSelected = {}
+        )
+    }
+}
+
+@Preview(name = "Converter - Files Folder Panel & Navbar", showBackground = true, widthDp = 393, heightDp = 820)
+@Composable
+fun ConverterMediaPickerPreview() {
+    SmartFormatConverterTheme {
+        Scaffold(
+            bottomBar = {
+                AppBottomNavigationBar(
+                    currentRoute = "converter?tab={tab}",
+                    onNavigate = {}
+                )
+            }
+        ) { padding ->
+            ConverterCatalogContent(
+                selected = ConverterFormat(0, "mp4", "Universal"),
+                isScanning = false,
+                onSelect = {},
+                onFilesSelected = {},
+                onFolderSelected = {},
+                modifier = Modifier.padding(padding)
+            )
+        }
+    }
+}
+
+@Preview(name = "Converter - Audio Output Panel", showBackground = true, widthDp = 393, heightDp = 820)
+@Composable
+fun ConverterAudioPickerPreview() {
+    SmartFormatConverterTheme {
+        ConverterCatalogContent(
+            selected = ConverterFormat(2, "flac", "Lossless"),
+            isScanning = false,
+            onSelect = {},
+            onFilesSelected = {},
+            onFolderSelected = {},
+            initialTab = 2
+        )
+    }
+}
+
+@Preview(name = "Converter - Small Phone", showBackground = true, widthDp = 320, heightDp = 700)
+@Composable
+fun ConverterCompactPreview() {
+    SmartFormatConverterTheme {
+        ConverterCatalogContent(
+            selected = ConverterFormat(1, "jpg", "Foto"),
+            isScanning = false,
+            onSelect = {},
+            onFilesSelected = {},
+            onFolderSelected = {},
+            initialTab = 1
+        )
     }
 }

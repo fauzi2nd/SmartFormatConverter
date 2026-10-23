@@ -1,6 +1,7 @@
 package org.roruku.smartformatconverter.ui.settings
 
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -38,7 +40,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalInspectionMode
+import org.roruku.smartformatconverter.data.preferences.FilenameFormat
 import org.roruku.smartformatconverter.data.preferences.UserSettings
+import org.roruku.smartformatconverter.data.storage.OutputPathPolicy
 import org.roruku.smartformatconverter.data.storage.StorageManager
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 
@@ -53,6 +57,7 @@ fun SettingsScreen(
             settings = UserSettings(),
             onUpdateDefaultOutputUri = {},
             onUpdateCustomPrefix = {},
+            onUpdateFilenameFormat = {},
             onUpdatePreserveMetadata = {},
             onUpdateHardwareAcceleration = {},
             onClearCache = {},
@@ -65,6 +70,7 @@ fun SettingsScreen(
             settings = settings,
             onUpdateDefaultOutputUri = { viewModel.updateDefaultOutputUri(it) },
             onUpdateCustomPrefix = { viewModel.updateCustomPrefix(it) },
+            onUpdateFilenameFormat = { viewModel.updateFilenameFormat(it) },
             onUpdatePreserveMetadata = { viewModel.updatePreserveMetadata(it) },
             onUpdateHardwareAcceleration = { viewModel.updateHardwareAcceleration(it) },
             onClearCache = { viewModel.clearCache() },
@@ -82,6 +88,7 @@ fun SettingsScreenContent(
     settings: UserSettings,
     onUpdateDefaultOutputUri: (String) -> Unit,
     onUpdateCustomPrefix: (String) -> Unit,
+    onUpdateFilenameFormat: (FilenameFormat) -> Unit,
     onUpdatePreserveMetadata: (Boolean) -> Unit,
     onUpdateHardwareAcceleration: (Boolean) -> Unit,
     onClearCache: () -> Unit,
@@ -96,7 +103,7 @@ fun SettingsScreenContent(
         if (uri != null) {
             StorageManager.persistUriPermission(context, uri)
             onUpdateDefaultOutputUri(uri.toString())
-            onShowSnackbar("Output location updated!")
+            onShowSnackbar("Parent folder selected. Output will be saved in its Converter subfolder.")
         }
     }
 
@@ -120,26 +127,43 @@ fun SettingsScreenContent(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Storage & Location",
+                    text = "Storage & Output",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Default Output Directory:",
+                    text = "Parent folder",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                val parentDisplayName = settings.defaultOutputUri?.let { uriString ->
+                    runCatching {
+                        DocumentsContract.getTreeDocumentId(Uri.parse(uriString))
+                            .substringAfter(':')
+                    }.getOrNull()?.ifBlank { "Selected folder" }
+                } ?: "Not selected"
                 Text(
-                    text = settings.defaultOutputUri ?: "Default App Internal Storage",
+                    text = parentDisplayName,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Output: $parentDisplayName/${OutputPathPolicy.OUTPUT_FOLDER}/",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Batch folders are mirrored inside Converter. Files added with +Files go directly into Converter. Existing Converter/Converted folders are excluded from batch scans.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(10.dp))
                 Button(onClick = { folderPickerLauncher.launch(null) }) {
                     Icon(imageVector = Icons.Default.FolderOpen, contentDescription = null)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("Select Output Folder")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Select Parent Folder", maxLines = 1)
                 }
             }
         }
@@ -151,17 +175,43 @@ fun SettingsScreenContent(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "File Naming Template",
+                    text = "File Naming",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = settings.customPrefix,
-                    onValueChange = onUpdateCustomPrefix,
-                    label = { Text("Filename Prefix / Template") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Keep original filename", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "Only the extension changes (video.mov → video.mp4).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = settings.filenameFormat != FilenameFormat.CUSTOM_PREFIX,
+                        onCheckedChange = { original ->
+                            onUpdateFilenameFormat(
+                                if (original) FilenameFormat.ORIGINAL else FilenameFormat.CUSTOM_PREFIX
+                            )
+                        }
+                    )
+                }
+                if (settings.filenameFormat == FilenameFormat.CUSTOM_PREFIX) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = settings.customPrefix,
+                        onValueChange = onUpdateCustomPrefix,
+                        label = { Text("Optional filename prefix") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
 
@@ -260,13 +310,14 @@ fun SettingsScreenPreview() {
     SmartFormatConverterTheme {
         SettingsScreenContent(
             settings = UserSettings(
-                defaultOutputUri = "primary:Download/ConvertedMedia",
-                customPrefix = "Converted_",
+                defaultOutputUri = "content://com.android.externalstorage.documents/tree/primary%3ATorrents",
+                customPrefix = "",
                 preserveMetadata = true,
                 hardwareAcceleration = true
             ),
             onUpdateDefaultOutputUri = {},
             onUpdateCustomPrefix = {},
+            onUpdateFilenameFormat = {},
             onUpdatePreserveMetadata = {},
             onUpdateHardwareAcceleration = {},
             onClearCache = {},

@@ -62,6 +62,9 @@ android {
 
     lint {
         abortOnError = true
+        // Treat project lint warnings as regressions instead of silently
+        // green-lighting a debug build with outstanding issues.
+        warningsAsErrors = true
         checkReleaseBuilds = true
     }
 }

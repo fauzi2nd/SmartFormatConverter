@@ -18,9 +18,11 @@ object JpegNativeEncoder {
         try {
             System.loadLibrary("jpeg_encoder_native")
             isNativeLibraryLoaded = true
-            Log.i(TAG, "Native JPEG 4:4:4 encoder library loaded successfully")
+            try { Log.i(TAG, "Native JPEG 4:4:4 encoder library loaded successfully") } catch (_: Throwable) {}
         } catch (e: UnsatisfiedLinkError) {
-            Log.w(TAG, "Native library jpeg_encoder_native not loaded, fallback enabled", e)
+            try { Log.w(TAG, "Native library jpeg_encoder_native not loaded, fallback enabled", e) } catch (_: Throwable) {}
+            isNativeLibraryLoaded = false
+        } catch (_: Throwable) {
             isNativeLibraryLoaded = false
         }
     }
@@ -46,7 +48,7 @@ object JpegNativeEncoder {
                 preserveTransparencyWhite = whiteBackgroundForAlpha
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Native JPEG encoding exception", e)
+            try { Log.e(TAG, "Native JPEG encoding exception", e) } catch (_: Throwable) {}
             false
         }
     }

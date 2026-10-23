@@ -11,7 +11,6 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
-import kotlin.coroutines.coroutineContext
 
 data class MediaFormatOption(
     val formatId: String,
@@ -19,7 +18,7 @@ data class MediaFormatOption(
     val resolution: String,
     val note: String,
     val fileSizeEstimate: Long = 0L,
-    val isAudioOnly: Boolean = false
+    val isAudioOnly: Boolean = false,
 )
 
 data class DownloadableMediaInfo(
@@ -28,11 +27,17 @@ data class DownloadableMediaInfo(
     val author: String? = null,
     val durationSeconds: Long = 0L,
     val thumbnailUrl: String? = null,
-    val availableFormats: List<MediaFormatOption> = emptyList()
+    val availableFormats: List<MediaFormatOption> = emptyList(),
 )
 
+/**
+ * Note: Full yt-dlp Python/JS extraction engine is NOT_IMPLEMENTED due to on-device JS execution requirements.
+ * This class provides basic HTTP direct media extraction as a lightweight fallback.
+ */
 object YtDlpEngine {
     private const val TAG = "YtDlpEngine"
+
+    const val IS_NATIVE_YTDLP_SUPPORTED: Boolean = false
 
     suspend fun extractMediaInfo(context: Context, urlString: String): Result<DownloadableMediaInfo> = withContext(Dispatchers.IO) {
         try {
@@ -68,14 +73,14 @@ object YtDlpEngine {
                 "Media_${System.currentTimeMillis()}"
             }
 
-            val formats = if (ext == "mp3" || ext == "aac" || ext == "m4a") {
+            val formats = if ((ext == "mp3") || (ext == "aac") || (ext == "m4a")) {
                 listOf(
-                    MediaFormatOption("audio_hq", ext, "Audio Only", "High Quality Audio", contentLength, true)
+                    MediaFormatOption("audio_hq", ext, "Audio Only", "High Quality Audio Stream", contentLength, isAudioOnly = true)
                 )
             } else {
                 listOf(
-                    MediaFormatOption("video_best", ext, "Direct Stream", "Source Quality Stream", contentLength, false),
-                    MediaFormatOption("audio_mp3", "mp3", "Audio Only", "Extract MP3 Audio", 0L, true)
+                    MediaFormatOption("video_best", ext, "Direct Stream", "Source Quality Stream", contentLength, isAudioOnly = false),
+                    MediaFormatOption("audio_mp3", "mp3", "Audio Only", "Extract MP3 Audio Stream", 0L, isAudioOnly = true)
                 )
             }
 
@@ -174,9 +179,9 @@ object YtDlpEngine {
             }
             Result.failure(e)
         } finally {
-            try { inputStream?.close() } catch (e: Exception) { /* ignore */ }
-            try { outputStream?.close() } catch (e: Exception) { /* ignore */ }
-            try { connection?.disconnect() } catch (e: Exception) { /* ignore */ }
+            try { inputStream?.close() } catch (_: Exception) { /* ignore */ }
+            try { outputStream?.close() } catch (_: Exception) { /* ignore */ }
+            try { connection?.disconnect() } catch (_: Exception) { /* ignore */ }
         }
     }
 

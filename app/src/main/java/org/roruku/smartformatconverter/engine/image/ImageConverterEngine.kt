@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
@@ -31,8 +32,12 @@ enum class ImageOutputFormat(val extension: String, val mimeType: String) {
     WEBP("webp", "image/webp")
 }
 
+data class ExifTransform(
+    val rotationDegrees: Int = 0,
+    val flipHorizontal: Boolean = false,
+)
+
 object ImageConverterEngine {
-    private const val TAG = "ImageConverterEngine"
 
     suspend fun convertImage(
         context: Context,
@@ -72,9 +77,9 @@ object ImageConverterEngine {
             coroutineContext.ensureActive()
             onProgress(0.5f)
 
-            val rotationAngle = getExifRotation(context, inputUri)
-            if (rotationAngle != 0) {
-                bitmap = rotateBitmap(bitmap!!, rotationAngle)
+            val transform = getExifTransform(context, inputUri)
+            if (transform.rotationDegrees != 0 || transform.flipHorizontal) {
+                bitmap = transformBitmap(bitmap!!, transform)
             }
 
             coroutineContext.ensureActive()
@@ -113,7 +118,7 @@ object ImageConverterEngine {
                         if (outputFile.exists()) {
                             outputFile.delete()
                         }
-                        return@withContext Result.failure(IllegalStateException("Native libjpeg 4:4:4 encoding failed for ${outputFile.name}"))
+                        return@withContext Result.failure(IllegalStateException("Native libjpeg encoding failed for ${outputFile.name}"))
                     }
                 }
                 ImageOutputFormat.PNG -> {
@@ -156,11 +161,16 @@ object ImageConverterEngine {
         }
     }
 
-    private fun validateJpegFile(file: File): Boolean {
+    fun validateJpegFile(file: File): Boolean {
+        if (!file.exists() || file.length() < 100L) return false
         return try {
-            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeFile(file.absolutePath, options)
-            options.outWidth > 0 && options.outHeight > 0
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = 1
+            }
+            val decodedBitmap = BitmapFactory.decodeFile(file.absolutePath, options)
+            val isValid = decodedBitmap != null && decodedBitmap.width > 0 && decodedBitmap.height > 0
+            decodedBitmap?.recycle()
+            isValid
         } catch (_: Exception) {
             false
         }
@@ -174,15 +184,21 @@ object ImageConverterEngine {
         return result
     }
 
-    private fun rotateBitmap(src: Bitmap, angle: Int): Bitmap {
-        val matrix = android.graphics.Matrix().apply {
-            postRotate(angle.toFloat())
+    private fun transformBitmap(src: Bitmap, transform: ExifTransform): Bitmap {
+        if (transform.rotationDegrees == 0 && !transform.flipHorizontal) return src
+        val matrix = Matrix().apply {
+            if (transform.rotationDegrees != 0) {
+                postRotate(transform.rotationDegrees.toFloat())
+            }
+            if (transform.flipHorizontal) {
+                postScale(-1f, 1f)
+            }
         }
-        val rotated = Bitmap.createBitmap(src, 0, 0, src.width, src.height, matrix, true)
-        if (rotated != src) {
+        val transformed = Bitmap.createBitmap(src, 0, 0, src.width, src.height, matrix, true)
+        if (transformed != src) {
             src.recycle()
         }
-        return rotated
+        return transformed
     }
 
     private fun resizeBitmap(src: Bitmap, targetW: Int, targetH: Int, maintainRatio: Boolean): Bitmap {
@@ -199,7 +215,7 @@ object ImageConverterEngine {
         return Bitmap.createScaledBitmap(src, finalW, finalH, true)
     }
 
-    private fun getExifRotation(context: Context, uri: Uri): Int {
+    private fun getExifTransform(context: Context, uri: Uri): ExifTransform {
         try {
             context.contentResolver.openInputStream(uri)?.use { stream ->
                 val exif = ExifInterface(stream)
@@ -208,16 +224,20 @@ object ImageConverterEngine {
                     ExifInterface.ORIENTATION_NORMAL
                 )
                 return when (orientation) {
-                    ExifInterface.ORIENTATION_ROTATE_90 -> 90
-                    ExifInterface.ORIENTATION_ROTATE_180 -> 180
-                    ExifInterface.ORIENTATION_ROTATE_270 -> 270
-                    else -> 0
+                    ExifInterface.ORIENTATION_ROTATE_90 -> ExifTransform(90, false)
+                    ExifInterface.ORIENTATION_ROTATE_180 -> ExifTransform(180, false)
+                    ExifInterface.ORIENTATION_ROTATE_270 -> ExifTransform(270, false)
+                    ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> ExifTransform(0, true)
+                    ExifInterface.ORIENTATION_FLIP_VERTICAL -> ExifTransform(180, true)
+                    ExifInterface.ORIENTATION_TRANSPOSE -> ExifTransform(90, true)
+                    ExifInterface.ORIENTATION_TRANSVERSE -> ExifTransform(270, true)
+                    else -> ExifTransform(0, false)
                 }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Ignore
         }
-        return 0
+        return ExifTransform(0, false)
     }
 
     private fun copyExifMetadata(context: Context, inputUri: Uri, outputFile: File) {
@@ -240,7 +260,10 @@ object ImageConverterEngine {
                     ExifInterface.TAG_GPS_LONGITUDE_REF,
                     ExifInterface.TAG_GPS_ALTITUDE,
                     ExifInterface.TAG_GPS_ALTITUDE_REF,
-                    ExifInterface.TAG_WHITE_BALANCE
+                    ExifInterface.TAG_WHITE_BALANCE,
+                    ExifInterface.TAG_EXPOSURE_TIME,
+                    ExifInterface.TAG_F_NUMBER,
+                    ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY
                 )
 
                 for (attr in attributes) {
@@ -249,9 +272,10 @@ object ImageConverterEngine {
                         destExif.setAttribute(attr, value)
                     }
                 }
+                destExif.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
                 destExif.saveAttributes()
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Ignore
         }
     }

@@ -1,6 +1,7 @@
 package org.roruku.smartformatconverter
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.roruku.smartformatconverter.data.db.Converters
@@ -15,8 +16,12 @@ import org.roruku.smartformatconverter.engine.ffmpeg.VideoCodec
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoConversionConfig
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoOutputFormat
 import org.roruku.smartformatconverter.engine.image.ChromaSubsampling
+import org.roruku.smartformatconverter.engine.image.ExifTransform
 import org.roruku.smartformatconverter.engine.image.ImageConversionConfig
+import org.roruku.smartformatconverter.engine.image.ImageConverterEngine
 import org.roruku.smartformatconverter.engine.image.ImageOutputFormat
+import org.roruku.smartformatconverter.engine.image.JpegNativeEncoder
+import java.io.File
 
 class EngineUnitTest {
 
@@ -53,6 +58,27 @@ class EngineUnitTest {
         assertEquals(ChromaSubsampling.S444, config.chromaSubsampling)
         assertEquals(true, config.preserveExif)
         assertEquals(true, config.maintainAspectRatio)
+    }
+
+    @Test
+    fun testExifTransformDefaults() {
+        val transform = ExifTransform(rotationDegrees = 90, flipHorizontal = true)
+        assertEquals(90, transform.rotationDegrees)
+        assertEquals(true, transform.flipHorizontal)
+    }
+
+    @Test
+    fun testValidateJpegNonExistentFile() {
+        val nonExistentFile = File("non_existent_file_path.jpg")
+        assertFalse(ImageConverterEngine.validateJpegFile(nonExistentFile))
+    }
+
+    @Test
+    fun testJpegNativeEncoderAvailabilityCall() {
+        // Method should execute without crashing
+        val isAvailable = JpegNativeEncoder.isNative444Available()
+        // In JVM unit test environment without native lib loaded, returns false
+        assertFalse(isAvailable)
     }
 
     @Test

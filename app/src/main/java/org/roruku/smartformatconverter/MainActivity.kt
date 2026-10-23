@@ -35,7 +35,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import org.roruku.smartformatconverter.ui.converter.ConverterV4Screen
+import org.roruku.smartformatconverter.ui.converter.ConverterScreen
 import org.roruku.smartformatconverter.ui.downloader.DownloaderScreen
 import org.roruku.smartformatconverter.ui.home.HomeScreen
 import org.roruku.smartformatconverter.ui.queue.QueueScreen
@@ -121,7 +121,7 @@ fun MainAppScreen() {
                 })
             ) { backStackEntry ->
                 val tabIndex = backStackEntry.arguments?.getInt("tab") ?: 0
-                ConverterV4Screen(
+                ConverterScreen(
                     snackbarHostState = snackBarHostState,
                     initialTab = tabIndex,
                     onEditorVisibilityChanged = { editorVisible = it }

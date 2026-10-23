@@ -94,7 +94,7 @@ private val formats = listOf(
  * immediately above the Activity's persistent bottom navigation bar.
  */
 @Composable
-fun ConverterV4Screen(
+fun ConverterScreen(
     snackbarHostState: SnackbarHostState,
     initialTab: Int = 0,
     onEditorVisibilityChanged: (Boolean) -> Unit,

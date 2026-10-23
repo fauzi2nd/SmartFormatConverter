@@ -94,6 +94,7 @@ fun ConverterPreviewEditor(
     onClearVideoFileSettings: (Uri) -> Unit,
 ) {
     val files = state.selectedFiles
+    val context = LocalContext.current
     BackHandler { onBack() }
     val pager = rememberPagerState(pageCount = { files.size })
     val coroutineScope = rememberCoroutineScope()
@@ -190,7 +191,7 @@ fun ConverterPreviewEditor(
                                     Text(
                                         buildString {
                                             append(Formatter.formatShortFileSize(
-                                                LocalContext.current, media.details.fileSize))
+                                                context, media.details.fileSize))
                                             if (media.details.width > 0 && media.details.height > 0) {
                                                 append(" · ${media.details.width}×${media.details.height}")
                                             }

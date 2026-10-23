@@ -44,10 +44,6 @@ data class ConverterUiState(
     val videoSettings: VideoAdvancedSettings = VideoAdvancedSettings(),
     val isEditorOpen: Boolean = false,
     val perFileVideoSettings: Map<String, VideoAdvancedSettings> = emptyMap(),
-    val customBitrateKbps: Int = 2000,
-    val customResolution: String = "1920x1080",
-    val customCrf: Int = 23,
-    val customAudioBitrateKbps: Int = 192,
     val isScanning: Boolean = false,
     val isConverting: Boolean = false,
     val message: String? = null,
@@ -251,24 +247,6 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
         _uiState.update { it.copy(selectedFiles = emptyList(), perFileVideoSettings = emptyMap()) }
     }
 
-    fun updateTargetFormat(format: String) {
-        _uiState.update { state ->
-            state.copy(
-                targetFormat = format,
-                videoSettings = if (state.selectedTab == 0) {
-                    state.videoSettings.copy(
-                        format = format,
-                        // Choose safe automatic codecs again on container change.
-                        videoCodec = "auto",
-                        audioCodec = "auto"
-                    )
-                } else {
-                    state.videoSettings
-                }
-            )
-        }
-    }
-
     fun updatePreset(preset: String) {
         _uiState.update { state ->
             state.copy(
@@ -295,10 +273,6 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 perFileVideoSettings = emptyMap()
             )
         }
-    }
-
-    fun updateCustomBitrate(bitrate: Int) {
-        _uiState.update { it.copy(customBitrateKbps = bitrate) }
     }
 
     fun startConversion() {

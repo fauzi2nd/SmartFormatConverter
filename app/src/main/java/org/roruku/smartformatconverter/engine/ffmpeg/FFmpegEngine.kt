@@ -48,6 +48,7 @@ enum class AudioCodec(val ffmpegName: String) {
     OPUS("libopus"),
     VORBIS("libvorbis"),
     FLAC("flac"),
+    PCM_S16LE("pcm_s16le"),
     COPY("copy")
 }
 

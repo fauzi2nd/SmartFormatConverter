@@ -56,6 +56,13 @@ jobs:
         run: gradlew.bat lintDebug --rerun-tasks --no-configuration-cache --warning-mode summary --stacktrace
         shell: cmd
 
+      - name: Report pinned RxFFmpeg 16 KB risk
+        if: always()
+        shell: powershell
+        run: |
+          # This is an explicit advisory, NOT evidence of compatibility.
+          Write-Host "::warning title=RxFFmpeg native 16 KB page alignment::RxFFmpeg 4.9.0 bundles an unaligned x86_64/librxffmpeg-core.so. Android 16 KB page-size compatibility is NOT verified. This exact legacy dependency is scoped in app/lint.xml; other native libraries are still checked."
+
       - name: Print Lint Diagnostics on Failure
         if: failure()
         shell: powershell

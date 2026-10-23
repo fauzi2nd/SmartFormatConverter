@@ -39,6 +39,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -55,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
+import org.roruku.smartformatconverter.AppBottomNavigationBar
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.roruku.smartformatconverter.data.storage.StorageManager
@@ -408,17 +410,27 @@ fun ConverterCatalogPreview() {
     }
 }
 
-@Preview(name = "Converter - Files Folder Panel", showBackground = true, widthDp = 393, heightDp = 820)
+@Preview(name = "Converter - Files Folder Panel & Navbar", showBackground = true, widthDp = 393, heightDp = 820)
 @Composable
 fun ConverterMediaPickerPreview() {
     SmartFormatConverterTheme {
-        ConverterCatalogContent(
-            selected = ConverterFormat(0, "mp4", "Universal"),
-            isScanning = false,
-            onSelect = {},
-            onFilesSelected = {},
-            onFolderSelected = {}
-        )
+        Scaffold(
+            bottomBar = {
+                AppBottomNavigationBar(
+                    currentRoute = "converter?tab={tab}",
+                    onNavigate = {}
+                )
+            }
+        ) { padding ->
+            ConverterCatalogContent(
+                selected = ConverterFormat(0, "mp4", "Universal"),
+                isScanning = false,
+                onSelect = {},
+                onFilesSelected = {},
+                onFolderSelected = {},
+                modifier = Modifier.padding(padding)
+            )
+        }
     }
 }
 

@@ -106,13 +106,9 @@ fun ConverterScreen(
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var selected by remember { mutableStateOf<ConverterFormat?>(null) }
-    val listState = rememberLazyListState()
 
     LaunchedEffect(initialTab) {
-        if (initialTab in 0..2) {
-            viewModel.selectTab(initialTab)
-            if (initialTab != 0) listState.scrollToItem(initialTab + 1)
-        }
+        if (initialTab in 0..2) viewModel.selectTab(initialTab)
     }
     LaunchedEffect(state.isEditorOpen) {
         onEditorVisibilityChanged(state.isEditorOpen)

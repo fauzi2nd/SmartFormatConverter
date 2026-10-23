@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.Uri
 import android.util.Log
 import androidx.annotation.StringRes
+import androidx.annotation.PluralsRes
 import org.roruku.smartformatconverter.R
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
@@ -144,9 +145,13 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 val rejected = uris.size - filtered.size
                 _uiState.update {
                     it.copy(message = if (rejected > 0) {
-                        messageFor(R.string.vm_files_added_skipped, filtered.size, rejected)
+                        messageFor(
+                            R.string.vm_files_added_skipped,
+                            quantityFor(R.plurals.vm_matching_added, filtered.size, filtered.size),
+                            quantityFor(R.plurals.vm_media_skipped, rejected, rejected)
+                        )
                     } else {
-                        messageFor(R.string.vm_files_added, filtered.size)
+                        quantityFor(R.plurals.vm_files_added, filtered.size, filtered.size)
                     })
                 }
             } catch (e: Exception) {
@@ -214,7 +219,7 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                     it.copy(message = if (added == 0) {
                         messageFor(R.string.vm_scan_empty)
                     } else {
-                        messageFor(R.string.vm_scan_added, added, mediaTypeLabel(mediaType))
+                        quantityFor(R.plurals.vm_scan_added, added, added, mediaTypeLabel(mediaType))
                     })
                 }
             } catch (e: Exception) {
@@ -329,7 +334,7 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                         selectedFiles = emptyList(),
                         perFileVideoSettings = emptyMap(),
                         isEditorOpen = false,
-                        message = messageFor(R.string.vm_jobs_queued, jobs.size)
+                        message = quantityFor(R.plurals.vm_jobs_queued, jobs.size, jobs.size)
                     )
                 }
             } catch (e: Exception) {
@@ -349,6 +354,9 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun messageFor(@StringRes resId: Int, vararg arguments: Any): String =
         getApplication<Application>().getString(resId, *arguments)
+
+    private fun quantityFor(@PluralsRes resId: Int, quantity: Int, vararg arguments: Any): String =
+        getApplication<Application>().resources.getQuantityString(resId, quantity, *arguments)
 
     private fun mediaTypeLabel(type: MediaType): String = messageFor(
         when (type) {

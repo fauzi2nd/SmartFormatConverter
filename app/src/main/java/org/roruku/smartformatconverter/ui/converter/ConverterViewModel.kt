@@ -24,6 +24,8 @@ import org.roruku.smartformatconverter.data.storage.MediaDetails
 import org.roruku.smartformatconverter.data.storage.MediaSelectionPolicy
 import org.roruku.smartformatconverter.data.storage.StorageManager
 import org.roruku.smartformatconverter.service.MediaConversionService
+import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
+import org.roruku.smartformatconverter.engine.ffmpeg.VideoSettingsValidator
 
 data class SelectedMediaFile(
     val uri: Uri,
@@ -36,7 +38,8 @@ data class ConverterUiState(
     val selectedTab: Int = 0,
     val selectedFiles: List<SelectedMediaFile> = emptyList(),
     val targetFormat: String = "mp4",
-    val presetName: String = "Balanced",
+    val presetName: String = "Custom",
+    val videoSettings: VideoAdvancedSettings = VideoAdvancedSettings(),
     val customBitrateKbps: Int = 2000,
     val customResolution: String = "1920x1080",
     val customCrf: Int = 23,
@@ -191,11 +194,47 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun updateTargetFormat(format: String) {
-        _uiState.update { it.copy(targetFormat = format) }
+        _uiState.update { state ->
+            state.copy(
+                targetFormat = format,
+                videoSettings = if (state.selectedTab == 0) {
+                    state.videoSettings.copy(
+                        format = format,
+                        // Choose safe automatic codecs again on container change.
+                        videoCodec = "auto",
+                        audioCodec = "auto"
+                    )
+                } else {
+                    state.videoSettings
+                }
+            )
+        }
     }
 
     fun updatePreset(preset: String) {
-        _uiState.update { it.copy(presetName = preset) }
+        _uiState.update { state ->
+            state.copy(
+                presetName = preset,
+                videoSettings = if (state.selectedTab == 0) {
+                    state.videoSettings.applyPreset(preset)
+                } else {
+                    state.videoSettings
+                }
+            )
+        }
+    }
+
+    /** Any advanced edit converts a quick preset into an explicit Custom snapshot. */
+    fun updateVideoSettings(settings: VideoAdvancedSettings) {
+        _uiState.update { state ->
+            state.copy(
+                presetName = "Custom",
+                videoSettings = settings.copy(
+                    format = state.targetFormat,
+                    preset = "Custom"
+                )
+            )
+        }
     }
 
     fun updateCustomBitrate(bitrate: Int) {
@@ -206,6 +245,20 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
         val state = _uiState.value
         if (state.selectedFiles.isEmpty() || state.isConverting || state.isScanning) return
         val mediaType = typeForTab(state.selectedTab)
+        val videoSnapshot = if (mediaType == MediaType.VIDEO) {
+            state.videoSettings.copy(
+                format = state.targetFormat,
+                preset = state.presetName
+            )
+        } else null
+
+        if (videoSnapshot != null) {
+            val validationError = VideoSettingsValidator.validate(videoSnapshot)
+            if (validationError != null) {
+                _uiState.update { it.copy(message = validationError) }
+                return
+            }
+        }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isConverting = true) }
@@ -229,6 +282,7 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                         presetName = state.presetName,
                         fileSize = file.details.fileSize,
                         relativeFolderPath = file.relativeFolderPath,
+                        customParamsJson = videoSnapshot?.toJson(),
                     )
                 }
                 repository.addJobs(jobs)

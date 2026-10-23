@@ -121,8 +121,26 @@ class VideoV3Test {
         assertNull(VideoSettingsValidator.validate(preset))
         val cmd = command(preset)
         assertTrue(hasPair(cmd, "-c", "copy"))
+        assertTrue(hasPair(cmd, "-map", "0:v:0"))
+        assertTrue(hasPair(cmd, "-map", "0:a:0?"))
+        assertFalse(hasPair(cmd, "-map", "0:s?")) // MP4 auto skips unknown subtitles.
+        assertFalse(hasPair(cmd, "-map", "0"))
         assertFalse(cmd.contains("-crf"))
         assertFalse(cmd.contains("-vf"))
+    }
+
+    @Test
+    fun remuxRespectsMuteAndCanKeepMkvSubtitles() {
+        val mkv = VideoAdvancedSettings(
+            format = "mkv",
+            audioCodec = "none",
+            audioStream = "none",
+            subtitleMode = "copy"
+        ).applyPreset("Original Quality / Remux")
+        val cmd = command(mkv)
+        assertNull(VideoSettingsValidator.validate(mkv))
+        assertFalse(cmd.contains("0:a:0?"))
+        assertTrue(hasPair(cmd, "-map", "0:s?"))
     }
 
     @Test

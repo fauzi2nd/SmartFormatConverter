@@ -266,4 +266,13 @@
     <string name="vm_jobs_queued">Queued %1$d files. Output: parent/Converter/ (batch folders preserved).</string>
     <string name="vm_queue_failed">Conversion queue could not start: %1$s</string>
     <string name="vm_unknown_reason">Unknown error</string>
+
+    <!-- Downloader messages and Android foreground service notifications -->
+    <string name="download_inspection_failed">Failed to inspect URL</string>
+    <string name="download_queued_message">Download queued: %1$s</string>
+    <string name="conversion_notification_channel">Media Conversion Service</string>
+    <string name="conversion_notification_channel_description">Shows ongoing media conversion progress</string>
+    <string name="conversion_notification_processing">Processing media files...</string>
+    <string name="conversion_notification_title">Converting %1$s</string>
+    <string name="conversion_notification_progress">%1$d%% complete</string>
 </resources>

@@ -30,12 +30,23 @@ data class MediaDetails(
 object StorageManager {
     private const val TAG = "StorageManager"
 
-    fun persistUriPermission(context: Context, uri: Uri) {
+    fun persistUriPermission(context: Context, uri: Uri, writeAccess: Boolean = true) {
+        val readFlag = Intent.FLAG_GRANT_READ_URI_PERMISSION
+        val writeFlag = Intent.FLAG_GRANT_WRITE_URI_PERMISSION
         try {
-            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            val flags = if (writeAccess) readFlag or writeFlag else readFlag
             context.contentResolver.takePersistableUriPermission(uri, flags)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to persist URI permission for $uri", e)
+        } catch (e: SecurityException) {
+            // Read-only document providers may grant read but not write access.
+            if (writeAccess) {
+                try {
+                    context.contentResolver.takePersistableUriPermission(uri, readFlag)
+                    return
+                } catch (_: SecurityException) {
+                    // Provider may not offer persisted grants.
+                }
+            }
+            Log.w(TAG, "Unable to persist URI permission for $uri", e)
         }
     }
 
@@ -106,6 +117,7 @@ object StorageManager {
                 "flac" -> "audio/flac"
                 "wav" -> "audio/wav"
                 "ogg" -> "audio/ogg"
+                "opus" -> "audio/opus"
                 else -> "*/*"
             }
         }
@@ -120,6 +132,10 @@ object StorageManager {
         return File.createTempFile("${prefix}_${System.currentTimeMillis()}", safeExt, cacheDir)
     }
 
+    /**
+     * SAF output creation under the selected parent tree. Never intentionally
+     * overwrite an existing document; reserve a unique name when necessary.
+     */
     fun createDestinationDocumentFile(
         context: Context,
         treeUri: Uri,
@@ -127,23 +143,46 @@ object StorageManager {
         fileName: String,
         mimeType: String
     ): DocumentFile? {
-        try {
-            var rootDoc = DocumentFile.fromTreeUri(context, treeUri) ?: return null
-            if (!relativeSubfolder.isNullOrBlank()) {
-                val parts = relativeSubfolder.split('/', '\\').filter { it.isNotBlank() }
-                for (part in parts) {
-                    val existing = rootDoc.findFile(part)
-                    rootDoc = if (existing != null && existing.isDirectory) {
-                        existing
-                    } else {
-                        rootDoc.createDirectory(part) ?: return null
-                    }
+        return try {
+            var directory = DocumentFile.fromTreeUri(context, treeUri) ?: return null
+            if (!directory.isDirectory) return null
+
+            val folderPath = OutputPathPolicy.safeRelativePath(relativeSubfolder)
+            for (part in folderPath.split('/').filter { it.isNotBlank() }) {
+                val existing = directory.listFiles().firstOrNull {
+                    it.name.equals(part, ignoreCase = true)
+                }
+                directory = when {
+                    existing == null -> directory.createDirectory(part) ?: return null
+                    existing.isDirectory -> existing
+                    else -> return null
                 }
             }
-            return rootDoc.createFile(mimeType, fileName)
+
+            val safeName = OutputPathPolicy.safeComponent(fileName)
+            val base = safeName.substringBeforeLast('.', safeName)
+            val extension = safeName.substringAfterLast('.', "")
+            val names = directory.listFiles()
+                .mapNotNull { it.name?.lowercase() }
+                .toHashSet()
+
+            for (index in 0..9999) {
+                val candidate = if (index == 0) {
+                    safeName
+                } else {
+                    val suffix = "_${index.toString().padStart(3, '0')}"
+                    if (extension.isNotEmpty()) "$base$suffix.$extension" else "$base$suffix"
+                }
+                if (candidate.lowercase() !in names) {
+                    return directory.createFile(mimeType, candidate)
+                }
+            }
+
+            Log.e(TAG, "Unable to allocate a unique output name for $safeName")
+            null
         } catch (e: Exception) {
             Log.e(TAG, "Error creating destination document file", e)
-            return null
+            null
         }
     }
 
@@ -162,10 +201,13 @@ object StorageManager {
     }
 
     fun copyFileToDocumentUri(context: Context, sourceFile: File, destDocumentFile: DocumentFile): Boolean {
+        if (!sourceFile.isFile || sourceFile.length() <= 0L) return false
         return try {
-            context.contentResolver.openOutputStream(destDocumentFile.uri)?.use { output ->
+            val output = context.contentResolver.openOutputStream(destDocumentFile.uri, "w")
+                ?: return false
+            output.use { destination ->
                 sourceFile.inputStream().use { input ->
-                    copyStream(input, output)
+                    copyStream(input, destination)
                 }
             }
             true

@@ -223,20 +223,23 @@ fun VideoAdvancedSettingsControl(
                     )
                 }
 
-                val videoChoices = if (draft.format == "webm") {
-                    listOf(
-                        "auto" to "Auto (VP9)",
-                        "vp9" to "VP9",
-                        "av1" to "AV1"
+                val videoChoices = when (draft.format) {
+                    "webm" -> listOf(
+                        "auto" to "Auto (VP9)", "vp9" to "VP9", "av1" to "AV1"
                     )
-                } else {
-                    listOf(
-                        "auto" to "Auto (H.264)",
-                        "h264" to "H.264 / AVC",
-                        "h265" to "H.265 / HEVC",
-                        "av1" to "AV1",
-                        "vp9" to "VP9 (MKV only)",
+                    "avi" -> listOf(
+                        "auto" to "Auto (H.264)", "h264" to "H.264 / AVC",
                         "copy" to "Copy video stream"
+                    )
+                    "mp4", "mov" -> listOf(
+                        "auto" to "Auto (H.264)", "h264" to "H.264 / AVC",
+                        "h265" to "H.265 / HEVC", "av1" to "AV1",
+                        "copy" to "Copy video stream"
+                    )
+                    else -> listOf(
+                        "auto" to "Auto (H.264)", "h264" to "H.264 / AVC",
+                        "h265" to "H.265 / HEVC", "vp9" to "VP9",
+                        "av1" to "AV1", "copy" to "Copy video stream"
                     )
                 }
                 ChoiceField("Video codec", draft.videoCodec, videoChoices) {
@@ -319,20 +322,45 @@ fun VideoAdvancedSettingsControl(
             SectionHeader("Audio")
 
             if (!remux) {
-                val audioChoices = if (draft.format == "webm") {
-                    listOf("auto" to "Auto (Opus)", "opus" to "Opus",
-                        "vorbis" to "Vorbis", "copy" to "Copy audio", "none" to "No audio")
-                } else {
-                    listOf(
-                        "auto" to "Auto (AAC or MP3 by container)",
-                        "aac" to "AAC", "mp3" to "MP3",
-                        "opus" to "Opus (MKV)", "vorbis" to "Vorbis (MKV)",
-                        "flac" to "FLAC (MKV)", "pcm" to "PCM (MKV/AVI)",
+                val audioChoices = when (draft.format) {
+                    "webm" -> listOf(
+                        "auto" to "Auto (Opus)", "opus" to "Opus",
+                        "vorbis" to "Vorbis", "copy" to "Copy audio",
+                        "none" to "No audio"
+                    )
+                    "avi" -> listOf(
+                        "auto" to "Auto (MP3)", "mp3" to "MP3",
+                        "pcm" to "PCM", "copy" to "Copy audio",
+                        "none" to "No audio"
+                    )
+                    "mp4", "mov" -> listOf(
+                        "auto" to "Auto (AAC)", "aac" to "AAC",
+                        "mp3" to "MP3", "copy" to "Copy audio",
+                        "none" to "No audio"
+                    )
+                    else -> listOf(
+                        "auto" to "Auto (AAC)", "aac" to "AAC",
+                        "mp3" to "MP3", "opus" to "Opus", "vorbis" to "Vorbis",
+                        "flac" to "FLAC", "pcm" to "PCM",
                         "copy" to "Copy audio", "none" to "No audio"
                     )
                 }
                 ChoiceField("Audio codec", draft.audioCodec, audioChoices) {
-                    draft = draft.copy(audioCodec = it)
+                    draft = when (it) {
+                        "copy" -> draft.copy(
+                            audioCodec = "copy",
+                            volumePercent = 100,
+                            sampleRate = null,
+                            channels = null
+                        )
+                        "none" -> draft.copy(audioCodec = "none", audioStream = "none")
+                        else -> draft.copy(
+                            audioCodec = it,
+                            audioStream = if (draft.audioStream == "none") "first" else draft.audioStream,
+                            sampleRate = if (it == "opus" && draft.sampleRate != null) 48000 else draft.sampleRate
+                        )
+                    }
+                    formError = null
                 }
                 if (draft.audioCodec != "none") {
                     ChoiceField(

@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -33,7 +34,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import org.roruku.smartformatconverter.ui.converter.ConverterScreen
+import org.roruku.smartformatconverter.ui.converter.ConverterV4Screen
 import org.roruku.smartformatconverter.ui.downloader.DownloaderScreen
 import org.roruku.smartformatconverter.ui.home.HomeScreen
 import org.roruku.smartformatconverter.ui.queue.QueueScreen
@@ -65,6 +66,7 @@ fun MainAppScreen() {
     val navController = rememberNavController()
     val snackBarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    var editorVisible by remember { mutableStateOf(false) }
 
     val navItems = listOf(
         BottomNavItem.Home,
@@ -78,7 +80,7 @@ fun MainAppScreen() {
         modifier = Modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackBarHostState) },
         bottomBar = {
-            NavigationBar {
+            if (!editorVisible) NavigationBar {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
@@ -139,9 +141,10 @@ fun MainAppScreen() {
                 })
             ) { backStackEntry ->
                 val tabIndex = backStackEntry.arguments?.getInt("tab") ?: 0
-                ConverterScreen(
+                ConverterV4Screen(
                     snackbarHostState = snackBarHostState,
-                    initialTab = tabIndex
+                    initialTab = tabIndex,
+                    onEditorVisibilityChanged = { editorVisible = it }
                 )
             }
 

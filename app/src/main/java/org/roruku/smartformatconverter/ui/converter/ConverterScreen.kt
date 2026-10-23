@@ -1,5 +1,6 @@
 package org.roruku.smartformatconverter.ui.converter
 
+import androidx.annotation.StringRes
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -62,30 +63,30 @@ import org.roruku.smartformatconverter.data.storage.StorageManager
 data class ConverterFormat(
     val tab: Int,
     val extension: String,
-    val description: String,
+    @StringRes val descriptionRes: Int,
 )
 
 private val formats = listOf(
     listOf(
-        ConverterFormat(0, "mp4", "Universal"),
-        ConverterFormat(0, "mkv", "Multi-track"),
-        ConverterFormat(0, "webm", "Web"),
-        ConverterFormat(0, "mov", "Editing"),
-        ConverterFormat(0, "avi", "Legacy"),
+        ConverterFormat(0, "mp4", R.string.format_desc_universal),
+        ConverterFormat(0, "mkv", R.string.format_desc_multitrack),
+        ConverterFormat(0, "webm", R.string.format_desc_web),
+        ConverterFormat(0, "mov", R.string.format_desc_editing),
+        ConverterFormat(0, "avi", R.string.format_desc_legacy),
     ),
     listOf(
-        ConverterFormat(1, "jpg", "Photo"),
-        ConverterFormat(1, "png", "Lossless"),
-        ConverterFormat(1, "webp", "Compact"),
+        ConverterFormat(1, "jpg", R.string.format_desc_photo),
+        ConverterFormat(1, "png", R.string.format_desc_lossless),
+        ConverterFormat(1, "webp", R.string.format_desc_compact),
     ),
     listOf(
-        ConverterFormat(2, "mp3", "Universal"),
-        ConverterFormat(2, "aac", "Streaming"),
-        ConverterFormat(2, "m4a", "AAC audio"),
-        ConverterFormat(2, "wav", "PCM"),
-        ConverterFormat(2, "flac", "Lossless"),
-        ConverterFormat(2, "ogg", "Vorbis"),
-        ConverterFormat(2, "opus", "Efficient"),
+        ConverterFormat(2, "mp3", R.string.format_desc_universal),
+        ConverterFormat(2, "aac", R.string.format_desc_streaming),
+        ConverterFormat(2, "m4a", R.string.format_desc_aac_audio),
+        ConverterFormat(2, "wav", R.string.format_desc_pcm),
+        ConverterFormat(2, "flac", R.string.format_desc_lossless),
+        ConverterFormat(2, "ogg", R.string.format_desc_vorbis),
+        ConverterFormat(2, "opus", R.string.format_desc_efficient),
     )
 )
 
@@ -389,7 +390,7 @@ private fun FormatCategory(
                                         maxLines = 1
                                     )
                                     Text(
-                                        formatDescription(format.description),
+                                        stringResource(format.descriptionRes),
                                         style = MaterialTheme.typography.labelSmall,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
@@ -436,7 +437,7 @@ fun ConverterMediaPickerPreview() {
             }
         ) { padding ->
             ConverterCatalogContent(
-                selected = ConverterFormat(0, "mp4", "Universal"),
+                selected = ConverterFormat(0, "mp4", R.string.format_desc_universal),
                 isScanning = false,
                 onSelect = {},
                 onFilesSelected = {},
@@ -452,7 +453,7 @@ fun ConverterMediaPickerPreview() {
 fun ConverterAudioPickerPreview() {
     SmartFormatConverterTheme {
         ConverterCatalogContent(
-            selected = ConverterFormat(2, "flac", "Lossless"),
+            selected = ConverterFormat(2, "flac", R.string.format_desc_lossless),
             isScanning = false,
             onSelect = {},
             onFilesSelected = {},
@@ -467,7 +468,7 @@ fun ConverterAudioPickerPreview() {
 fun ConverterCompactPreview() {
     SmartFormatConverterTheme {
         ConverterCatalogContent(
-            selected = ConverterFormat(1, "jpg", "Photo"),
+            selected = ConverterFormat(1, "jpg", R.string.format_desc_photo),
             isScanning = false,
             onSelect = {},
             onFilesSelected = {},
@@ -477,20 +478,3 @@ fun ConverterCompactPreview() {
     }
 }
 
-@Composable
-fun formatDescription(desc: String): String = when (desc) {
-    "Universal" -> stringResource(R.string.format_desc_universal)
-    "Multi-track" -> stringResource(R.string.format_desc_multitrack)
-    "Web" -> stringResource(R.string.format_desc_web)
-    "Editing" -> stringResource(R.string.format_desc_editing)
-    "Legacy" -> stringResource(R.string.format_desc_legacy)
-    "Photo" -> stringResource(R.string.format_desc_photo)
-    "Lossless" -> stringResource(R.string.format_desc_lossless)
-    "Compact" -> stringResource(R.string.format_desc_compact)
-    "Streaming" -> stringResource(R.string.format_desc_streaming)
-    "AAC audio" -> stringResource(R.string.format_desc_aac_audio)
-    "PCM" -> stringResource(R.string.format_desc_pcm)
-    "Vorbis" -> stringResource(R.string.format_desc_vorbis)
-    "Efficient" -> stringResource(R.string.format_desc_efficient)
-    else -> desc
-}

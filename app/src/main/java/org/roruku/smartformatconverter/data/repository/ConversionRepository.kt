@@ -29,6 +29,8 @@ import org.roruku.smartformatconverter.engine.downloader.HttpMediaFormatOption
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioConversionConfig
 import org.roruku.smartformatconverter.engine.ffmpeg.FFmpegEngine
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoConversionConfig
+import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
+import org.roruku.smartformatconverter.engine.ffmpeg.VideoSettingsValidator
 import org.roruku.smartformatconverter.engine.image.ImageConversionConfig
 import org.roruku.smartformatconverter.engine.image.ImageConverterEngine
 import org.roruku.smartformatconverter.engine.image.ImageOutputFormat
@@ -155,11 +157,25 @@ class ConversionRepository(
                         },
                         crf = preset.crf
                     )
+                    // New jobs hold an immutable per-job JSON snapshot. Old jobs
+                    // without that field continue down FFmpegEngine's legacy path.
+                    val advanced = job.customParamsJson
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(VideoAdvancedSettings::fromJson)
+                    if (advanced != null) {
+                        require(advanced.format == job.outputFormat.lowercase()) {
+                            "Queued video format and advanced settings disagree"
+                        }
+                        VideoSettingsValidator.validate(advanced)?.let {
+                            throw IllegalArgumentException(it)
+                        }
+                    }
                     FFmpegEngine.convertVideo(
                         context = context,
                         inputUri = job.inputUri.toUri(),
                         tempOutputFile = tempOutFile,
                         config = config,
+                        advancedSettings = advanced,
                         onProgress = { pct, speed, eta ->
                             scope.launch(Dispatchers.IO) {
                                 dao.updateProgress(job.id, JobStatus.RUNNING, pct, speed, eta)

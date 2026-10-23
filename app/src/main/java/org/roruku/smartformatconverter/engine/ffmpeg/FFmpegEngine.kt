@@ -13,7 +13,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.roruku.smartformatconverter.data.storage.StorageManager
 import java.io.File
-import java.util.Locale
 import kotlin.coroutines.resume
 
 enum class VideoOutputFormat(val extension: String, val mimeType: String) {
@@ -176,22 +175,49 @@ object FFmpegEngine {
                     cmdList.addAll(listOf("-c", "copy"))
                 } else {
                     cmdList.addAll(listOf("-c:v", config.videoCodec.ffmpegName))
-                    cmdList.addAll(listOf("-preset", config.preset.presetSpeed))
-                    if (config.crf > 0) {
-                        cmdList.addAll(listOf("-crf", config.crf.toString()))
+                    // Encoder-specific options: libvpx-vp9 does not accept the
+                    // x264 -preset option, and stream copy cannot use -crf.
+                    when (config.videoCodec) {
+                        VideoCodec.H264, VideoCodec.H265 -> {
+                            cmdList.addAll(listOf("-preset", config.preset.presetSpeed))
+                            if (config.crf > 0) {
+                                cmdList.addAll(listOf("-crf", config.crf.toString()))
+                            }
+                        }
+                        VideoCodec.VP9 -> {
+                            if (config.bitrateKbps == null) {
+                                cmdList.addAll(listOf("-b:v", "0"))
+                            }
+                            if (config.crf > 0) {
+                                cmdList.addAll(listOf("-crf", config.crf.toString()))
+                            }
+                        }
+                        VideoCodec.AV1 -> {
+                            cmdList.addAll(listOf("-preset", "8"))
+                            if (config.crf > 0) {
+                                cmdList.addAll(listOf("-crf", config.crf.toString()))
+                            }
+                        }
+                        VideoCodec.COPY -> Unit
                     }
-                    if (config.bitrateKbps != null) {
-                        cmdList.addAll(listOf("-b:v", "${config.bitrateKbps}k"))
-                    }
-                    if (!config.resolution.isNullOrBlank()) {
-                        cmdList.addAll(listOf("-vf", "scale=${config.resolution}"))
-                    }
-                    if (config.frameRate != null) {
-                        cmdList.addAll(listOf("-r", config.frameRate.toString()))
+                    if (config.videoCodec != VideoCodec.COPY) {
+                        config.bitrateKbps?.let {
+                            cmdList.addAll(listOf("-b:v", "${it}k"))
+                        }
+                        config.resolution?.takeIf { it.isNotBlank() }?.let {
+                            cmdList.addAll(listOf("-vf", "scale=$it"))
+                        }
+                        config.frameRate?.let {
+                            cmdList.addAll(listOf("-r", it.toString()))
+                        }
                     }
 
                     cmdList.addAll(listOf("-c:a", config.audioCodec.ffmpegName))
-                    cmdList.addAll(listOf("-b:a", "${config.audioBitrateKbps}k"))
+                    if (config.audioCodec != AudioCodec.COPY) {
+                        cmdList.addAll(listOf("-b:a", "${config.audioBitrateKbps}k"))
+                        config.audioChannels?.let { cmdList.addAll(listOf("-ac", it.toString())) }
+                        config.audioSampleRate?.let { cmdList.addAll(listOf("-ar", it.toString())) }
+                    }
                 }
 
                 cmdList.add(tempOutputFile.absolutePath)
@@ -227,8 +253,6 @@ object FFmpegEngine {
     ): Result<File> = withContext(Dispatchers.IO) {
         try {
             coroutineContext.ensureActive()
-            val probe = probeMedia(context, inputUri)
-
             val tempInputFile = StorageManager.createTempFileInCache(context, "ffmpeg_audio_in", "media")
             try {
                 onProgress(0.05f, "Preparing audio...", null)
@@ -241,11 +265,13 @@ object FFmpegEngine {
 
                 val cmdList = mutableListOf("ffmpeg", "-y", "-i", tempInputFile.absolutePath, "-vn")
 
-                if (config.copyStream) {
+                if (config.copyStream || config.audioCodec == AudioCodec.COPY) {
                     cmdList.addAll(listOf("-c:a", "copy"))
                 } else {
                     cmdList.addAll(listOf("-c:a", config.audioCodec.ffmpegName))
-                    cmdList.addAll(listOf("-b:a", "${config.bitrateKbps}k"))
+                    if (config.audioCodec != AudioCodec.PCM_S16LE && config.audioCodec != AudioCodec.FLAC) {
+                        cmdList.addAll(listOf("-b:a", "${config.bitrateKbps}k"))
+                    }
                     if (config.sampleRate != null) {
                         cmdList.addAll(listOf("-ar", config.sampleRate.toString()))
                     }
@@ -291,8 +317,9 @@ object FFmpegEngine {
 
             override fun onProgress(progress: Int, progressTime: Long) {
                 val pct = (progress.toFloat() / 100f).coerceIn(0f, 0.99f)
-                val speedStr = String.format(Locale.US, "%.1fx", if (progressTime > 0) (progressTime.toDouble() / 1000.0) else 1.0)
-                onProgress(pct, speedStr, null)
+                // progressTime is a media timestamp, not encoding speed.
+                // Avoid displaying an invented speed multiplier.
+                onProgress(pct, null, null)
             }
 
             override fun onCancel() {

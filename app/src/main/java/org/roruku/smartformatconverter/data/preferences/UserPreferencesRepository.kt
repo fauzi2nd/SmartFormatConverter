@@ -28,8 +28,8 @@ enum class FilenameFormat {
 
 data class UserSettings(
     val defaultOutputUri: String? = null,
-    val filenameFormat: FilenameFormat = FilenameFormat.ORIGINAL_SUFFIX,
-    val customPrefix: String = "Converted_",
+    val filenameFormat: FilenameFormat = FilenameFormat.ORIGINAL,
+    val customPrefix: String = "",
     val preserveMetadata: Boolean = true,
     val hardwareAcceleration: Boolean = true,
     val maxConcurrentJobs: Int = 2,
@@ -52,8 +52,8 @@ class UserPreferencesRepository(private val context: Context) {
 
     val userSettingsFlow: Flow<UserSettings> = context.dataStore.data.map { preferences ->
         val outputUri = preferences[PreferencesKeys.DEFAULT_OUTPUT_URI]
-        val filenameFormatStr = preferences[PreferencesKeys.FILENAME_FORMAT] ?: FilenameFormat.ORIGINAL_SUFFIX.name
-        val customPrefix = preferences[PreferencesKeys.CUSTOM_PREFIX] ?: "Converted_"
+        val filenameFormatStr = preferences[PreferencesKeys.FILENAME_FORMAT] ?: FilenameFormat.ORIGINAL.name
+        val customPrefix = preferences[PreferencesKeys.CUSTOM_PREFIX] ?: ""
         val preserveMetadata = preferences[PreferencesKeys.PRESERVE_METADATA] ?: true
         val hardwareAccel = preferences[PreferencesKeys.HARDWARE_ACCELERATION] ?: true
         val maxJobs = preferences[PreferencesKeys.MAX_CONCURRENT_JOBS] ?: 2
@@ -62,7 +62,16 @@ class UserPreferencesRepository(private val context: Context) {
 
         UserSettings(
             defaultOutputUri = outputUri,
-            filenameFormat = try { FilenameFormat.valueOf(filenameFormatStr) } catch (_: Exception) { FilenameFormat.ORIGINAL_SUFFIX },
+            filenameFormat = when (filenameFormatStr) {
+                // Older builds stored ORIGINAL_SUFFIX as the default, even though
+                // that naming preference was not applied to output filenames.
+                FilenameFormat.ORIGINAL_SUFFIX.name -> FilenameFormat.ORIGINAL
+                else -> try {
+                    FilenameFormat.valueOf(filenameFormatStr)
+                } catch (_: Exception) {
+                    FilenameFormat.ORIGINAL
+                }
+            },
             customPrefix = customPrefix,
             preserveMetadata = preserveMetadata,
             hardwareAcceleration = hardwareAccel,

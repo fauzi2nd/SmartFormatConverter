@@ -35,6 +35,7 @@ jobs:
           # Java .properties syntax requires an escaped Windows drive colon.
           $sdk = $env:ANDROID_HOME.Replace('\', '/').Replace(':', '\:')
           Set-Content -Path local.properties -Value "sdk.dir=$sdk" -Encoding ascii -NoNewline
+          Write-Host "SDK property: $(Get-Content local.properties)"
 
       - name: Build Debug APK
         run: gradlew.bat assembleDebug --stacktrace
@@ -45,7 +46,9 @@ jobs:
         shell: cmd
 
       - name: Run Android Lint
-        run: gradlew.bat lintDebug --stacktrace
+        # Self-hosted runners retain Gradle outputs between jobs. Reanalyze
+        # rather than reusing a stale lint report for generated local.properties.
+        run: gradlew.bat lintDebug --rerun-tasks --no-configuration-cache --stacktrace
         shell: cmd
 
       - name: Upload Test Results

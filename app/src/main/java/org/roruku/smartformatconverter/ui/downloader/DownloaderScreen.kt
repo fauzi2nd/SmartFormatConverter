@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalInspectionMode
 import org.roruku.smartformatconverter.engine.downloader.HttpDownloadableMediaInfo
 import org.roruku.smartformatconverter.engine.downloader.HttpMediaFormatOption
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
@@ -49,24 +50,34 @@ import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 @Composable
 fun DownloaderScreen(
     snackbarHostState: SnackbarHostState,
-    viewModel: DownloaderViewModel = viewModel(),
+    viewModel: DownloaderViewModel? = if (LocalInspectionMode.current) null else viewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    if (viewModel == null) {
+        DownloaderScreenContent(
+            uiState = DownloaderUiState(),
+            onUpdateUrlInput = {},
+            onExtractInfo = {},
+            onSelectFormat = {},
+            onStartDownload = {},
+        )
+    } else {
+        val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(uiState.message) {
-        uiState.message?.let { msg ->
-            snackbarHostState.showSnackbar(msg)
-            viewModel.clearMessage()
+        LaunchedEffect(uiState.message) {
+            uiState.message?.let { msg ->
+                snackbarHostState.showSnackbar(msg)
+                viewModel.clearMessage()
+            }
         }
-    }
 
-    DownloaderScreenContent(
-        uiState = uiState,
-        onUpdateUrlInput = { viewModel.updateUrlInput(it) },
-        onExtractInfo = { viewModel.extractInfo() },
-        onSelectFormat = { viewModel.selectFormat(it) },
-        onStartDownload = { viewModel.startDownload() },
-    )
+        DownloaderScreenContent(
+            uiState = uiState,
+            onUpdateUrlInput = { viewModel.updateUrlInput(it) },
+            onExtractInfo = { viewModel.extractInfo() },
+            onSelectFormat = { viewModel.selectFormat(it) },
+            onStartDownload = { viewModel.startDownload() },
+        )
+    }
 }
 
 @Composable

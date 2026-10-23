@@ -47,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -59,31 +60,44 @@ import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 fun ConverterScreen(
     snackbarHostState: SnackbarHostState,
     initialTab: Int = 0,
-    viewModel: ConverterViewModel = viewModel(),
+    viewModel: ConverterViewModel? = if (LocalInspectionMode.current) null else viewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    if (viewModel == null) {
+        ConverterScreenContent(
+            uiState = ConverterUiState(selectedTab = initialTab),
+            onSelectTab = {},
+            onUpdateTargetFormat = {},
+            onUpdatePreset = {},
+            onRemoveSelectedFile = {},
+            onAddSelectedUris = {},
+            onScanAndAddFolder = {},
+            onStartConversion = {},
+        )
+    } else {
+        val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(initialTab) {
-        viewModel.selectTab(initialTab)
-    }
-
-    LaunchedEffect(uiState.message) {
-        uiState.message?.let { msg ->
-            snackbarHostState.showSnackbar(msg)
-            viewModel.clearMessage()
+        LaunchedEffect(initialTab) {
+            viewModel.selectTab(initialTab)
         }
-    }
 
-    ConverterScreenContent(
-        uiState = uiState,
-        onSelectTab = { viewModel.selectTab(it) },
-        onUpdateTargetFormat = { viewModel.updateTargetFormat(it) },
-        onUpdatePreset = { viewModel.updatePreset(it) },
-        onRemoveSelectedFile = { viewModel.removeSelectedFile(it) },
-        onAddSelectedUris = { viewModel.addSelectedUris(it) },
-        onScanAndAddFolder = { viewModel.scanAndAddFolder(it) },
-        onStartConversion = { viewModel.startConversion() },
-    )
+        LaunchedEffect(uiState.message) {
+            uiState.message?.let { msg ->
+                snackbarHostState.showSnackbar(msg)
+                viewModel.clearMessage()
+            }
+        }
+
+        ConverterScreenContent(
+            uiState = uiState,
+            onSelectTab = { viewModel.selectTab(it) },
+            onUpdateTargetFormat = { viewModel.updateTargetFormat(it) },
+            onUpdatePreset = { viewModel.updatePreset(it) },
+            onRemoveSelectedFile = { viewModel.removeSelectedFile(it) },
+            onAddSelectedUris = { viewModel.addSelectedUris(it) },
+            onScanAndAddFolder = { viewModel.scanAndAddFolder(it) },
+            onStartConversion = { viewModel.startConversion() },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

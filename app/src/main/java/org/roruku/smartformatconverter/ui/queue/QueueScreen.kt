@@ -37,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -48,18 +49,29 @@ import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 
 @Composable
 fun QueueScreen(
-    viewModel: QueueViewModel = viewModel(),
+    viewModel: QueueViewModel? = if (LocalInspectionMode.current) null else viewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    if (viewModel == null) {
+        QueueScreenContent(
+            uiState = QueueUiState(),
+            onClearCompleted = {},
+            onSetFilter = {},
+            onCancelJob = {},
+            onRetryJob = {},
+            onDeleteJob = {},
+        )
+    } else {
+        val uiState by viewModel.uiState.collectAsState()
 
-    QueueScreenContent(
-        uiState = uiState,
-        onClearCompleted = { viewModel.clearCompleted() },
-        onSetFilter = { viewModel.setFilter(it) },
-        onCancelJob = { viewModel.cancelJob(it) },
-        onRetryJob = { viewModel.retryJob(it) },
-        onDeleteJob = { viewModel.deleteJob(it) },
-    )
+        QueueScreenContent(
+            uiState = uiState,
+            onClearCompleted = { viewModel.clearCompleted() },
+            onSetFilter = { viewModel.setFilter(it) },
+            onCancelJob = { viewModel.cancelJob(it) },
+            onRetryJob = { viewModel.retryJob(it) },
+            onDeleteJob = { viewModel.deleteJob(it) },
+        )
+    }
 }
 
 @Composable

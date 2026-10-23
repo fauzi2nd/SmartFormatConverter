@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalInspectionMode
 import org.roruku.smartformatconverter.data.preferences.UserSettings
 import org.roruku.smartformatconverter.data.storage.StorageManager
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
@@ -45,23 +46,35 @@ import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 fun SettingsScreen(
     snackbarHostState: SnackbarHostState,
     coroutineScope: CoroutineScope,
-    viewModel: SettingsViewModel = viewModel(),
+    viewModel: SettingsViewModel? = if (LocalInspectionMode.current) null else viewModel(),
 ) {
-    val settings by viewModel.userSettings.collectAsState()
+    if (viewModel == null) {
+        SettingsScreenContent(
+            settings = UserSettings(),
+            onUpdateDefaultOutputUri = {},
+            onUpdateCustomPrefix = {},
+            onUpdatePreserveMetadata = {},
+            onUpdateHardwareAcceleration = {},
+            onClearCache = {},
+            onShowSnackbar = {},
+        )
+    } else {
+        val settings by viewModel.userSettings.collectAsState()
 
-    SettingsScreenContent(
-        settings = settings,
-        onUpdateDefaultOutputUri = { viewModel.updateDefaultOutputUri(it) },
-        onUpdateCustomPrefix = { viewModel.updateCustomPrefix(it) },
-        onUpdatePreserveMetadata = { viewModel.updatePreserveMetadata(it) },
-        onUpdateHardwareAcceleration = { viewModel.updateHardwareAcceleration(it) },
-        onClearCache = { viewModel.clearCache() },
-        onShowSnackbar = { msg ->
-            coroutineScope.launch {
-                snackbarHostState.showSnackbar(msg)
-            }
-        },
-    )
+        SettingsScreenContent(
+            settings = settings,
+            onUpdateDefaultOutputUri = { viewModel.updateDefaultOutputUri(it) },
+            onUpdateCustomPrefix = { viewModel.updateCustomPrefix(it) },
+            onUpdatePreserveMetadata = { viewModel.updatePreserveMetadata(it) },
+            onUpdateHardwareAcceleration = { viewModel.updateHardwareAcceleration(it) },
+            onClearCache = { viewModel.clearCache() },
+            onShowSnackbar = { msg ->
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(msg)
+                }
+            },
+        )
+    }
 }
 
 @Composable

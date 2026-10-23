@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -150,3 +151,12 @@ fun MainAppScreen() {
         }
     }
 }
+
+@Preview(showBackground = true)
+@Composable
+fun MainAppScreenPreview() {
+    SmartFormatConverterTheme {
+        MainAppScreen()
+    }
+}
+

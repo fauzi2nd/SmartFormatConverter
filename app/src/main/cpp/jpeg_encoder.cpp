@@ -1,264 +1,665 @@
+
 #include <jni.h>
 #include <android/bitmap.h>
 #include <android/log.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string>
-#include <memory>
+
+#include <turbojpeg.h>
+
+#include <algorithm>
+#include <cerrno>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <limits>
-#include "turbojpeg.h"
+#include <memory>
+#include <new>
+#include <string>
+#include <vector>
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #define LOG_TAG "JpegNativeEncoder"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
-struct BitmapLocker {
-    JNIEnv* env;
-    jobject bitmap;
-    bool locked;
+#define LOGI(...) \
+    __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
-    BitmapLocker(JNIEnv* env, jobject bitmap) : env(env), bitmap(bitmap), locked(false) {}
+#define LOGE(...) \
+    __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
-    int lock(void** pixels) {
-        int res = AndroidBitmap_lockPixels(env, bitmap, pixels);
-        if (res >= 0) {
-            locked = true;
+namespace {
+
+    constexpr uint32_t MAX_IMAGE_DIMENSION = 32768;
+
+// --------------------------------------------------
+// JNI STRING RESOURCE
+// --------------------------------------------------
+
+    class UtfString final {
+    public:
+        UtfString(JNIEnv* env, jstring value)
+                : env_(env),
+                  value_(value),
+                  chars_(nullptr) {
+            if (env_ && value_) {
+                chars_ = env_->GetStringUTFChars(value_, nullptr);
+            }
         }
-        return res;
+
+        ~UtfString() {
+            if (chars_ && value_) {
+                env_->ReleaseStringUTFChars(value_, chars_);
+            }
+        }
+
+        UtfString(const UtfString&) = delete;
+        UtfString& operator=(const UtfString&) = delete;
+
+        [[nodiscard]] const char* get() const {
+            return chars_;
+        }
+
+    private:
+        JNIEnv* env_;
+        jstring value_;
+        const char* chars_;
+    };
+
+// --------------------------------------------------
+// BITMAP LOCK RESOURCE
+// --------------------------------------------------
+
+    class LockedBitmap final {
+    public:
+        LockedBitmap(JNIEnv* env, jobject bitmap)
+                : env_(env),
+                  bitmap_(bitmap),
+                  pixels_(nullptr),
+                  locked_(false) {}
+
+        bool lock() {
+            if (!env_ || !bitmap_) {
+                return false;
+            }
+
+            const int result =
+                    AndroidBitmap_lockPixels(env_, bitmap_, &pixels_);
+
+            locked_ = result == ANDROID_BITMAP_RESULT_SUCCESS;
+
+            return locked_ && pixels_ != nullptr;
+        }
+
+        ~LockedBitmap() {
+            if (locked_) {
+                AndroidBitmap_unlockPixels(env_, bitmap_);
+            }
+        }
+
+        LockedBitmap(const LockedBitmap&) = delete;
+        LockedBitmap& operator=(const LockedBitmap&) = delete;
+
+        [[nodiscard]] const uint8_t* pixels() const {
+            return static_cast<const uint8_t*>(pixels_);
+        }
+
+    private:
+        JNIEnv* env_;
+        jobject bitmap_;
+        void* pixels_;
+        bool locked_;
+    };
+
+// --------------------------------------------------
+// TURBO JPEG RESOURCE
+// --------------------------------------------------
+
+    class TurboJpegCompressor final {
+    public:
+        TurboJpegCompressor()
+                : handle_(tj3Init(TJINIT_COMPRESS)) {}
+
+        ~TurboJpegCompressor() {
+            if (handle_) {
+                tj3Destroy(handle_);
+            }
+        }
+
+        TurboJpegCompressor(const TurboJpegCompressor&) = delete;
+        TurboJpegCompressor& operator=(const TurboJpegCompressor&) = delete;
+
+        [[nodiscard]] tjhandle get() const {
+            return handle_;
+        }
+
+    private:
+        tjhandle handle_;
+    };
+
+// --------------------------------------------------
+// TURBO JPEG OUTPUT RESOURCE
+// --------------------------------------------------
+
+    struct TurboJpegBufferDeleter {
+        void operator()(unsigned char* ptr) const {
+            if (ptr) {
+                tj3Free(ptr);
+            }
+        }
+    };
+
+    using TurboJpegBuffer =
+            std::unique_ptr<unsigned char, TurboJpegBufferDeleter>;
+
+// --------------------------------------------------
+// FILE DESCRIPTOR RESOURCE
+// --------------------------------------------------
+
+    class FileDescriptor final {
+    public:
+        explicit FileDescriptor(int fd = -1)
+                : fd_(fd) {}
+
+        ~FileDescriptor() {
+            if (fd_ >= 0) {
+                ::close(fd_);
+            }
+        }
+
+        FileDescriptor(const FileDescriptor&) = delete;
+        FileDescriptor& operator=(const FileDescriptor&) = delete;
+
+        [[nodiscard]] int get() const {
+            return fd_;
+        }
+
+        bool closeChecked() {
+            if (fd_ < 0) {
+                return false;
+            }
+
+            const int fd = fd_;
+            fd_ = -1;
+
+            return ::close(fd) == 0;
+        }
+
+    private:
+        int fd_;
+    };
+
+// --------------------------------------------------
+// INPUT VALIDATION
+// --------------------------------------------------
+
+    bool validateBitmapInfo(const AndroidBitmapInfo& info) {
+        if (info.format != ANDROID_BITMAP_FORMAT_RGBA_8888) {
+            LOGE("Unsupported bitmap format: %d", info.format);
+            return false;
+        }
+
+        if (info.width == 0 || info.height == 0 ||
+            info.width > MAX_IMAGE_DIMENSION ||
+            info.height > MAX_IMAGE_DIMENSION) {
+            LOGE(
+                    "Invalid bitmap dimensions: %u x %u",
+                    info.width,
+                    info.height
+            );
+            return false;
+        }
+
+        const uint64_t minimumStride =
+                static_cast<uint64_t>(info.width) * 4ULL;
+
+        if (static_cast<uint64_t>(info.stride) < minimumStride) {
+            LOGE(
+                    "Invalid bitmap stride: %u",
+                    info.stride
+            );
+            return false;
+        }
+
+        const uint64_t totalSourceBytes =
+                static_cast<uint64_t>(info.stride) *
+                static_cast<uint64_t>(info.height);
+
+        if (totalSourceBytes >
+            static_cast<uint64_t>(
+                    std::numeric_limits<size_t>::max()
+            )) {
+            LOGE("Bitmap source size overflow");
+            return false;
+        }
+
+        const uint64_t totalDestinationBytes =
+                static_cast<uint64_t>(info.width) *
+                static_cast<uint64_t>(info.height) * 4ULL;
+
+        if (totalDestinationBytes >
+            static_cast<uint64_t>(
+                    std::numeric_limits<size_t>::max()
+            )) {
+            LOGE("Bitmap destination size overflow");
+            return false;
+        }
+
+        return true;
     }
 
-    ~BitmapLocker() {
-        if (locked) {
-            AndroidBitmap_unlockPixels(env, bitmap);
+// --------------------------------------------------
+// SUBSAMPLING VALIDATION
+// --------------------------------------------------
+
+    bool resolveSubsampling(
+            jint mode,
+            int& turboJpegSubsampling
+    ) {
+        switch (mode) {
+            case 0:
+                turboJpegSubsampling = TJSAMP_444;
+                return true;
+
+            case 1:
+                turboJpegSubsampling = TJSAMP_422;
+                return true;
+
+            case 2:
+                turboJpegSubsampling = TJSAMP_420;
+                return true;
+
+            default:
+                LOGE("Unsupported subsampling mode: %d", mode);
+                return false;
         }
     }
-};
 
-struct JniStringHolder {
-    JNIEnv* env;
-    jstring jstr;
-    const char* str;
+// --------------------------------------------------
+// ALPHA COMPOSITING
+// --------------------------------------------------
 
-    JniStringHolder(JNIEnv* env, jstring jstr) : env(env), jstr(jstr), str(nullptr) {
-        if (jstr) {
-            str = env->GetStringUTFChars(jstr, nullptr);
-        }
+    uint8_t compositeOverWhite(
+            uint8_t color,
+            uint8_t alpha
+    ) {
+        const unsigned int value =
+                static_cast<unsigned int>(color) *
+                static_cast<unsigned int>(alpha) +
+                255U * (255U - static_cast<unsigned int>(alpha));
+
+        return static_cast<uint8_t>((value + 127U) / 255U);
     }
 
-    ~JniStringHolder() {
-        if (str && jstr) {
-            env->ReleaseStringUTFChars(jstr, str);
+// --------------------------------------------------
+// BITMAP TO RGBA BUFFER
+// --------------------------------------------------
+
+    bool convertBitmapToRgba(
+            const AndroidBitmapInfo& info,
+            const uint8_t* source,
+            bool compositeWhite,
+            std::vector<uint8_t>& destination
+    ) {
+        if (!source) {
+            return false;
         }
-    }
-};
 
-struct Tj3Holder {
-    tjhandle handle;
+        const auto width = static_cast<size_t>(info.width);
+        const auto height = static_cast<size_t>(info.height);
+        const auto sourceStride = static_cast<size_t>(info.stride);
 
-    Tj3Holder(tjhandle h) : handle(h) {}
+        const size_t destinationStride = width * 4U;
+        const size_t destinationSize =
+                destinationStride * height;
 
-    ~Tj3Holder() {
-        if (handle) {
-            tj3Destroy(handle);
+        try {
+            destination.resize(destinationSize);
+        } catch (const std::bad_alloc&) {
+            LOGE("Insufficient memory for RGBA buffer");
+            return false;
         }
-    }
-};
 
-extern "C" JNIEXPORT jboolean JNICALL
+        for (size_t y = 0; y < height; ++y) {
+            const uint8_t* sourceRow =
+                    source + y * sourceStride;
+
+            uint8_t* destinationRow =
+                    destination.data() + y * destinationStride;
+
+            for (size_t x = 0; x < width; ++x) {
+                const size_t offset = x * 4U;
+
+                const uint8_t r = sourceRow[offset + 0];
+                const uint8_t g = sourceRow[offset + 1];
+                const uint8_t b = sourceRow[offset + 2];
+                const uint8_t a = sourceRow[offset + 3];
+
+                if (compositeWhite) {
+                    destinationRow[offset + 0] =
+                            compositeOverWhite(r, a);
+
+                    destinationRow[offset + 1] =
+                            compositeOverWhite(g, a);
+
+                    destinationRow[offset + 2] =
+                            compositeOverWhite(b, a);
+                } else {
+                    // JPEG cannot store transparency.
+                    // Preserve RGB components when white
+                    // compositing is disabled.
+                    destinationRow[offset + 0] = r;
+                    destinationRow[offset + 1] = g;
+                    destinationRow[offset + 2] = b;
+                }
+
+                destinationRow[offset + 3] = 255;
+            }
+        }
+
+        return true;
+    }
+
+// --------------------------------------------------
+// SAFE TEMPORARY FILE WRITING
+// --------------------------------------------------
+
+    bool writeJpegAtomically(
+            const std::string& outputPath,
+            const unsigned char* data,
+            size_t size
+    ) {
+        if (outputPath.empty() || !data || size == 0) {
+            return false;
+        }
+
+        // The temporary file is created in the same
+        // directory as the destination.
+        //
+        // mkstemp avoids collisions between concurrent
+        // conversion jobs and rejects existing temp names.
+
+        std::string tempTemplate =
+                outputPath + ".tmp.XXXXXX";
+
+        std::vector<char> tempPath(
+                tempTemplate.begin(),
+                tempTemplate.end()
+        );
+
+        tempPath.push_back('\0');
+
+        const int rawFd = ::mkstemp(tempPath.data());
+
+        if (rawFd < 0) {
+            LOGE(
+                    "Failed creating temporary file: %s",
+                    std::strerror(errno)
+            );
+            return false;
+        }
+
+        const std::string temporaryPath(tempPath.data());
+
+        FileDescriptor output(rawFd);
+
+        size_t written = 0;
+        bool success = true;
+
+        while (written < size) {
+            const size_t remaining = size - written;
+
+            const size_t chunk = std::min(
+                    remaining,
+                    static_cast<size_t>(1024U * 1024U)
+            );
+
+            const ssize_t result = ::write(
+                    output.get(),
+                    data + written,
+                    chunk
+            );
+
+            if (result < 0 && errno == EINTR) {
+                continue;
+            }
+
+            if (result <= 0) {
+                LOGE(
+                        "Failed writing JPEG: %s",
+                        std::strerror(errno)
+                );
+                success = false;
+                break;
+            }
+
+            written += static_cast<size_t>(result);
+        }
+
+        if (success && ::fsync(output.get()) != 0) {
+            LOGE(
+                    "Failed syncing JPEG file: %s",
+                    std::strerror(errno)
+            );
+            success = false;
+        }
+
+        if (!output.closeChecked()) {
+            LOGE("Failed closing JPEG temporary file");
+            success = false;
+        }
+
+        if (!success) {
+            ::unlink(temporaryPath.c_str());
+            return false;
+        }
+
+        // Atomic replacement within the same filesystem.
+        // The caller must supply an output path that is
+        // safe to replace and is not an original source file.
+
+        if (::rename(
+                temporaryPath.c_str(),
+                outputPath.c_str()
+        ) != 0) {
+            LOGE(
+                    "Failed committing JPEG output: %s",
+                    std::strerror(errno)
+            );
+
+            ::unlink(temporaryPath.c_str());
+            return false;
+        }
+
+        return true;
+    }
+
+} // namespace
+
+// ==================================================
+// JNI ENTRY POINT
+// ==================================================
+
+extern "C"
+JNIEXPORT jboolean JNICALL
 Java_org_roruku_smartformatconverter_engine_image_JpegNativeEncoder_nativeEncodeJpeg(
         JNIEnv* env,
-        jclass clazz,
+        jclass,
         jobject bitmap,
         jstring jOutputPath,
         jint quality,
-        jint subsamplingMode, // 0 = 4:4:4, 1 = 4:2:2, 2 = 4:2:0
+        jint subsamplingMode,
         jboolean preserveTransparencyWhite
 ) {
-    if (!bitmap || !jOutputPath) {
-        LOGE("Invalid null parameters passed to nativeEncodeJpeg");
+    // ----------------------------------------------
+    // Validate JNI arguments
+    // ----------------------------------------------
+
+    if (!env || !bitmap || !jOutputPath) {
+        LOGE("Invalid JNI arguments");
         return JNI_FALSE;
     }
 
-    AndroidBitmapInfo info;
-    if (AndroidBitmap_getInfo(env, bitmap, &info) < 0) {
-        LOGE("Failed getting AndroidBitmapInfo");
+    if (quality < 1 || quality > 100) {
+        LOGE("JPEG quality must be between 1 and 100");
         return JNI_FALSE;
     }
 
-    if (info.format != ANDROID_BITMAP_FORMAT_RGBA_8888) {
-        LOGE("Unsupported bitmap format (%d). Must be RGBA_8888", info.format);
+    int subsampling = TJSAMP_444;
+
+    if (!resolveSubsampling(
+            subsamplingMode,
+            subsampling
+    )) {
         return JNI_FALSE;
     }
 
-    int width = (int)info.width;
-    int height = (int)info.height;
+    // ----------------------------------------------
+    // Validate bitmap metadata
+    // ----------------------------------------------
 
-    if (width <= 0 || height <= 0 || width > 32768 || height > 32768) {
-        LOGE("Invalid or out-of-range bitmap dimensions: %dx%d", width, height);
+    AndroidBitmapInfo info{};
+
+    if (AndroidBitmap_getInfo(
+            env,
+            bitmap,
+            &info
+    ) != ANDROID_BITMAP_RESULT_SUCCESS) {
+        LOGE("Failed reading Android bitmap info");
         return JNI_FALSE;
     }
 
-    size_t numPixels = (size_t)width * (size_t)height;
-    if (numPixels > (size_t)(SIZE_MAX / 4)) {
-        LOGE("Integer overflow in pixel allocation calculation");
+    if (!validateBitmapInfo(info)) {
         return JNI_FALSE;
     }
 
-    size_t bufferSize = numPixels * 4;
+    // ----------------------------------------------
+    // Validate output path
+    // ----------------------------------------------
 
-    BitmapLocker bitmapLocker(env, bitmap);
-    void* pixels = nullptr;
-    if (bitmapLocker.lock(&pixels) < 0 || !pixels) {
-        LOGE("Failed locking bitmap pixels");
+    UtfString outputPathHolder(env, jOutputPath);
+
+    const char* outputPath = outputPathHolder.get();
+
+    if (!outputPath || outputPath[0] == '\0') {
+        LOGE("Invalid output path");
         return JNI_FALSE;
     }
 
-    JniStringHolder outputPathHolder(env, jOutputPath);
-    if (!outputPathHolder.str) {
-        LOGE("Failed getting output path string");
+    const std::string destination(outputPath);
+
+    // ----------------------------------------------
+    // Lock bitmap
+    // ----------------------------------------------
+
+    LockedBitmap lockedBitmap(env, bitmap);
+
+    if (!lockedBitmap.lock()) {
+        LOGE("Failed locking Android bitmap");
         return JNI_FALSE;
     }
 
-    std::string outputPathStr = outputPathHolder.str;
-    if (outputPathStr.empty()) {
-        LOGE("Output path string is empty");
+    // ----------------------------------------------
+    // Convert pixels
+    // ----------------------------------------------
+
+    std::vector<uint8_t> rgbaBuffer;
+
+    if (!convertBitmapToRgba(
+            info,
+            lockedBitmap.pixels(),
+            preserveTransparencyWhite == JNI_TRUE,
+            rgbaBuffer
+    )) {
         return JNI_FALSE;
     }
 
-    int stride = (int)info.stride;
-    if (stride < width * 4) {
-        LOGE("Invalid bitmap row stride: %d (expected >= %d)", stride, width * 4);
+    // ----------------------------------------------
+    // Initialize TurboJPEG 3
+    // ----------------------------------------------
+
+    TurboJpegCompressor compressor;
+
+    if (!compressor.get()) {
+        LOGE("Failed initializing TurboJPEG compressor");
         return JNI_FALSE;
     }
 
-    uint8_t* argbBytes = (uint8_t*)pixels;
-    uint8_t* rgbaBuffer = (uint8_t*)malloc(bufferSize);
-    if (!rgbaBuffer) {
-        LOGE("Failed allocating %zu bytes for RGBA buffer", bufferSize);
+    if (tj3Set(
+            compressor.get(),
+            TJPARAM_QUALITY,
+            static_cast<int>(quality)
+    ) != 0) {
+        LOGE(
+                "Failed setting JPEG quality: %s",
+                tj3GetErrorStr(compressor.get())
+        );
         return JNI_FALSE;
     }
 
-    std::unique_ptr<uint8_t, void(*)(void*)> rgbaBufferGuard(rgbaBuffer, free);
-
-    for (int y = 0; y < height; ++y) {
-        uint8_t* srcRow = argbBytes + (y * stride);
-        uint8_t* dstRow = rgbaBuffer + (y * width * 4);
-
-        for (int x = 0; x < width; ++x) {
-            uint8_t r = srcRow[x * 4 + 0];
-            uint8_t g = srcRow[x * 4 + 1];
-            uint8_t b = srcRow[x * 4 + 2];
-            uint8_t a = srcRow[x * 4 + 3];
-
-            if (preserveTransparencyWhite && a < 255) {
-                float alpha = a / 255.0f;
-                r = (uint8_t)(r * alpha + 255.0f * (1.0f - alpha));
-                g = (uint8_t)(g * alpha + 255.0f * (1.0f - alpha));
-                b = (uint8_t)(b * alpha + 255.0f * (1.0f - alpha));
-                a = 255;
-            }
-
-            dstRow[x * 4 + 0] = r;
-            dstRow[x * 4 + 1] = g;
-            dstRow[x * 4 + 2] = b;
-            dstRow[x * 4 + 3] = a;
-        }
-    }
-
-    tjhandle rawHandle = tj3Init(TJINIT_COMPRESS);
-    if (!rawHandle) {
-        LOGE("Failed initializing TurboJPEG 3 compressor instance");
-        return JNI_FALSE;
-    }
-    Tj3Holder tjCompressor(rawHandle);
-
-    int tjSubsamp = TJSAMP_444;
-    if (subsamplingMode == 1) {
-        tjSubsamp = TJSAMP_422;
-    } else if (subsamplingMode == 2) {
-        tjSubsamp = TJSAMP_420;
-    }
-
-    int qualityClamped = quality < 1 ? 1 : (quality > 100 ? 100 : quality);
-
-    if (tj3Set(tjCompressor.handle, TJPARAM_QUALITY, qualityClamped) != 0) {
-        LOGE("tj3Set TJPARAM_QUALITY failed: %s", tj3GetErrorStr(tjCompressor.handle));
+    if (tj3Set(
+            compressor.get(),
+            TJPARAM_SUBSAMP,
+            subsampling
+    ) != 0) {
+        LOGE(
+                "Failed setting JPEG subsampling: %s",
+                tj3GetErrorStr(compressor.get())
+        );
         return JNI_FALSE;
     }
 
-    if (tj3Set(tjCompressor.handle, TJPARAM_SUBSAMP, tjSubsamp) != 0) {
-        LOGE("tj3Set TJPARAM_SUBSAMP failed: %s", tj3GetErrorStr(tjCompressor.handle));
-        return JNI_FALSE;
-    }
+    // ----------------------------------------------
+    // Compress JPEG
+    // ----------------------------------------------
 
-    unsigned char* jpegBuf = nullptr;
+    unsigned char* rawJpegBuffer = nullptr;
     size_t jpegSize = 0;
 
-    int compressResult = tj3Compress8(
-            tjCompressor.handle,
-            rgbaBuffer,
-            width,
-            width * 4,
-            height,
+    const int compressionResult = tj3Compress8(
+            compressor.get(),
+            rgbaBuffer.data(),
+            static_cast<int>(info.width),
+            static_cast<int>(info.width * 4U),
+            static_cast<int>(info.height),
             TJPF_RGBA,
-            &jpegBuf,
+            &rawJpegBuffer,
             &jpegSize
     );
 
-    if (compressResult != 0 || !jpegBuf || jpegSize == 0) {
-        LOGE("tj3Compress8 failed: %s", tj3GetErrorStr(tjCompressor.handle));
-        if (jpegBuf) {
-            tj3Free(jpegBuf);
-        }
+    TurboJpegBuffer jpegBuffer(rawJpegBuffer);
+
+    if (compressionResult != 0 ||
+        !jpegBuffer ||
+        jpegSize == 0) {
+        LOGE(
+                "TurboJPEG compression failed: %s",
+                tj3GetErrorStr(compressor.get())
+        );
         return JNI_FALSE;
     }
 
-    std::unique_ptr<unsigned char, void(*)(void*)> jpegBufGuard(jpegBuf, tj3Free);
+    // ----------------------------------------------
+    // Commit output
+    // ----------------------------------------------
 
-    std::string tmpPathStr = outputPathStr + ".tmp";
-    FILE* outFile = fopen(tmpPathStr.c_str(), "wb");
-    if (!outFile) {
-        LOGE("Failed opening temp destination file: %s", tmpPathStr.c_str());
+    if (!writeJpegAtomically(
+            destination,
+            jpegBuffer.get(),
+            jpegSize
+    )) {
+        LOGE("Failed saving JPEG output");
         return JNI_FALSE;
     }
 
-    size_t written = fwrite(jpegBuf, 1, jpegSize, outFile);
-    int flushRes = fflush(outFile);
-    int closeRes = fclose(outFile);
+    LOGI(
+            "JPEG encoded: %ux%u, quality=%d, subsampling=%d, bytes=%zu",
+            info.width,
+            info.height,
+            quality,
+            subsamplingMode,
+            jpegSize
+    );
 
-    if (written != jpegSize || flushRes != 0 || closeRes != 0) {
-        LOGE("File write/flush/close error for %s (written %zu / %zu bytes)", tmpPathStr.c_str(), written, jpegSize);
-        remove(tmpPathStr.c_str());
-        return JNI_FALSE;
-    }
-
-    if (rename(tmpPathStr.c_str(), outputPathStr.c_str()) != 0) {
-        FILE* src = fopen(tmpPathStr.c_str(), "rb");
-        FILE* dst = fopen(outputPathStr.c_str(), "wb");
-        bool copyOk = false;
-        if (src && dst) {
-            char copyBuffer[8192];
-            size_t bytesRead = 0;
-            copyOk = true;
-            while ((bytesRead = fread(copyBuffer, 1, sizeof(copyBuffer), src)) > 0) {
-                if (fwrite(copyBuffer, 1, bytesRead, dst) != bytesRead) {
-                    copyOk = false;
-                    break;
-                }
-            }
-        }
-        if (src) fclose(src);
-        if (dst) fclose(dst);
-        remove(tmpPathStr.c_str());
-
-        if (!copyOk) {
-            LOGE("Failed renaming and copying temp file to final destination %s", outputPathStr.c_str());
-            remove(outputPathStr.c_str());
-            return JNI_FALSE;
-        }
-    }
-
-    LOGI("TurboJPEG 3 native encode succeeded for %s (%dx%d, Quality=%d, SubsamplingMode=%d, Bytes=%zu)",
-         outputPathStr.c_str(), width, height, qualityClamped, subsamplingMode, jpegSize);
     return JNI_TRUE;
 }

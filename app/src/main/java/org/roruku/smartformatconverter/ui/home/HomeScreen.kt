@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -45,9 +46,14 @@ import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 fun HomeScreen(
     onNavigateToConverterTab: (Int) -> Unit,
     onNavigateToDownloader: () -> Unit,
-    viewModel: HomeViewModel = viewModel(),
+    viewModel: HomeViewModel? = if (LocalInspectionMode.current) null else viewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState = if (viewModel != null) {
+        val state by viewModel.uiState.collectAsState()
+        state
+    } else {
+        HomeUiState()
+    }
 
     HomeScreenContent(
         uiState = uiState,

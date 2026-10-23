@@ -214,7 +214,7 @@ fun JobCardItem(
                         maxLines = 1
                     )
                     Text(
-                        text = "${job.inputFormat.uppercase()} → ${job.outputFormat.uppercase()} • ${job.status.name}",
+                        text = stringResource(R.string.queue_job_summary, job.inputFormat.uppercase(), job.outputFormat.uppercase(), localizedJobStatus(job.status)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -223,20 +223,20 @@ fun JobCardItem(
                 when (job.status) {
                     JobStatus.RUNNING, JobStatus.PREPARING, JobStatus.PENDING -> {
                         IconButton(onClick = onCancel) {
-                            Icon(imageVector = Icons.Default.Cancel, contentDescription = "Cancel")
+                            Icon(imageVector = Icons.Default.Cancel, contentDescription = stringResource(R.string.cancel))
                         }
                     }
                     JobStatus.FAILED, JobStatus.CANCELLED, JobStatus.INTERRUPTED -> {
                         IconButton(onClick = onRetry) {
-                            Icon(imageVector = Icons.Default.Refresh, contentDescription = "Retry")
+                            Icon(imageVector = Icons.Default.Refresh, contentDescription = stringResource(R.string.action_retry))
                         }
                         IconButton(onClick = onDelete) {
-                            Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete")
+                            Icon(imageVector = Icons.Default.Delete, contentDescription = stringResource(R.string.action_delete))
                         }
                     }
                     JobStatus.COMPLETED -> {
                         IconButton(onClick = onDelete) {
-                            Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete")
+                            Icon(imageVector = Icons.Default.Delete, contentDescription = stringResource(R.string.action_delete))
                         }
                     }
                     else -> {}
@@ -255,12 +255,12 @@ fun JobCardItem(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Speed: ${job.speed ?: "N/A"}",
+                        text = stringResource(R.string.queue_speed, job.speed ?: stringResource(R.string.value_not_available)),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "ETA: ${job.eta ?: "N/A"}",
+                        text = stringResource(R.string.queue_eta, job.eta ?: stringResource(R.string.value_not_available)),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -268,14 +268,14 @@ fun JobCardItem(
             } else if (job.status == JobStatus.COMPLETED && job.outputFileSize > 0) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Output Size: ${Formatter.formatShortFileSize(context, job.outputFileSize)}",
+                    text = stringResource(R.string.queue_output_size, Formatter.formatShortFileSize(context, job.outputFileSize)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
             } else if (job.status == JobStatus.FAILED && !job.errorMessage.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Error: ${job.errorMessage}",
+                    text = stringResource(R.string.queue_error_description, job.errorMessage.orEmpty()),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -331,3 +331,18 @@ fun QueueScreenPreview() {
         )
     }
 }
+
+
+@Composable
+private fun localizedJobStatus(status: JobStatus): String = stringResource(
+    when (status) {
+        JobStatus.PENDING -> R.string.job_status_pending
+        JobStatus.PREPARING -> R.string.job_status_preparing
+        JobStatus.RUNNING -> R.string.job_status_running
+        JobStatus.PAUSED -> R.string.job_status_paused
+        JobStatus.COMPLETED -> R.string.job_status_completed
+        JobStatus.FAILED -> R.string.job_status_failed
+        JobStatus.CANCELLED -> R.string.job_status_cancelled
+        JobStatus.INTERRUPTED -> R.string.job_status_interrupted
+    }
+)

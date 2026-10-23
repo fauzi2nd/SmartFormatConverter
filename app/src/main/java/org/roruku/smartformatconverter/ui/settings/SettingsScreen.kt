@@ -265,7 +265,7 @@ fun SettingsScreenContent(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Use MediaCodec hardware encoding when available",
+                            text = "Allow experimental MediaCodec encoding selected in Advanced Video Settings",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

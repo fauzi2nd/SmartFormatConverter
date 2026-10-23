@@ -1,3 +1,146 @@
 <resources>
-    <string name="app_name">Smart Format Converter</string>
+    <string name="app_name" translatable="false">Smart Format Converter</string>
+
+    <!-- Home Screen -->
+    <string name="dashboard_title">Dashboard</string>
+    <string name="dashboard_subtitle">Local &amp; High-Performance Multimedia Engine</string>
+    <string name="quick_actions">Quick Actions</string>
+    <string name="media_video">Video</string>
+    <string name="media_image">Image</string>
+    <string name="media_audio">Audio</string>
+    <string name="media_download">Download</string>
+    <string name="conversion_statistics">Conversion Statistics</string>
+    <string name="stat_completed">Completed</string>
+    <string name="stat_failed">Failed</string>
+    <string name="stat_converted_size">Converted Size</string>
+    <string name="recent_jobs">Recent Jobs</string>
+    <string name="no_recent_conversions">No recent conversions. Select a media type above to begin.</string>
+    <string name="internal_storage">Internal Storage</string>
+    <string name="storage_free">%s free</string>
+    <string name="storage_total">%s total</string>
+
+    <!-- Converter Screen & Preview Editor -->
+    <string name="preview_and_convert">Preview &amp; Convert</string>
+    <string name="no_media_selected">No media available. Go back and select another file.</string>
+    <string name="files_count_format">%d files</string>
+    <string name="output_format">Output Format</string>
+    <string name="chosen_in_catalog">Selected in catalog</string>
+    <string name="preset">Preset</string>
+    <string name="video_audio_subtitle">Video, Audio &amp; Subtitle</string>
+    <string name="back_to_all_settings">Back to all files settings</string>
+    <string name="output_location">Output location</string>
+    <string name="converter_files_tab">Files</string>
+    <string name="converter_folder_tab">Folder</string>
+    <string name="image_settings">Image Settings</string>
+    <string name="audio_settings">Audio Settings</string>
+    <string name="image_settings_desc">JPEG: quality 100 and subsampling 4:4:4; PNG/WebP use current engine configuration.</string>
+    <string name="audio_settings_desc">Codec follows selected format; default audio configuration from engine.</string>
+    <string name="close">Close</string>
+    <string name="category_video">Video</string>
+    <string name="category_image">Image</string>
+    <string name="category_audio">Audio</string>
+    <string name="converter_title">Converter</string>
+    <string name="select_format_prompt">Choose the format you want to generate</string>
+    <string name="video_converter_title">Video Converter</string>
+    <string name="video_converter_desc">Video &amp; container formats</string>
+    <string name="image_converter_title">Image Converter</string>
+    <string name="image_converter_desc">Photos and images</string>
+    <string name="audio_converter_title">Audio Converter</string>
+    <string name="audio_converter_desc">Music and recordings</string>
+    <string name="convert_to_format">Convert to %s</string>
+    <string name="select_media_source">Select media source</string>
+    <string name="original_filename_preserved">Original filename preserved · extension .%s</string>
+    <string name="preparing_queue">Preparing queue...</string>
+    <string name="start_conversion">Start Conversion</string>
+    <string name="back">Back</string>
+    <string name="source_image_preview">Source image preview</string>
+    <string name="remove_from_list">Remove from list</string>
+    <string name="swipe_preview_next_file">Swipe preview for next file</string>
+    <string name="video_source_preview">Video source preview</string>
+    <string name="image_source_preview">Image source preview</string>
+    <string name="audio_player_preview">Audio player preview</string>
+    <string name="playback_available_on_device">Playback / image loading available on device</string>
+    <string name="all_files">All files</string>
+    <string name="this_file_only">This file only</string>
+    <string name="output_settings">Output Settings</string>
+    <string name="video_thumbnail_desc">Video thumbnail</string>
+    <string name="image_thumbnail_desc">Image thumbnail</string>
+    <string name="preset_original_remux">Original Quality / Remux</string>
+    <string name="preset_high_quality">High Quality</string>
+    <string name="preset_balanced">Balanced</string>
+    <string name="preset_small_file">Small File</string>
+    <string name="preset_custom">Custom</string>
+    <string name="format_desc_universal">Universal</string>
+    <string name="format_desc_multitrack">Multi-track</string>
+    <string name="format_desc_web">Web</string>
+    <string name="format_desc_editing">Editing</string>
+    <string name="format_desc_legacy">Legacy</string>
+    <string name="format_desc_photo">Photo</string>
+    <string name="format_desc_lossless">Lossless</string>
+    <string name="format_desc_compact">Compact</string>
+    <string name="format_desc_streaming">Streaming</string>
+    <string name="format_desc_aac_audio">AAC audio</string>
+    <string name="format_desc_pcm">PCM</string>
+    <string name="format_desc_vorbis">Vorbis</string>
+    <string name="format_desc_efficient">Efficient</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_converter">Converter</string>
+    <string name="nav_downloader">Download</string>
+    <string name="nav_queue">Queue</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Video Advanced Settings Sheet -->
+    <string name="advanced_video_settings">Advanced Video Settings</string>
+    <string name="width_px">Width (px)</string>
+    <string name="height_px">Height (px)</string>
+    <string name="custom_fps">Custom FPS (1–240)</string>
+    <string name="crf_label">CRF: %d</string>
+    <string name="video_bitrate_kbps">Video bitrate (kbps)</string>
+    <string name="video_bitrate_supporting">8000 = 8 Mbps</string>
+    <string name="audio_bitrate_kbps">Audio bitrate (kbps)</string>
+    <string name="volume_label">Volume: %d%%</string>
+    <string name="audio_unchanged_remux">Audio is copied unchanged during Remux.</string>
+    <string name="cancel">Cancel</string>
+    <string name="apply">Apply</string>
+    <string name="error_valid_resolution">Enter a valid custom resolution</string>
+
+    <!-- Downloader Screen -->
+    <string name="downloader_title">URL Downloader</string>
+    <string name="downloader_subtitle">Download media from supported web URLs</string>
+    <string name="media_url">Media URL</string>
+    <string name="media_url_placeholder">https://…</string>
+    <string name="inspecting_url">Inspecting URL...</string>
+    <string name="inspect_url">Inspect URL</string>
+    <string name="start_download">Start Download</string>
+
+    <!-- Queue Screen -->
+    <string name="queue_title">Job Queue</string>
+    <string name="clear_completed">Clear Completed</string>
+    <string name="tab_all">All</string>
+    <string name="tab_active">Active</string>
+    <string name="tab_completed">Completed</string>
+    <string name="tab_failed">Failed</string>
+    <string name="no_jobs_in_queue">No jobs in queue.</string>
+    <string name="jobs_appear_here">Converted or downloading items will appear here.</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Settings</string>
+    <string name="storage_output">Storage &amp; Output</string>
+    <string name="parent_folder">Parent folder</string>
+    <string name="settings_selected_folder">Selected folder</string>
+    <string name="settings_not_selected">Not selected</string>
+    <string name="file_naming">File Naming</string>
+    <string name="keep_original_filename">Keep original filename</string>
+    <string name="keep_original_filename_desc">Only the extension changes (video.mov → video.mp4).</string>
+    <string name="optional_filename_prefix">Optional filename prefix</string>
+    <string name="engine_performance">Engine &amp; Performance</string>
+    <string name="preserve_exif_metadata">Preserve EXIF &amp; Metadata</string>
+    <string name="preserve_exif_desc">Keep creation date, camera model &amp; rotation tags</string>
+    <string name="hardware_acceleration">Hardware Acceleration</string>
+    <string name="hardware_acceleration_desc">Allow experimental MediaCodec encoding selected in Advanced Video Settings</string>
+    <string name="cache_diagnostics">Cache &amp; Diagnostics</string>
+    <string name="select_parent_folder">Select Parent Folder</string>
+    <string name="clear_temporary_cache">Clear Temporary Cache</string>
+    <string name="msg_parent_folder_selected">Parent folder selected. Output will be saved in its Converter subfolder.</string>
+    <string name="msg_cache_cleared">Temporary cache cleared!</string>
 </resources>

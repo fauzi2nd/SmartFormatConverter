@@ -37,8 +37,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.roruku.smartformatconverter.R
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoSettingsValidator
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
@@ -88,7 +90,7 @@ fun VideoAdvancedSettingsControl(
     ) {
         Icon(Icons.Default.Tune, contentDescription = null)
         Spacer(Modifier.width(8.dp))
-        Text("Advanced Video Settings", maxLines = 1)
+        Text(stringResource(R.string.advanced_video_settings), maxLines = 1)
     }
 
     Text(
@@ -114,7 +116,7 @@ fun VideoAdvancedSettingsControl(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                "Advanced Video Settings",
+                stringResource(R.string.advanced_video_settings),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -170,7 +172,7 @@ fun VideoAdvancedSettingsControl(
                                 customWidth = it
                                 draft = draft.copy(width = it.toIntOrNull())
                             },
-                            label = { Text("Width (px)") },
+                            label = { Text(stringResource(R.string.width_px)) },
                             singleLine = true,
                             modifier = Modifier.weight(1f)
                         )
@@ -180,7 +182,7 @@ fun VideoAdvancedSettingsControl(
                                 customHeight = it
                                 draft = draft.copy(height = it.toIntOrNull())
                             },
-                            label = { Text("Height (px)") },
+                            label = { Text(stringResource(R.string.height_px)) },
                             singleLine = true,
                             modifier = Modifier.weight(1f)
                         )
@@ -223,7 +225,7 @@ fun VideoAdvancedSettingsControl(
                             customFps = it
                             draft = draft.copy(fps = it)
                         },
-                        label = { Text("Custom FPS (1–240)") },
+                        label = { Text(stringResource(R.string.custom_fps)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -297,8 +299,8 @@ fun VideoAdvancedSettingsControl(
                             videoBitrateInput = it
                             draft = draft.copy(videoBitrateKbps = it.toIntOrNull() ?: 0)
                         },
-                        label = { Text("Video bitrate (kbps)") },
-                        supportingText = { Text("8000 = 8 Mbps") },
+                        label = { Text(stringResource(R.string.video_bitrate_kbps)) },
+                        supportingText = { Text(stringResource(R.string.video_bitrate_supporting)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -387,7 +389,7 @@ fun VideoAdvancedSettingsControl(
                             audioBitrateInput = it
                             draft = draft.copy(audioBitrateKbps = it.toIntOrNull() ?: 0)
                         },
-                        label = { Text("Audio bitrate (kbps)") },
+                        label = { Text(stringResource(R.string.audio_bitrate_kbps)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -423,7 +425,7 @@ fun VideoAdvancedSettingsControl(
                     ) { draft = draft.copy(channels = it.toIntOrNull()) }
                 }
             } else {
-                Text("Audio is copied unchanged during Remux.")
+                Text(stringResource(R.string.audio_unchanged_remux))
             }
 
             HorizontalDivider()
@@ -451,6 +453,7 @@ fun VideoAdvancedSettingsControl(
 
             val validation = VideoSettingsValidator.validate(draft)
             val error = formError ?: validation
+            val validResolutionError = stringResource(R.string.error_valid_resolution)
             if (error != null) {
                 Text(
                     text = error,
@@ -466,13 +469,13 @@ fun VideoAdvancedSettingsControl(
                     onClick = { open = false },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
                 Button(
                     onClick = {
                         if (resolutionChoice == "custom" &&
                             (customWidth.toIntOrNull() == null || customHeight.toIntOrNull() == null)) {
-                            formError = "Enter a valid custom resolution"
+                            formError = validResolutionError
                         } else {
                             val validationError = VideoSettingsValidator.validate(draft)
                             if (validationError == null) {
@@ -484,7 +487,7 @@ fun VideoAdvancedSettingsControl(
                     enabled = validation == null,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Apply")
+                    Text(stringResource(R.string.apply))
                 }
             }
             Spacer(Modifier.height(20.dp))

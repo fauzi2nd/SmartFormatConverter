@@ -38,10 +38,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import org.roruku.smartformatconverter.R
 import org.roruku.smartformatconverter.data.db.ConversionJobEntity
 import org.roruku.smartformatconverter.data.db.JobStatus
 import org.roruku.smartformatconverter.data.db.MediaType
@@ -95,12 +97,12 @@ fun QueueScreenContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Job Queue",
+                text = stringResource(R.string.queue_title),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
             Button(onClick = onClearCompleted) {
-                Text("Clear Completed")
+                Text(stringResource(R.string.clear_completed))
             }
         }
 
@@ -110,22 +112,22 @@ fun QueueScreenContent(
             Tab(
                 selected = uiState.selectedFilter == QueueFilterTab.ALL,
                 onClick = { onSetFilter(QueueFilterTab.ALL) },
-                text = { Text("All") }
+                text = { Text(stringResource(R.string.tab_all)) }
             )
             Tab(
                 selected = uiState.selectedFilter == QueueFilterTab.ACTIVE,
                 onClick = { onSetFilter(QueueFilterTab.ACTIVE) },
-                text = { Text("Active") }
+                text = { Text(stringResource(R.string.tab_active)) }
             )
             Tab(
                 selected = uiState.selectedFilter == QueueFilterTab.COMPLETED,
                 onClick = { onSetFilter(QueueFilterTab.COMPLETED) },
-                text = { Text("Completed") }
+                text = { Text(stringResource(R.string.tab_completed)) }
             )
             Tab(
                 selected = uiState.selectedFilter == QueueFilterTab.FAILED,
                 onClick = { onSetFilter(QueueFilterTab.FAILED) },
-                text = { Text("Failed") }
+                text = { Text(stringResource(R.string.tab_failed)) }
             )
         }
 
@@ -145,13 +147,13 @@ fun QueueScreenContent(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = "No jobs in queue.",
+                        text = stringResource(R.string.no_jobs_in_queue),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Converted or downloading items will appear here.",
+                        text = stringResource(R.string.jobs_appear_here),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

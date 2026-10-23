@@ -19,11 +19,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Button
@@ -48,6 +48,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import org.roruku.smartformatconverter.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -72,7 +74,7 @@ private val formats = listOf(
         ConverterFormat(0, "avi", "Legacy"),
     ),
     listOf(
-        ConverterFormat(1, "jpg", "Foto"),
+        ConverterFormat(1, "jpg", "Photo"),
         ConverterFormat(1, "png", "Lossless"),
         ConverterFormat(1, "webp", "Compact"),
     ),
@@ -181,8 +183,8 @@ fun ConverterCatalogContent(
     onSelect: (ConverterFormat?) -> Unit,
     onFilesSelected: (ConverterFormat) -> Unit,
     onFolderSelected: (ConverterFormat) -> Unit,
+    modifier: Modifier = Modifier,
     initialTab: Int = 0,
-    modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
     LaunchedEffect(initialTab) {
@@ -199,12 +201,12 @@ fun ConverterCatalogContent(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Converter",
+                            text = stringResource(R.string.converter_title),
                             style = MaterialTheme.typography.headlineLarge,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Pilih format yang ingin dihasilkan",
+                            text = stringResource(R.string.select_format_prompt),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -213,18 +215,33 @@ fun ConverterCatalogContent(
                 }
             }
             item {
-                FormatCategory("Video Converter", "Video & container formats", 0,
-                    formats[0], selected) { onSelect(it) }
+                FormatCategory(
+                    stringResource(R.string.video_converter_title),
+                    stringResource(R.string.video_converter_desc),
+                    0,
+                    formats[0],
+                    selected
+                ) { onSelect(it) }
             }
             item {
                 HorizontalDivider()
-                FormatCategory("Image Converter", "Foto dan gambar", 1,
-                    formats[1], selected) { onSelect(it) }
+                FormatCategory(
+                    stringResource(R.string.image_converter_title),
+                    stringResource(R.string.image_converter_desc),
+                    1,
+                    formats[1],
+                    selected
+                ) { onSelect(it) }
             }
             item {
                 HorizontalDivider()
-                FormatCategory("Audio Converter", "Musik dan rekaman", 2,
-                    formats[2], selected) { onSelect(it) }
+                FormatCategory(
+                    stringResource(R.string.audio_converter_title),
+                    stringResource(R.string.audio_converter_desc),
+                    2,
+                    formats[2],
+                    selected
+                ) { onSelect(it) }
             }
         }
 
@@ -250,17 +267,17 @@ fun ConverterCatalogContent(
                             Spacer(Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    "Convert to ${format.extension.uppercase()}",
+                                    stringResource(R.string.convert_to_format, format.extension.uppercase()),
                                     fontWeight = FontWeight.SemiBold,
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Text(
-                                    "${categoryName(format.tab)} · Pilih sumber media",
+                                    "${categoryName(format.tab)} · ${stringResource(R.string.select_media_source)}",
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
                             IconButton(onClick = { onSelect(null) }) {
-                                Icon(Icons.Default.Close, contentDescription = "Tutup")
+                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                             }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -269,9 +286,9 @@ fun ConverterCatalogContent(
                                 enabled = !isScanning,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.InsertDriveFile, contentDescription = null)
+                                Icon(Icons.AutoMirrored.Filled.InsertDriveFile, contentDescription = null)
                                 Spacer(Modifier.width(6.dp))
-                                Text("Files", maxLines = 1)
+                                Text(stringResource(R.string.converter_files_tab), maxLines = 1)
                             }
                             Button(
                                 onClick = { onFolderSelected(format) },
@@ -287,7 +304,7 @@ fun ConverterCatalogContent(
                                     Icon(Icons.Default.FolderOpen, contentDescription = null)
                                 }
                                 Spacer(Modifier.width(6.dp))
-                                Text("Folder", maxLines = 1)
+                                Text(stringResource(R.string.converter_folder_tab), maxLines = 1)
                             }
                         }
                     }
@@ -297,10 +314,11 @@ fun ConverterCatalogContent(
     }
 }
 
+@Composable
 private fun categoryName(tab: Int): String = when (tab) {
-    0 -> "Video"
-    1 -> "Image"
-    else -> "Audio"
+    0 -> stringResource(R.string.category_video)
+    1 -> stringResource(R.string.category_image)
+    else -> stringResource(R.string.category_audio)
 }
 
 private fun formatIcon(tab: Int) = when (tab) {
@@ -371,7 +389,7 @@ private fun FormatCategory(
                                         maxLines = 1
                                     )
                                     Text(
-                                        format.description,
+                                        formatDescription(format.description),
                                         style = MaterialTheme.typography.labelSmall,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
@@ -449,7 +467,7 @@ fun ConverterAudioPickerPreview() {
 fun ConverterCompactPreview() {
     SmartFormatConverterTheme {
         ConverterCatalogContent(
-            selected = ConverterFormat(1, "jpg", "Foto"),
+            selected = ConverterFormat(1, "jpg", "Photo"),
             isScanning = false,
             onSelect = {},
             onFilesSelected = {},
@@ -457,4 +475,22 @@ fun ConverterCompactPreview() {
             initialTab = 1
         )
     }
+}
+
+@Composable
+fun formatDescription(desc: String): String = when (desc) {
+    "Universal" -> stringResource(R.string.format_desc_universal)
+    "Multi-track" -> stringResource(R.string.format_desc_multitrack)
+    "Web" -> stringResource(R.string.format_desc_web)
+    "Editing" -> stringResource(R.string.format_desc_editing)
+    "Legacy" -> stringResource(R.string.format_desc_legacy)
+    "Photo" -> stringResource(R.string.format_desc_photo)
+    "Lossless" -> stringResource(R.string.format_desc_lossless)
+    "Compact" -> stringResource(R.string.format_desc_compact)
+    "Streaming" -> stringResource(R.string.format_desc_streaming)
+    "AAC audio" -> stringResource(R.string.format_desc_aac_audio)
+    "PCM" -> stringResource(R.string.format_desc_pcm)
+    "Vorbis" -> stringResource(R.string.format_desc_vorbis)
+    "Efficient" -> stringResource(R.string.format_desc_efficient)
+    else -> desc
 }

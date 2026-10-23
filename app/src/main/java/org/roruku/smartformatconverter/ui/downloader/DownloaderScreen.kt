@@ -38,11 +38,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalInspectionMode
+import org.roruku.smartformatconverter.R
 import org.roruku.smartformatconverter.engine.downloader.HttpDownloadableMediaInfo
 import org.roruku.smartformatconverter.engine.downloader.HttpMediaFormatOption
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
@@ -97,12 +99,12 @@ fun DownloaderScreenContent(
             .padding(16.dp)
     ) {
         Text(
-            text = "URL Downloader",
+            text = stringResource(R.string.downloader_title),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Download media from supported web URLs",
+            text = stringResource(R.string.downloader_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -113,8 +115,8 @@ fun DownloaderScreenContent(
         OutlinedTextField(
             value = uiState.urlInput,
             onValueChange = onUpdateUrlInput,
-            label = { Text("Media URL") },
-            placeholder = { Text("https://...") },
+            label = { Text(stringResource(R.string.media_url)) },
+            placeholder = { Text(stringResource(R.string.media_url_placeholder)) },
             modifier = Modifier.fillMaxWidth(),
             leadingIcon = { Icon(imageVector = Icons.Default.Link, contentDescription = null) },
             trailingIcon = {
@@ -153,9 +155,9 @@ fun DownloaderScreenContent(
                     strokeWidth = 2.dp
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Inspecting URL...")
+                Text(stringResource(R.string.inspecting_url))
             } else {
-                Text("Inspect URL")
+                Text(stringResource(R.string.inspect_url))
             }
         }
 
@@ -239,7 +241,7 @@ fun DownloaderScreenContent(
                     ) {
                         Icon(imageVector = Icons.Default.Download, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Start Download")
+                        Text(stringResource(R.string.start_download))
                     }
                 }
             }

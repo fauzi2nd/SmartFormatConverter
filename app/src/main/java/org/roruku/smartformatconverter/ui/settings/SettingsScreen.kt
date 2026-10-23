@@ -40,6 +40,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.res.stringResource
+import org.roruku.smartformatconverter.R
 import org.roruku.smartformatconverter.data.preferences.FilenameFormat
 import org.roruku.smartformatconverter.data.preferences.UserSettings
 import org.roruku.smartformatconverter.data.storage.OutputPathPolicy
@@ -52,6 +54,9 @@ fun SettingsScreen(
     coroutineScope: CoroutineScope,
     viewModel: SettingsViewModel? = if (LocalInspectionMode.current) null else viewModel(),
 ) {
+    val parentFolderSelectedMsg = stringResource(R.string.msg_parent_folder_selected)
+    val cacheClearedMsg = stringResource(R.string.msg_cache_cleared)
+
     if (viewModel == null) {
         SettingsScreenContent(
             settings = UserSettings(),
@@ -63,6 +68,7 @@ fun SettingsScreen(
             onUpdateHardwareAcceleration = {},
             onClearCache = {},
             onShowSnackbar = {},
+            cacheClearedMsg = cacheClearedMsg,
         )
     } else {
         val settings by viewModel.userSettings.collectAsState()
@@ -76,9 +82,7 @@ fun SettingsScreen(
                 StorageManager.persistUriPermission(context, uri)
                 viewModel.updateDefaultOutputUri(uri.toString())
                 coroutineScope.launch {
-                    snackbarHostState.showSnackbar(
-                        "Parent folder selected. Output will be saved in its Converter subfolder."
-                    )
+                    snackbarHostState.showSnackbar(parentFolderSelectedMsg)
                 }
             }
         }
@@ -97,6 +101,7 @@ fun SettingsScreen(
                     snackbarHostState.showSnackbar(msg)
                 }
             },
+            cacheClearedMsg = cacheClearedMsg,
         )
     }
 }
@@ -112,8 +117,12 @@ fun SettingsScreenContent(
     onUpdateHardwareAcceleration: (Boolean) -> Unit,
     onClearCache: () -> Unit,
     onShowSnackbar: (String) -> Unit,
+    cacheClearedMsg: String = "",
     modifier: Modifier = Modifier,
 ) {
+    val selectedFolderText = stringResource(R.string.settings_selected_folder)
+    val notSelectedText = stringResource(R.string.settings_not_selected)
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -122,7 +131,7 @@ fun SettingsScreenContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Settings",
+            text = stringResource(R.string.settings_title),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
@@ -134,13 +143,13 @@ fun SettingsScreenContent(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Storage & Output",
+                    text = stringResource(R.string.storage_output),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Parent folder",
+                    text = stringResource(R.string.parent_folder),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -148,8 +157,8 @@ fun SettingsScreenContent(
                     runCatching {
                         DocumentsContract.getTreeDocumentId(Uri.parse(uriString))
                             .substringAfter(':')
-                    }.getOrNull()?.ifBlank { "Selected folder" }
-                } ?: "Not selected"
+                    }.getOrNull()?.ifBlank { selectedFolderText }
+                } ?: notSelectedText
                 Text(
                     text = parentDisplayName,
                     style = MaterialTheme.typography.bodyMedium,
@@ -170,7 +179,7 @@ fun SettingsScreenContent(
                 Button(onClick = onSelectOutputFolder) {
                     Icon(imageVector = Icons.Default.FolderOpen, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Select Parent Folder", maxLines = 1)
+                    Text(stringResource(R.string.select_parent_folder), maxLines = 1)
                 }
             }
         }
@@ -182,7 +191,7 @@ fun SettingsScreenContent(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "File Naming",
+                    text = stringResource(R.string.file_naming),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -193,9 +202,9 @@ fun SettingsScreenContent(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Keep original filename", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.keep_original_filename), style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            "Only the extension changes (video.mov → video.mp4).",
+                            stringResource(R.string.keep_original_filename_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -214,7 +223,7 @@ fun SettingsScreenContent(
                     OutlinedTextField(
                         value = settings.customPrefix,
                         onValueChange = onUpdateCustomPrefix,
-                        label = { Text("Optional filename prefix") },
+                        label = { Text(stringResource(R.string.optional_filename_prefix)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -229,7 +238,7 @@ fun SettingsScreenContent(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Engine & Performance",
+                    text = stringResource(R.string.engine_performance),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -242,12 +251,12 @@ fun SettingsScreenContent(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Preserve EXIF & Metadata",
+                            text = stringResource(R.string.preserve_exif_metadata),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Keep creation date, camera model & rotation tags",
+                            text = stringResource(R.string.preserve_exif_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -267,12 +276,12 @@ fun SettingsScreenContent(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Hardware Acceleration",
+                            text = stringResource(R.string.hardware_acceleration),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Allow experimental MediaCodec encoding selected in Advanced Video Settings",
+                            text = stringResource(R.string.hardware_acceleration_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -292,7 +301,7 @@ fun SettingsScreenContent(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Cache & Diagnostics",
+                    text = stringResource(R.string.cache_diagnostics),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -300,11 +309,11 @@ fun SettingsScreenContent(
                 OutlinedButton(
                     onClick = {
                         onClearCache()
-                        onShowSnackbar("Temporary cache cleared!")
+                        onShowSnackbar(cacheClearedMsg)
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Clear Temporary Cache")
+                    Text(stringResource(R.string.clear_temporary_cache))
                 }
             }
         }

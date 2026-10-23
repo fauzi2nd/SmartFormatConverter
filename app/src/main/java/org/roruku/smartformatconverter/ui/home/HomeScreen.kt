@@ -33,10 +33,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import org.roruku.smartformatconverter.R
 import org.roruku.smartformatconverter.data.db.ConversionJobEntity
 import org.roruku.smartformatconverter.data.db.JobStatus
 import org.roruku.smartformatconverter.data.db.MediaType
@@ -79,12 +81,12 @@ fun HomeScreenContent(
     ) {
         item {
             Text(
-                text = "Dashboard",
+                text = stringResource(R.string.dashboard_title),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Local & High-Performance Multimedia Engine",
+                text = stringResource(R.string.dashboard_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -99,7 +101,7 @@ fun HomeScreenContent(
 
         item {
             Text(
-                text = "Quick Actions",
+                text = stringResource(R.string.quick_actions),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -109,25 +111,25 @@ fun HomeScreenContent(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 QuickActionItem(
-                    title = "Video",
+                    title = stringResource(R.string.media_video),
                     icon = Icons.Default.Movie,
                     modifier = Modifier.weight(1f),
                     onClick = { onNavigateToConverterTab(0) }
                 )
                 QuickActionItem(
-                    title = "Image",
+                    title = stringResource(R.string.media_image),
                     icon = Icons.Default.Image,
                     modifier = Modifier.weight(1f),
                     onClick = { onNavigateToConverterTab(1) }
                 )
                 QuickActionItem(
-                    title = "Audio",
+                    title = stringResource(R.string.media_audio),
                     icon = Icons.Default.AudioFile,
                     modifier = Modifier.weight(1f),
                     onClick = { onNavigateToConverterTab(2) }
                 )
                 QuickActionItem(
-                    title = "Download",
+                    title = stringResource(R.string.media_download),
                     icon = Icons.Default.Download,
                     modifier = Modifier.weight(1f),
                     onClick = onNavigateToDownloader
@@ -137,7 +139,7 @@ fun HomeScreenContent(
 
         item {
             Text(
-                text = "Conversion Statistics",
+                text = stringResource(R.string.conversion_statistics),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -147,17 +149,17 @@ fun HomeScreenContent(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 StatCard(
-                    title = "Completed",
+                    title = stringResource(R.string.stat_completed),
                     value = uiState.completedCount.toString(),
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
-                    title = "Failed",
+                    title = stringResource(R.string.stat_failed),
                     value = uiState.failedCount.toString(),
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
-                    title = "Converted Size",
+                    title = stringResource(R.string.stat_converted_size),
                     value = Formatter.formatShortFileSize(context, uiState.totalBytesConverted),
                     modifier = Modifier.weight(1f)
                 )
@@ -166,7 +168,7 @@ fun HomeScreenContent(
 
         item {
             Text(
-                text = "Recent Jobs",
+                text = stringResource(R.string.recent_jobs),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -178,7 +180,7 @@ fun HomeScreenContent(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "No recent conversions. Select a media type above to begin.",
+                        text = stringResource(R.string.no_recent_conversions),
                         modifier = Modifier.padding(16.dp),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -212,7 +214,7 @@ fun StorageCard(freeBytes: Long, totalBytes: Long) {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Internal Storage",
+                    text = stringResource(R.string.internal_storage),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -231,11 +233,11 @@ fun StorageCard(freeBytes: Long, totalBytes: Long) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "${Formatter.formatShortFileSize(context, freeBytes)} free",
+                    text = stringResource(R.string.storage_free, Formatter.formatShortFileSize(context, freeBytes)),
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    text = "${Formatter.formatShortFileSize(context, totalBytes)} total",
+                    text = stringResource(R.string.storage_total, Formatter.formatShortFileSize(context, totalBytes)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

@@ -1,6 +1,7 @@
 package org.roruku.smartformatconverter.ui.converter
 
 import android.net.Uri
+import androidx.core.net.toUri
 import android.text.format.Formatter
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -24,14 +25,13 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
@@ -39,7 +39,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -50,6 +49,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.res.stringResource
+import org.roruku.smartformatconverter.R
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -84,6 +85,146 @@ import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 import org.roruku.smartformatconverter.data.storage.OutputPathPolicy
 import org.roruku.smartformatconverter.data.storage.MediaDetails
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
+
+@Composable
+fun editorCategoryName(tab: Int): String = when (tab) {
+    0 -> stringResource(R.string.category_video)
+    1 -> stringResource(R.string.category_image)
+    else -> stringResource(R.string.category_audio)
+}
+
+@Composable
+fun presetDisplayName(preset: String): String = when (preset) {
+    "Original Quality / Remux" -> stringResource(R.string.preset_original_remux)
+    "High Quality" -> stringResource(R.string.preset_high_quality)
+    "Balanced" -> stringResource(R.string.preset_balanced)
+    "Small File" -> stringResource(R.string.preset_small_file)
+    else -> stringResource(R.string.preset_custom)
+}
+
+@Composable
+fun ZoomableImage(uri: Uri) {
+    val context = LocalContext.current
+    var scale by remember(uri) { mutableFloatStateOf(1f) }
+    var pan by remember(uri) { mutableStateOf(Offset.Zero) }
+    Box(
+        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+        contentAlignment = Alignment.Center
+    ) {
+        AsyncImage(
+            model = remember(uri) {
+                ImageRequest.Builder(context)
+                    .data(uri)
+                    .size(1600)
+                    .crossfade(true)
+                    .build()
+            },
+            contentDescription = stringResource(R.string.source_image_preview),
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(uri) {
+                    detectTransformGestures { _, offset, zoom, _ ->
+                        scale = (scale * zoom).coerceIn(1f, 5f)
+                        pan = if (scale > 1f) pan + offset else Offset.Zero
+                    }
+                }
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    translationX = pan.x
+                    translationY = pan.y
+                }
+        )
+    }
+}
+
+@androidx.annotation.OptIn(UnstableApi::class)
+@Composable
+fun SourcePlayer(uri: Uri, audio: Boolean) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val player = remember(uri) {
+        ExoPlayer.Builder(context).build().apply {
+            setMediaItem(MediaItem.fromUri(uri))
+            prepare()
+            playWhenReady = false
+        }
+    }
+    DisposableEffect(player, lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) player.pause()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            player.release()
+        }
+    }
+
+    if (audio) {
+        Column(
+            modifier = Modifier.fillMaxWidth().height(180.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(Icons.Default.Audiotrack, contentDescription = null)
+            Spacer(Modifier.height(16.dp))
+            androidx.compose.ui.viewinterop.AndroidView(
+                factory = { ctx -> PlayerControlView(ctx).apply { this.player = player } },
+                update = { it.player = player },
+                modifier = Modifier.fillMaxWidth().height(82.dp)
+            )
+        }
+    } else {
+        androidx.compose.ui.viewinterop.AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    useController = true
+                    this.player = player
+                }
+            },
+            update = { it.player = player },
+            modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+        )
+    }
+}
+
+
+/** Renderer used only by Android Studio Preview; never pretends to play a file. */
+@Composable
+fun SourceMediaDesignPreview(tab: Int) {
+    Box(
+        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                when (tab) {
+                    0 -> Icons.Default.Movie
+                    1 -> Icons.Default.Image
+                    else -> Icons.Default.Audiotrack
+                },
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                when (tab) {
+                    0 -> stringResource(R.string.video_source_preview)
+                    1 -> stringResource(R.string.image_source_preview)
+                    else -> stringResource(R.string.audio_player_preview)
+                },
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                stringResource(R.string.playback_available_on_device),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
 
 /**
  * Preview source media before conversion. The fixed action area is outside the
@@ -134,13 +275,13 @@ fun ConverterPreviewEditor(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Kembali")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text("Preview & Convert", fontWeight = FontWeight.SemiBold,
+                Text(stringResource(R.string.preview_and_convert), fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "${when(state.selectedTab){0->"Video";1->"Image";else->"Audio"}} → ${state.targetFormat.uppercase()}",
+                    "${editorCategoryName(state.selectedTab)} → ${state.targetFormat.uppercase()}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -151,7 +292,7 @@ fun ConverterPreviewEditor(
 
         if (files.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("Tidak ada media. Kembali dan pilih file lain.")
+                Text(stringResource(R.string.no_media_selected))
             }
         } else {
             LazyColumn(
@@ -221,7 +362,7 @@ fun ConverterPreviewEditor(
                                     )
                                 }
                                 IconButton(onClick = { onRemove(media) }) {
-                                    Icon(Icons.Default.Close, contentDescription = "Hapus dari daftar")
+                                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.remove_from_list))
                                 }
                             }
                         }
@@ -237,7 +378,7 @@ fun ConverterPreviewEditor(
                         )
                         Spacer(Modifier.weight(1f))
                         Text(
-                            "Geser preview untuk file berikutnya",
+                            stringResource(R.string.swipe_preview_next_file),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -272,13 +413,13 @@ fun ConverterPreviewEditor(
                                                     .size(240, 140)
                                                     .build(),
                                                 imageLoader = videoThumbLoader,
-                                                contentDescription = "Video thumbnail",
+                                                contentDescription = stringResource(R.string.video_thumbnail_desc),
                                                 modifier = Modifier.fillMaxWidth().height(56.dp),
                                                 contentScale = ContentScale.Crop
                                             )
                                         !isPreview && state.selectedTab == 1 -> AsyncImage(
                                             model = file.uri,
-                                            contentDescription = "Image thumbnail",
+                                            contentDescription = stringResource(R.string.image_thumbnail_desc),
                                             modifier = Modifier.fillMaxWidth().height(56.dp),
                                             contentScale = ContentScale.Crop
                                         )
@@ -311,7 +452,7 @@ fun ConverterPreviewEditor(
                 item {
                     HorizontalDivider()
                     Text(
-                        "Output Settings",
+                        stringResource(R.string.output_settings),
                         fontWeight = FontWeight.SemiBold,
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(top = 10.dp)
@@ -319,8 +460,10 @@ fun ConverterPreviewEditor(
                 }
                 if (state.selectedTab == 0) {
                     item {
+                        val allFilesText = stringResource(R.string.all_files)
+                        val thisFileOnlyText = stringResource(R.string.this_file_only)
                         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            listOf("Semua file", "File ini saja").forEachIndexed { i, label ->
+                            listOf(allFilesText, thisFileOnlyText).forEachIndexed { i, label ->
                                 SegmentedButton(
                                     selected = applyToAll == (i == 0),
                                     onClick = { applyToAll = i == 0 },
@@ -339,21 +482,21 @@ fun ConverterPreviewEditor(
                             Icon(Icons.Default.Description, contentDescription = null)
                             Spacer(Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Format Output", style = MaterialTheme.typography.labelMedium)
+                                Text(stringResource(R.string.output_format), style = MaterialTheme.typography.labelMedium)
                                 Text(
                                     state.targetFormat.uppercase(),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
-                            Text("Dipilih di katalog", style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(R.string.chosen_in_catalog), style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
 
                 if (state.selectedTab == 0) {
                     item {
-                        Text("Preset", fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.preset), fontWeight = FontWeight.SemiBold)
                         val presets = listOf(
                             "Original Quality / Remux", "High Quality",
                             "Balanced", "Small File", "Custom"
@@ -362,7 +505,7 @@ fun ConverterPreviewEditor(
                             items(presets.size) { i ->
                                 val choice = presets[i]
                                 val chosen = resolvedVideoSettings.preset == choice
-                                if (chosen) Button(onClick = {}) { Text(choice) }
+                                if (chosen) Button(onClick = {}) { Text(presetDisplayName(choice)) }
                                 else OutlinedButton(onClick = {
                                     if (applyToAll) {
                                         onUpdatePreset(choice)
@@ -372,12 +515,12 @@ fun ConverterPreviewEditor(
                                                 it.uri, resolvedVideoSettings.applyPreset(choice))
                                         }
                                     }
-                                }) { Text(choice) }
+                                }) { Text(presetDisplayName(choice)) }
                             }
                         }
                     }
                     item {
-                        Text("Video, Audio & Subtitle",
+                        Text(stringResource(R.string.video_audio_subtitle),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold)
                         VideoAdvancedSettingsControl(
@@ -394,7 +537,7 @@ fun ConverterPreviewEditor(
                             state.perFileVideoSettings.containsKey(selectedFile.uri.toString())) {
                             OutlinedButton(
                                 onClick = { onClearVideoFileSettings(selectedFile.uri) }
-                            ) { Text("Kembali ke pengaturan semua file") }
+                            ) { Text(stringResource(R.string.back_to_all_settings)) }
                         }
                     }
                 } else {
@@ -402,14 +545,14 @@ fun ConverterPreviewEditor(
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
-                                    if (state.selectedTab == 1) "Image Settings" else "Audio Settings",
+                                    if (state.selectedTab == 1) stringResource(R.string.image_settings) else stringResource(R.string.audio_settings),
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
                                     if (state.selectedTab == 1) {
-                                        "JPEG: quality 100 dan subsampling 4:4:4; PNG/WebP memakai konfigurasi engine saat ini."
+                                        stringResource(R.string.image_settings_desc)
                                     } else {
-                                        "Codec mengikuti format terpilih; konfigurasi audio default dari engine."
+                                        stringResource(R.string.audio_settings_desc)
                                     },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -429,14 +572,14 @@ fun ConverterPreviewEditor(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(Modifier.padding(14.dp)) {
-                            Text("Output location", style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.output_location), style = MaterialTheme.typography.labelMedium)
                             Text(
                                 "<Folder induk>/${outputFolder}/",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                "Nama asli dipertahankan · ekstensi .${state.targetFormat}",
+                                stringResource(R.string.original_filename_preserved, state.targetFormat),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -459,139 +602,15 @@ fun ConverterPreviewEditor(
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    if (state.isConverting) "Menyiapkan antrean..."
-                    else "Start Conversion (${files.size})"
+                    if (state.isConverting) stringResource(R.string.preparing_queue)
+                    else "${stringResource(R.string.start_conversion)} (${files.size})"
                 )
             }
         }
     }
 }
 
-@Composable
-private fun ZoomableImage(uri: Uri) {
-    val context = LocalContext.current
-    var scale by remember(uri) { mutableFloatStateOf(1f) }
-    var pan by remember(uri) { mutableStateOf(Offset.Zero) }
-    Box(
-        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
-        contentAlignment = Alignment.Center
-    ) {
-        AsyncImage(
-            model = remember(uri) {
-                ImageRequest.Builder(context)
-                    .data(uri)
-                    .size(1600)
-                    .crossfade(true)
-                    .build()
-            },
-            contentDescription = "Pratinjau gambar sumber",
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(uri) {
-                    detectTransformGestures { _, offset, zoom, _ ->
-                        scale = (scale * zoom).coerceIn(1f, 5f)
-                        pan = if (scale > 1f) pan + offset else Offset.Zero
-                    }
-                }
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    translationX = pan.x
-                    translationY = pan.y
-                }
-        )
-    }
-}
-
-@androidx.annotation.OptIn(UnstableApi::class)
-@Composable
-private fun SourcePlayer(uri: Uri, audio: Boolean) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val player = remember(uri) {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(uri))
-            prepare()
-            playWhenReady = false
-        }
-    }
-    DisposableEffect(player, lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) player.pause()
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            player.release()
-        }
-    }
-
-    if (audio) {
-        Column(
-            modifier = Modifier.fillMaxWidth().height(180.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(Icons.Default.Audiotrack, contentDescription = null)
-            Spacer(Modifier.height(16.dp))
-            androidx.compose.ui.viewinterop.AndroidView(
-                factory = { ctx -> PlayerControlView(ctx).apply { this.player = player } },
-                update = { it.player = player },
-                modifier = Modifier.fillMaxWidth().height(82.dp)
-            )
-        }
-    } else {
-        androidx.compose.ui.viewinterop.AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    useController = true
-                    this.player = player
-                }
-            },
-            update = { it.player = player },
-            modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)
-        )
-    }
-}
-
-
-/** Renderer used only by Android Studio Preview; never pretends to play a file. */
-@Composable
-private fun SourceMediaDesignPreview(tab: Int) {
-    Box(
-        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                when (tab) {
-                    0 -> Icons.Default.Movie
-                    1 -> Icons.Default.Image
-                    else -> Icons.Default.Audiotrack
-                },
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                when (tab) {
-                    0 -> "Video source preview"
-                    1 -> "Image source preview"
-                    else -> "Audio player preview"
-                },
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                "Playback / image loading tersedia di perangkat",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-private fun previewFiles(tab: Int): List<SelectedMediaFile> {
+fun previewFiles(tab: Int): List<SelectedMediaFile> {
     val filenames = when (tab) {
         0 -> listOf("Hasumi_001.mov", "Hasumi_002.mkv", "Hasumi_003.mp4")
         1 -> listOf("IMG_001.png", "IMG_002.webp", "IMG_003.heic")
@@ -604,7 +623,7 @@ private fun previewFiles(tab: Int): List<SelectedMediaFile> {
     }
     return filenames.mapIndexed { i, filename ->
         SelectedMediaFile(
-            uri = Uri.parse("content://preview/${tab}/${i + 1}"),
+            uri = "content://preview/${tab}/${i + 1}".toUri(),
             details = MediaDetails(
                 fileName = filename,
                 fileSize = (i + 1) * 12L * 1024L * 1024L,
@@ -618,7 +637,7 @@ private fun previewFiles(tab: Int): List<SelectedMediaFile> {
 }
 
 @Composable
-private fun PreviewEditorSample(tab: Int) {
+fun PreviewEditorSample(tab: Int) {
     SmartFormatConverterTheme {
         ConverterPreviewEditor(
             state = ConverterUiState(

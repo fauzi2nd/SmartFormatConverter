@@ -27,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -42,12 +43,12 @@ import org.roruku.smartformatconverter.ui.queue.QueueScreen
 import org.roruku.smartformatconverter.ui.settings.SettingsScreen
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 
-sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
-    object Home : BottomNavItem("home", "Home", Icons.Default.Home)
-    object Converter : BottomNavItem("converter", "Converter", Icons.Default.Transform)
-    object Downloader : BottomNavItem("downloader", "Download", Icons.Default.Download)
-    object Queue : BottomNavItem("queue", "Queue", Icons.AutoMirrored.Filled.ListAlt)
-    object Settings : BottomNavItem("settings", "Settings", Icons.Default.Settings)
+sealed class BottomNavItem(val route: String, val titleResId: Int, val icon: ImageVector) {
+    object Home : BottomNavItem("home", R.string.nav_home, Icons.Default.Home)
+    object Converter : BottomNavItem("converter", R.string.nav_converter, Icons.Default.Transform)
+    object Downloader : BottomNavItem("downloader", R.string.nav_downloader, Icons.Default.Download)
+    object Queue : BottomNavItem("queue", R.string.nav_queue, Icons.AutoMirrored.Filled.ListAlt)
+    object Settings : BottomNavItem("settings", R.string.nav_settings, Icons.Default.Settings)
 }
 
 class MainActivity : ComponentActivity() {
@@ -173,11 +174,12 @@ fun AppBottomNavigationBar(
     )
     NavigationBar {
         navItems.forEach { item ->
+            val title = stringResource(item.titleResId)
             NavigationBarItem(
                 selected = currentRoute?.substringBefore("?") == item.route,
                 onClick = { onNavigate(item) },
-                icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
-                label = { Text(item.title, maxLines = 1) },
+                icon = { Icon(imageVector = item.icon, contentDescription = title) },
+                label = { Text(title, maxLines = 1) },
                 alwaysShowLabel = true
             )
         }

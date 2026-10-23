@@ -104,19 +104,18 @@ fun ConverterPreviewEditor(
     val context = LocalContext.current
     val isPreview = LocalInspectionMode.current
     // Design-time preview must not instantiate decoders, players or file IO.
-    val videoThumbLoader = if (isPreview) null else remember(context) {
-        ImageLoader.Builder(context).components {
+    val videoThumbLoader = remember(context, isPreview) {
+        if (isPreview) null else ImageLoader.Builder(context).components {
             add(VideoFrameDecoder.Factory())
         }.build()
     }
     DisposableEffect(videoThumbLoader) {
         onDispose { videoThumbLoader?.shutdown() }
     }
-    BackHandler { onBack() }
+    BackHandler(enabled = !isPreview) { onBack() }
     val pager = rememberPagerState(pageCount = { files.size })
     val coroutineScope = rememberCoroutineScope()
     var applyToAll by remember { mutableStateOf(true) }
-    var showInfo by remember { mutableStateOf(false) }
 
     LaunchedEffect(files.size) {
         if (files.isNotEmpty() && pager.currentPage >= files.size) {

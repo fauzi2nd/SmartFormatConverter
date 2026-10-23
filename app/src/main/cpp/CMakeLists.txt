@@ -34,6 +34,14 @@ endif()
 set(TURBO_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/libjpeg-turbo_build")
 set(TURBO_STATIC_LIB "${TURBO_BUILD_DIR}/libturbojpeg.a")
 
+# The Android Gradle Plugin finds Ninja inside the Android SDK CMake package.
+# That executable is not necessarily on the self-hosted runner's PATH.
+# Pass its absolute location to the nested external CMake configuration.
+if(NOT CMAKE_MAKE_PROGRAM OR NOT EXISTS "${CMAKE_MAKE_PROGRAM}")
+    message(FATAL_ERROR "Android CMake Ninja executable not found: ${CMAKE_MAKE_PROGRAM}")
+endif()
+file(TO_CMAKE_PATH "${CMAKE_MAKE_PROGRAM}" TURBO_BUILD_PROGRAM)
+
 # Do not change CMAKE_SOURCE_DIR, patch third_party sources or rely on
 # globally cached options from another CMake project.
 ExternalProject_Add(libjpeg_turbo_external
@@ -42,6 +50,7 @@ ExternalProject_Add(libjpeg_turbo_external
     DOWNLOAD_COMMAND ""
     UPDATE_COMMAND ""
     CMAKE_ARGS
+        "-DCMAKE_MAKE_PROGRAM:FILEPATH=${TURBO_BUILD_PROGRAM}"
         "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
         "-DANDROID_ABI:STRING=${ANDROID_ABI}"
         "-DANDROID_PLATFORM:STRING=${ANDROID_PLATFORM}"

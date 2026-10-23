@@ -229,4 +229,28 @@
     <string name="media_index_format">%1$d / %2$d</string>
     <string name="parent_output_location">Parent folder/%1$s/</string>
     <string name="start_conversion_count">Start Conversion (%1$d)</string>
+
+    <!-- Downloader accessibility and Queue status labels -->
+    <string name="action_clear_text">Clear</string>
+    <string name="action_paste_text">Paste</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_delete">Delete</string>
+    <string name="value_unknown">Unknown</string>
+    <string name="value_not_available">N/A</string>
+    <string name="downloader_source_author">Source: %1$s</string>
+    <string name="downloader_choose_format">Select Format &amp; Quality:</string>
+    <string name="downloader_format_summary">%1$s (%2$s)</string>
+    <string name="queue_job_summary">%1$s → %2$s • %3$s</string>
+    <string name="queue_speed">Speed: %1$s</string>
+    <string name="queue_eta">ETA: %1$s</string>
+    <string name="queue_output_size">Output Size: %1$s</string>
+    <string name="queue_error_description">Error: %1$s</string>
+    <string name="job_status_pending">Pending</string>
+    <string name="job_status_preparing">Preparing</string>
+    <string name="job_status_running">Running</string>
+    <string name="job_status_paused">Paused</string>
+    <string name="job_status_completed">Completed</string>
+    <string name="job_status_failed">Failed</string>
+    <string name="job_status_cancelled">Cancelled</string>
+    <string name="job_status_interrupted">Interrupted</string>
 </resources>

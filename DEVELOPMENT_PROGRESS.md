@@ -11,21 +11,14 @@
 | **Phase 4** | Persistent Job Queue & Foreground Service | **COMPLETE** | Room queue scheduler, MediaConversionService foreground notifications, background job execution. |
 | **Phase 5** | Downloader Integration | **COMPLETE** | `HttpDownloaderEngine` chunked byte stream downloader with speed (MB/s) and ETA calculations. |
 | **Phase 6** | Advanced Features & Workflows | **COMPLETE** | Multi-file batch picker, quality presets, custom parameters, theme & storage preferences. |
-| **Phase 7** | Quality Assurance & Optimization | **COMPLETE** | Unit test suite passing (6 tests), build verification succeeded (`app:assembleDebug`). |
-| **Phase 8** | Deep Code Audit & Real Engine Verification | **COMPLETE** | Audited source code, replaced simulated loops with real RxFFmpeg JNI and HTTP stream engines, generated audit matrix. |
-| **Phase 9** | Native JPEG 4:4:4, Recursive Batch & Process Recovery | **COMPLETE** | Created native C++ JPEG 4:4:4 encoder (`libjpeg_encoder_native.so`), SAF recursive batch scanner, queue death recovery, passed 7 unit tests. |
-| **Phase 9.4**| Strict Upstream libjpeg-turbo Dependency Recovery | **COMPLETE** | Cloned genuine upstream `libjpeg-turbo` (`https://github.com/libjpeg-turbo/libjpeg-turbo.git` @ `36956793b60deb2d1169d1432be6d19871f5ecb1`), linked `turbojpeg-static` in CMake, implemented `tj3Compress8` TurboJPEG 3 JNI bridge, passed 7 unit tests. |
-| **Deprecation Audit**| API Compatibility & Modernization Audit | **COMPLETE** | Upgraded native C++ bridge to TurboJPEG 3 API (`tj3Init`, `tj3Set`, `tj3Compress8`), updated Compose M3 `PrimaryTabRow` and `menuAnchor`, created `API_COMPATIBILITY_AUDIT.md`, passed 7 unit tests. |
+| **Phase 7** | Quality Assurance & Optimization | **COMPLETE** | Unit test suite passing, build verification succeeded (`app:assembleDebug`). |
+| **Phase 8** | Deep Code Audit & Real Engine Verification | **COMPLETE** | Audited source code, replaced simulated loops with real RxFFmpeg JNI and HTTP stream engines. |
+| **Phase 9** | Native JPEG 4:4:4, Recursive Batch & Process Recovery | **COMPLETE** | Native C++ JPEG 4:4:4 encoder (`libjpeg_encoder_native.so`), SAF recursive batch scanner, queue death recovery. |
+| **Phase 9.4**| Strict Upstream libjpeg-turbo Dependency Recovery | **COMPLETE** | Cloned genuine upstream `libjpeg-turbo`, linked `turbojpeg-static` in CMake, implemented `tj3Compress8`. |
+| **Phase 9.5**| GitHub Source Audit, Native Build Stabilization & Modern API Enforcement | **COMPLETE** | Registered `.gitmodules` submodule, C++ RAII overflow safety, real JPEG full decoding validation, full 8-mode EXIF orientation, 10 passing unit tests, GitHub Actions CI workflow. |
 
 ---
 
 ## Log of Key Activities
 
-- **Phase 0 Initialized**: Audited `build.gradle.kts`, `libs.versions.toml`, `AndroidManifest.xml`, verified `app:assembleDebug` build success.
-- **Phase 1 Complete**: Room Database (`ConversionJobEntity`, `ConversionJobDao`, `AppDatabase`), DataStore Preferences (`UserPreferencesRepository`), Storage Access Framework (`StorageManager`), Navigation Compose with 5 primary screens (Home, Converter, Downloader, Queue, Settings).
-- **Phase 2 Complete**: `ImageConverterEngine` with JPEG quality control, PNG lossless encoding, WebP lossy/lossless modes, EXIF tag preservation, and OutOfMemory safety.
-- **Phase 3 Complete**: Integrated `RxFFmpeg` (`com.github.microshow:RxFFmpeg:4.9.0`) native library. Updated `FFmpegEngine.kt` to run native FFmpeg CLI commands.
-- **Phase 4 Complete**: `MediaConversionService` Foreground Service with `dataSync` type, progress notifications, and persistent Room queue execution.
-- **Phase 5 Complete**: `HttpDownloaderEngine` stream downloader with chunked byte stream reading and real speed/ETA progress calculation.
-- **Phase 9.4 Complete**: Cloned genuine upstream `libjpeg-turbo` repository into `third_party/libjpeg-turbo`, linked `turbojpeg-static` target in `CMakeLists.txt`, updated `jpeg_encoder.cpp` JNI wrapper to call `tj3Compress8`, and passed 7 unit tests (`7 passed, 0 failed`).
-- **Deprecation Audit Complete**: Upgraded native C++ bridge to modern TurboJPEG 3 API (`tj3Init`, `tj3Set`, `tj3Compress8`), modernized Compose M3 components (`PrimaryTabRow`, `ExposedDropdownMenuAnchorType.PrimaryNotEditable`), created [`API_COMPATIBILITY_AUDIT.md`](file:///C:/Users/space/AndroidStudioProjects/SmartFormatConverter/API_COMPATIBILITY_AUDIT.md), verified clean Gradle build (`app:assembleDebug`) and passing unit tests (`7 passed, 0 failed`).
+- **Phase 9.5 Complete**: Created `.gitmodules` for `third_party/libjpeg-turbo`, updated `jpeg_encoder.cpp` with C++ RAII memory wrappers (`BitmapLocker`, `JniStringHolder`, `Tj3Holder`) and staged output writing, added full bitmap decoding validation in `ImageConverterEngine.kt`, supported all 8 EXIF orientation modes with tag normalization, added 10 unit tests (`app:testDebugUnitTest`), added GitHub Actions CI (`.github/workflows/android-ci.yml`), and verified clean build (`app:assembleDebug`).

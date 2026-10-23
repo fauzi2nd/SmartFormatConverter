@@ -8,12 +8,12 @@
 
 2. **Large File Memory Allocation**
    - *Risk*: OutOfMemory (OOM) errors when processing high-resolution images or high-bitrate video streams in memory.
-   - *Mitigation*: Use streaming I/O, downsampled bounds decoding for previews, and delegate heavy media processing strictly to native FFmpeg / native memory buffers.
+   - *Mitigation*: Use streaming I/O, C++ RAII bounds/overflow checks (`width * height * 4`), downsampled bounds decoding for previews, and delegate heavy media processing strictly to native memory buffers.
 
 3. **Background Process Termination on Android 12+ / 14+**
    - *Risk*: Long-running video conversions or batch downloads killed by OS power management or foreground service restrictions.
-   - *Mitigation*: Properly configure Foreground Service with `foregroundServiceType="dataSync"` or `shortService` / `mediaPlayback`, maintain explicit ongoing notifications with foreground service start mechanisms, handle task interruption/resume states.
+   - *Mitigation*: Configured Foreground Service with `foregroundServiceType="dataSync"`, maintained explicit ongoing notifications with foreground service start mechanisms, and handle task interruption/resume states.
 
-4. **yt-dlp Runtime Environment**
-   - *Risk*: Extractor breakage or requirement of a JS runtime / Python execution environment.
-   - *Mitigation*: Build a robust, isolated yt-dlp execution pipeline with error parsing, fallback options, and update mechanisms.
+4. **Full On-Device yt-dlp Python/JS Runtime Limitation**
+   - *Risk*: On-device Python/JS runtime is not bundled due to APK size and security constraints.
+   - *Mitigation*: Full Python/JS yt-dlp extraction is marked `NOT_IMPLEMENTED`. Direct HTTP stream downloading is implemented and verified via `HttpDownloaderEngine`.

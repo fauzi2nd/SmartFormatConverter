@@ -7,11 +7,17 @@ set(ENABLE_SHARED OFF CACHE BOOL "" FORCE)
 set(WITH_TURBOJPEG ON CACHE BOOL "" FORCE)
 set(WITH_SIMD OFF CACHE BOOL "" FORCE)
 
+set(SAVED_CMAKE_SOURCE_DIR ${CMAKE_SOURCE_DIR})
+get_filename_component(LIBJPEG_TURBO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/libjpeg-turbo" ABSOLUTE)
+set(CMAKE_SOURCE_DIR ${LIBJPEG_TURBO_DIR})
+
 add_subdirectory(
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/libjpeg-turbo
+    ${LIBJPEG_TURBO_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}/libjpeg-turbo_build
     EXCLUDE_FROM_ALL
 )
+
+set(CMAKE_SOURCE_DIR ${SAVED_CMAKE_SOURCE_DIR})
 
 add_library(
         jpeg_encoder_native
@@ -22,8 +28,8 @@ add_library(
 target_include_directories(
         jpeg_encoder_native
         PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/libjpeg-turbo
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/libjpeg-turbo/src
+        ${LIBJPEG_TURBO_DIR}
+        ${LIBJPEG_TURBO_DIR}/src
         ${CMAKE_CURRENT_BINARY_DIR}/libjpeg-turbo_build
 )
 

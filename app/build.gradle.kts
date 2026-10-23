@@ -121,6 +121,11 @@ dependencies {
     testImplementation(libs.junit)
 
     // Android Instrumentation Tests
+    // The Compose BOM is required separately for the androidTest classpath.
+    // This is not a duplicate: implementation and androidTestImplementation
+    // are independent dependency configurations.
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+
     androidTestImplementation(
         libs.androidx.compose.ui.test.junit4
     )

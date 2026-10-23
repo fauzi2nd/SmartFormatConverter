@@ -2,6 +2,7 @@ package org.roruku.smartformatconverter.data.storage
 
 import android.content.Context
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import org.roruku.smartformatconverter.data.db.ConversionJobEntity
 import org.roruku.smartformatconverter.data.db.MediaType
@@ -21,76 +22,128 @@ data class BatchScanConfig(
 
 object BatchConversionScanner {
 
+    /**
+     * Scan only the selected media category. An explicit output-parent URI allows
+     * the selected root's relative path to be preserved under parent/Converter/.
+     *
+     * E.g. parent=Torrents, selected=Torrents/Hasumi =>
+     *      Torrents/Converter/Hasumi/<file>.
+     *
+     * Choosing the parent itself preserves child paths but does not insert the
+     * parent name twice.
+     */
     fun scanDocumentTree(
         context: Context,
         treeUri: Uri,
         config: BatchScanConfig,
-        excludeSubfolderName: String = "Converted",
+        mediaTypeFilter: MediaType,
+        outputParentUri: Uri? = null,
     ): List<ConversionJobEntity> {
-        val rootDoc = DocumentFile.fromTreeUri(context, treeUri) ?: return emptyList()
+        val root = DocumentFile.fromTreeUri(context, treeUri) ?: return emptyList()
+        if (!root.isDirectory) return emptyList()
+
+        val rootName = root.name.orEmpty()
+        if (isExcludedFolder(rootName) || isInsideOutputTree(treeUri, outputParentUri)) {
+            return emptyList()
+        }
+
+        val relativeRoot = selectedRootRelativePath(treeUri, outputParentUri, rootName)
         val results = mutableListOf<ConversionJobEntity>()
-        scanDocumentRecursive(context, rootDoc, "", config, excludeSubfolderName, results)
+        scanRecursive(context, root, relativeRoot, config, mediaTypeFilter, results)
         return results
     }
 
-    private fun scanDocumentRecursive(
+    private fun scanRecursive(
         context: Context,
-        dir: DocumentFile,
-        relativeDirectoryPath: String,
+        directory: DocumentFile,
+        relativePath: String,
         config: BatchScanConfig,
-        excludeSubfolderName: String,
-        results: MutableList<ConversionJobEntity>
+        mediaTypeFilter: MediaType,
+        result: MutableList<ConversionJobEntity>
     ) {
-        if ((!dir.isDirectory) || (dir.name?.equals(excludeSubfolderName, ignoreCase = true) == true)) {
-            return
-        }
+        if (!directory.isDirectory || isExcludedFolder(directory.name.orEmpty())) return
 
-        val files = dir.listFiles()
-        for (file in files) {
-            if (file.isDirectory) {
-                val folderName = file.name ?: "subfolder"
-                if (!folderName.equals(excludeSubfolderName, ignoreCase = true)) {
-                    val nextRelativePath = if (relativeDirectoryPath.isBlank()) {
-                        folderName
-                    } else {
-                        "$relativeDirectoryPath/$folderName"
-                    }
-                    scanDocumentRecursive(context, file, nextRelativePath, config, excludeSubfolderName, results)
+        for (entry in directory.listFiles()) {
+            val name = entry.name ?: continue
+            if (entry.isDirectory) {
+                if (!isExcludedFolder(name)) {
+                    val nextPath = listOf(relativePath, name)
+                        .filter { it.isNotBlank() }
+                        .joinToString("/")
+                    scanRecursive(context, entry, nextPath, config, mediaTypeFilter, result)
                 }
-            } else if (file.isFile) {
-                val mimeType = file.type ?: StorageManager.getMimeType(context, file.uri)
-                val mediaType = determineMediaType(mimeType) ?: continue
+                continue
+            }
+            if (!entry.isFile) continue
 
-                val targetFormat = when (mediaType) {
-                    MediaType.VIDEO -> config.targetVideoFormat
-                    MediaType.IMAGE -> config.targetImageFormat
-                    MediaType.AUDIO -> config.targetAudioFormat
-                    MediaType.DOWNLOAD -> continue
-                }
+            val mime = entry.type ?: StorageManager.getMimeType(context, entry.uri)
+            val detected = MediaSelectionPolicy.detect(mime, name)
+            if (detected != mediaTypeFilter) continue
 
-                val relPath = if (config.outputStructure == BatchOutputStructure.MIRRORED) relativeDirectoryPath else null
+            val targetFormat = when (detected) {
+                MediaType.VIDEO -> config.targetVideoFormat
+                MediaType.IMAGE -> config.targetImageFormat
+                MediaType.AUDIO -> config.targetAudioFormat
+                MediaType.DOWNLOAD -> continue
+            }
 
-                val job = ConversionJobEntity(
-                    fileName = file.name ?: "media_file",
-                    inputUri = file.uri.toString(),
-                    mediaType = mediaType,
-                    inputFormat = mimeType.substringAfter('/'),
+            result.add(
+                ConversionJobEntity(
+                    fileName = name,
+                    inputUri = entry.uri.toString(),
+                    mediaType = detected,
+                    inputFormat = mime.substringAfter('/'),
                     outputFormat = targetFormat,
                     presetName = config.presetName,
-                    fileSize = file.length(),
-                    relativeFolderPath = relPath
+                    fileSize = entry.length(),
+                    relativeFolderPath = if (config.outputStructure == BatchOutputStructure.MIRRORED) {
+                        OutputPathPolicy.safeRelativePath(relativePath)
+                    } else {
+                        ""
+                    }
                 )
-                results.add(job)
-            }
+            )
         }
     }
 
-    private fun determineMediaType(mimeType: String): MediaType? {
-        return when {
-            mimeType.startsWith("video/") -> MediaType.VIDEO
-            mimeType.startsWith("image/") -> MediaType.IMAGE
-            mimeType.startsWith("audio/") -> MediaType.AUDIO
-            else -> null
+    private fun isExcludedFolder(name: String): Boolean =
+        name.lowercase() in OutputPathPolicy.EXCLUDED_INPUT_FOLDERS
+
+    private fun selectedRootRelativePath(
+        selected: Uri,
+        parent: Uri?,
+        selectedName: String
+    ): String {
+        if (parent != null && parent.authority == selected.authority) {
+            val selectedId = documentTreeId(selected)
+            val parentId = documentTreeId(parent)
+            if (selectedId != null && parentId != null) {
+                if (selectedId.equals(parentId, ignoreCase = true)) return ""
+                if (selectedId.startsWith("$parentId/", ignoreCase = true)) {
+                    return OutputPathPolicy.safeRelativePath(selectedId.substring(parentId.length + 1))
+                }
+            }
         }
+        return OutputPathPolicy.safeRelativePath(selectedName)
     }
+
+    private fun isInsideOutputTree(selected: Uri, parent: Uri?): Boolean {
+        val selectedId = documentTreeId(selected) ?: return false
+        val parentId = parent?.takeIf { it.authority == selected.authority }
+            ?.let(::documentTreeId) ?: return false
+
+        if (!selectedId.startsWith("$parentId/", ignoreCase = true)) return false
+        val relative = selectedId.substring(parentId.length + 1)
+        return relative.substringBefore('/').equals(
+            OutputPathPolicy.OUTPUT_FOLDER,
+            ignoreCase = true
+        ) || relative.substringBefore('/').equals("Converted", ignoreCase = true)
+    }
+
+    private fun documentTreeId(uri: Uri): String? =
+        try {
+            DocumentsContract.getTreeDocumentId(uri)
+        } catch (_: IllegalArgumentException) {
+            null
+        }
 }

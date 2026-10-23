@@ -34,11 +34,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoSettingsValidator
+import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 import kotlin.math.roundToInt
 
 /**
@@ -49,9 +52,10 @@ import kotlin.math.roundToInt
 @Composable
 fun VideoAdvancedSettingsControl(
     settings: VideoAdvancedSettings,
-    onApply: (VideoAdvancedSettings) -> Unit
+    onApply: (VideoAdvancedSettings) -> Unit,
+    previewExpanded: Boolean = false
 ) {
-    var open by remember { mutableStateOf(false) }
+    var open by remember { mutableStateOf(previewExpanded) }
     var draft by remember { mutableStateOf(settings) }
     var resolutionChoice by remember { mutableStateOf("source") }
     var customWidth by remember { mutableStateOf("1920") }
@@ -98,7 +102,9 @@ fun VideoAdvancedSettingsControl(
 
     if (!open) return
 
-    ModalBottomSheet(onDismissRequest = { open = false }) {
+    // Reuse the real Advanced form in design-time Preview without a window-level
+    // ModalBottomSheet, which Android Studio's layout renderer cannot reliably show.
+    val formContent: @Composable () -> Unit = {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -484,6 +490,14 @@ fun VideoAdvancedSettingsControl(
             Spacer(Modifier.height(20.dp))
         }
     }
+
+    if (LocalInspectionMode.current) {
+        formContent()
+    } else {
+        ModalBottomSheet(onDismissRequest = { open = false }) {
+            formContent()
+        }
+    }
 }
 
 @Composable
@@ -548,5 +562,43 @@ private fun ChoiceField(
                 )
             }
         }
+    }
+}
+
+
+@Preview(name = "Advanced Video - Collapsed", showBackground = true, widthDp = 393, heightDp = 240)
+@Composable
+fun VideoAdvancedCollapsedPreview() {
+    SmartFormatConverterTheme {
+        Column(Modifier.padding(16.dp)) {
+            VideoAdvancedSettingsControl(
+                settings = VideoAdvancedSettings(),
+                onApply = {}
+            )
+        }
+    }
+}
+
+@Preview(name = "Advanced Video - Expanded", showBackground = true, widthDp = 393, heightDp = 860)
+@Composable
+fun VideoAdvancedExpandedPreview() {
+    SmartFormatConverterTheme {
+        VideoAdvancedSettingsControl(
+            settings = VideoAdvancedSettings(),
+            onApply = {},
+            previewExpanded = true
+        )
+    }
+}
+
+@Preview(name = "Advanced Video - Remux", showBackground = true, widthDp = 393, heightDp = 860)
+@Composable
+fun VideoAdvancedRemuxPreview() {
+    SmartFormatConverterTheme {
+        VideoAdvancedSettingsControl(
+            settings = VideoAdvancedSettings().applyPreset("Original Quality / Remux"),
+            onApply = {},
+            previewExpanded = true
+        )
     }
 }

@@ -40,6 +40,8 @@ data class ConverterUiState(
     val targetFormat: String = "mp4",
     val presetName: String = "Custom",
     val videoSettings: VideoAdvancedSettings = VideoAdvancedSettings(),
+    val isEditorOpen: Boolean = false,
+    val perFileVideoSettings: Map<String, VideoAdvancedSettings> = emptyMap(),
     val customBitrateKbps: Int = 2000,
     val customResolution: String = "1920x1080",
     val customCrf: Int = 23,
@@ -68,9 +70,54 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 selectedTab = tabIndex,
                 targetFormat = defaultFormat,
                 selectedFiles = emptyList(),
+                perFileVideoSettings = emptyMap(),
+                isEditorOpen = false,
                 isScanning = false,
                 message = null
             )
+        }
+    }
+
+    /** A Format Factory tile sets the output category before launching SAF. */
+    fun selectFormat(tabIndex: Int, format: String) {
+        if (tabIndex !in 0..2) return
+        _uiState.update { state ->
+            state.copy(
+                selectedTab = tabIndex,
+                targetFormat = format.lowercase(),
+                selectedFiles = emptyList(),
+                isEditorOpen = false,
+                perFileVideoSettings = emptyMap(),
+                videoSettings = if (tabIndex == 0) {
+                    state.videoSettings.copy(
+                        format = format.lowercase(),
+                        videoCodec = "auto",
+                        audioCodec = "auto"
+                    )
+                } else state.videoSettings,
+                message = null
+            )
+        }
+    }
+
+    fun closeEditor() {
+        _uiState.update {
+            it.copy(isEditorOpen = false, selectedFiles = emptyList(),
+                perFileVideoSettings = emptyMap(), message = null)
+        }
+    }
+
+    /** A single-file override leaves the batch configuration intact. */
+    fun updateVideoSettingsForFile(uri: Uri, settings: VideoAdvancedSettings) {
+        _uiState.update { state ->
+            state.copy(perFileVideoSettings = state.perFileVideoSettings +
+                (uri.toString() to settings.copy(format = state.targetFormat)))
+        }
+    }
+
+    fun clearVideoSettingsOverride(uri: Uri) {
+        _uiState.update { state ->
+            state.copy(perFileVideoSettings = state.perFileVideoSettings - uri.toString())
         }
     }
 
@@ -93,6 +140,9 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 }
                 if (_uiState.value.selectedTab != selectedTab) return@launch
                 mergeSelectedFiles(filtered)
+                if (filtered.isNotEmpty()) {
+                    _uiState.update { it.copy(isEditorOpen = true) }
+                }
                 val rejected = uris.size - filtered.size
                 _uiState.update {
                     it.copy(message = if (rejected > 0) {
@@ -158,6 +208,9 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 }
                 val oldCount = _uiState.value.selectedFiles.size
                 mergeSelectedFiles(files)
+                if (files.isNotEmpty()) {
+                    _uiState.update { it.copy(isEditorOpen = true) }
+                }
                 val added = _uiState.value.selectedFiles.size - oldCount
                 _uiState.update {
                     it.copy(message = if (added == 0) {
@@ -185,12 +238,15 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun removeSelectedFile(file: SelectedMediaFile) {
         _uiState.update { current ->
-            current.copy(selectedFiles = current.selectedFiles.filter { it.uri != file.uri })
+            current.copy(
+                selectedFiles = current.selectedFiles.filter { it.uri != file.uri },
+                perFileVideoSettings = current.perFileVideoSettings - file.uri.toString()
+            )
         }
     }
 
     fun clearSelectedFiles() {
-        _uiState.update { it.copy(selectedFiles = emptyList()) }
+        _uiState.update { it.copy(selectedFiles = emptyList(), perFileVideoSettings = emptyMap()) }
     }
 
     fun updateTargetFormat(format: String) {
@@ -219,7 +275,8 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                     state.videoSettings.applyPreset(preset)
                 } else {
                     state.videoSettings
-                }
+                },
+                perFileVideoSettings = emptyMap()
             )
         }
     }
@@ -232,7 +289,8 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 videoSettings = settings.copy(
                     format = state.targetFormat,
                     preset = "Custom"
-                )
+                ),
+                perFileVideoSettings = emptyMap()
             )
         }
     }
@@ -245,17 +303,20 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
         val state = _uiState.value
         if (state.selectedFiles.isEmpty() || state.isConverting || state.isScanning) return
         val mediaType = typeForTab(state.selectedTab)
-        val videoSnapshot = if (mediaType == MediaType.VIDEO) {
-            state.videoSettings.copy(
-                format = state.targetFormat,
-                preset = state.presetName
-            )
-        } else null
+        // Resolve and validate a separate immutable configuration per source
+        // file before submitting a batch. Nothing is read from UI state later.
+        val videoSnapshots = if (mediaType == MediaType.VIDEO) {
+            state.selectedFiles.associate { file ->
+                val config = (state.perFileVideoSettings[file.uri.toString()]
+                    ?: state.videoSettings).copy(format = state.targetFormat)
+                file.uri.toString() to config
+            }
+        } else emptyMap()
 
-        if (videoSnapshot != null) {
-            val validationError = VideoSettingsValidator.validate(videoSnapshot)
-            if (validationError != null) {
-                _uiState.update { it.copy(message = validationError) }
+        for (config in videoSnapshots.values) {
+            val error = VideoSettingsValidator.validate(config)
+            if (error != null) {
+                _uiState.update { it.copy(message = error) }
                 return
             }
         }
@@ -282,7 +343,7 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                         presetName = state.presetName,
                         fileSize = file.details.fileSize,
                         relativeFolderPath = file.relativeFolderPath,
-                        customParamsJson = videoSnapshot?.toJson(),
+                        customParamsJson = videoSnapshots[file.uri.toString()]?.toJson(),
                     )
                 }
                 repository.addJobs(jobs)
@@ -290,6 +351,8 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 _uiState.update {
                     it.copy(
                         selectedFiles = emptyList(),
+                        perFileVideoSettings = emptyMap(),
+                        isEditorOpen = false,
                         message = "Queued ${jobs.size} files. Output: parent/Converter/ (batch folders preserved)."
                     )
                 }

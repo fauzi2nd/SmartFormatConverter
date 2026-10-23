@@ -187,7 +187,7 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                         treeUri = treeUri,
                         config = config,
                         mediaTypeFilter = mediaType,
-                        outputParentUri = Uri.parse(outputUri),
+                        outputParentUri = outputUri.toUri(),
                     )
                 }
 

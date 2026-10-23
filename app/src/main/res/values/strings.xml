@@ -223,4 +223,10 @@
     <string name="advanced_aac">AAC</string>
     <string name="advanced_flac">FLAC</string>
     <string name="advanced_5_1">5.1</string>
+
+    <!-- Dynamic Converter editor formats. Keep user-facing templates localized. -->
+    <string name="editor_category_format">%1$s → %2$s</string>
+    <string name="media_index_format">%1$d / %2$d</string>
+    <string name="parent_output_location">Parent folder/%1$s/</string>
+    <string name="start_conversion_count">Start Conversion (%1$d)</string>
 </resources>

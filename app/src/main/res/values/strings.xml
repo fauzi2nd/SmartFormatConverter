@@ -253,4 +253,17 @@
     <string name="job_status_failed">Failed</string>
     <string name="job_status_cancelled">Cancelled</string>
     <string name="job_status_interrupted">Interrupted</string>
+
+    <!-- Conversion selection and job submission status messages -->
+    <string name="vm_files_added">Added %1$d files.</string>
+    <string name="vm_files_added_skipped">Added %1$d matching files; skipped %2$d other media files.</string>
+    <string name="vm_files_read_failed">Could not read selected files: %1$s</string>
+    <string name="vm_parent_folder_scan_required">Set your parent folder in Settings before scanning batches.</string>
+    <string name="vm_scan_empty">No new matching files found. Output folders named Converter/Converted are excluded.</string>
+    <string name="vm_scan_added">Added %1$d %2$s files. Folder structure will be preserved.</string>
+    <string name="vm_scan_failed">Folder scan failed: %1$s</string>
+    <string name="vm_parent_folder_conversion_required">Choose a parent output folder in Settings first.</string>
+    <string name="vm_jobs_queued">Queued %1$d files. Output: parent/Converter/ (batch folders preserved).</string>
+    <string name="vm_queue_failed">Conversion queue could not start: %1$s</string>
+    <string name="vm_unknown_reason">Unknown error</string>
 </resources>

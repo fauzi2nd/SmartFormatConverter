@@ -2,6 +2,7 @@ package org.roruku.smartformatconverter.ui.settings
 
 import android.net.Uri
 import android.provider.DocumentsContract
+import androidx.core.net.toUri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -109,6 +110,7 @@ fun SettingsScreen(
 @Composable
 fun SettingsScreenContent(
     settings: UserSettings,
+    modifier: Modifier = Modifier,
     onUpdateDefaultOutputUri: (String) -> Unit,
     onSelectOutputFolder: () -> Unit,
     onUpdateCustomPrefix: (String) -> Unit,
@@ -118,7 +120,6 @@ fun SettingsScreenContent(
     onClearCache: () -> Unit,
     onShowSnackbar: (String) -> Unit,
     cacheClearedMsg: String = "",
-    modifier: Modifier = Modifier,
 ) {
     val selectedFolderText = stringResource(R.string.settings_selected_folder)
     val notSelectedText = stringResource(R.string.settings_not_selected)
@@ -155,7 +156,7 @@ fun SettingsScreenContent(
                 )
                 val parentDisplayName = settings.defaultOutputUri?.let { uriString ->
                     runCatching {
-                        DocumentsContract.getTreeDocumentId(Uri.parse(uriString))
+                        DocumentsContract.getTreeDocumentId(uriString.toUri())
                             .substringAfter(':')
                     }.getOrNull()?.ifBlank { selectedFolderText }
                 } ?: notSelectedText

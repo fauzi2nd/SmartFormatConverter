@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">Smart Format Converter</string>
 
     <!-- Home Screen -->
@@ -22,7 +22,10 @@
     <!-- Converter Screen & Preview Editor -->
     <string name="preview_and_convert">Preview &amp; Convert</string>
     <string name="no_media_selected">No media available. Go back and select another file.</string>
-    <string name="files_count_format">%d files</string>
+    <plurals name="files_count_format">
+        <item quantity="one">%d file</item>
+        <item quantity="other">%d files</item>
+    </plurals>
     <string name="output_format">Output Format</string>
     <string name="chosen_in_catalog">Selected in catalog</string>
     <string name="preset">Preset</string>
@@ -50,8 +53,7 @@
     <string name="convert_to_format">Convert to %s</string>
     <string name="select_media_source">Select media source</string>
     <string name="original_filename_preserved">Original filename preserved · extension .%s</string>
-    <string name="preparing_queue">Preparing queue...</string>
-    <string name="start_conversion">Start Conversion</string>
+    <string name="preparing_queue">Preparing queue…</string>
     <string name="back">Back</string>
     <string name="source_image_preview">Source image preview</string>
     <string name="remove_from_list">Remove from list</string>
@@ -109,7 +111,7 @@
     <string name="downloader_subtitle">Download media from supported web URLs</string>
     <string name="media_url">Media URL</string>
     <string name="media_url_placeholder">https://…</string>
-    <string name="inspecting_url">Inspecting URL...</string>
+    <string name="inspecting_url">Inspecting URL…</string>
     <string name="inspect_url">Inspect URL</string>
     <string name="start_download">Start Download</string>
 
@@ -143,4 +145,154 @@
     <string name="clear_temporary_cache">Clear Temporary Cache</string>
     <string name="msg_parent_folder_selected">Parent folder selected. Output will be saved in its Converter subfolder.</string>
     <string name="msg_cache_cleared">Temporary cache cleared!</string>
+
+    <!-- Advanced Video UI labels and option names: codec IDs remain stable in Kotlin. -->
+    <string name="source_original">Source / original</string>
+    <string name="source_value">Source</string>
+    <string name="video_setting_resolution">Resolution</string>
+    <string name="video_setting_prevent_upscaling">Prevent upscaling</string>
+    <string name="video_setting_frame_rate">Frame rate</string>
+    <string name="option_4k">4K UHD · 3840 × 2160</string>
+    <string name="option_1440p">1440p · 2560 × 1440</string>
+    <string name="option_1080p">1080p · 1920 × 1080</string>
+    <string name="option_720p">720p · 1280 × 720</string>
+    <string name="option_480p">480p · 854 × 480</string>
+    <string name="fps_23976">23.976 FPS</string>
+    <string name="fps_24">24 FPS</string>
+    <string name="fps_25">25 FPS</string>
+    <string name="fps_2997">29.97 FPS</string>
+    <string name="fps_30">30 FPS</string>
+    <string name="fps_50">50 FPS</string>
+    <string name="fps_5994">59.94 FPS</string>
+    <string name="fps_60">60 FPS</string>
+    <string name="video_setting_video_codec">Video codec</string>
+    <string name="video_setting_video_encoder">Video encoder</string>
+    <string name="video_setting_rate_control">Rate control</string>
+    <string name="video_setting_pixel_format">Pixel format</string>
+    <string name="video_setting_audio_codec">Audio codec</string>
+    <string name="video_setting_audio_stream">Audio stream</string>
+    <string name="video_setting_sample_rate">Sample rate</string>
+    <string name="video_setting_audio_channels">Audio channels</string>
+    <string name="video_setting_subtitle">Subtitle</string>
+    <string name="video_setting_keep_metadata">Keep metadata</string>
+    <string name="video_setting_mp4_fast_start">MP4 Fast Start</string>
+    <string name="video_setting_other">Other</string>
+    <string name="video_option_auto_vp9">Auto (VP9)</string>
+    <string name="video_option_auto_h264">Auto (H.264)</string>
+    <string name="video_option_h264_avc">H.264 / AVC</string>
+    <string name="video_option_h265_hevc">H.265 / HEVC</string>
+    <string name="video_option_copy">Copy video stream</string>
+    <string name="video_option_auto_software">Auto (software default)</string>
+    <string name="video_option_software_cpu">Software (CPU)</string>
+    <string name="video_option_hardware_experimental">Hardware / MediaCodec (experimental)</string>
+    <string name="video_option_crf_constant">CRF · constant quality</string>
+    <string name="video_option_vbr_target">VBR · target bitrate</string>
+    <string name="video_option_cbr_target_peak">CBR · target/peak bitrate</string>
+    <string name="video_option_yuv420p">YUV 4:2:0 · 8-bit</string>
+    <string name="video_option_yuv420p10le">YUV 4:2:0 · 10-bit</string>
+    <string name="video_option_yuv422p">YUV 4:2:2 · 8-bit</string>
+    <string name="video_option_yuv444p">YUV 4:4:4 · 8-bit</string>
+    <string name="audio_option_auto_opus">Auto (Opus)</string>
+    <string name="audio_option_auto_mp3">Auto (MP3)</string>
+    <string name="audio_option_auto_aac">Auto (AAC)</string>
+    <string name="audio_option_copy">Copy audio</string>
+    <string name="audio_option_none">No audio</string>
+    <string name="audio_option_first">First audio track</string>
+    <string name="audio_option_second">Second audio track</string>
+    <string name="audio_option_all">All audio tracks</string>
+    <string name="audio_option_mono">Mono</string>
+    <string name="audio_option_stereo">Stereo</string>
+    <string name="subtitle_option_auto">Auto (preserve if compatible)</string>
+    <string name="subtitle_option_none">Do not include subtitles</string>
+    <string name="subtitle_option_copy">Copy subtitles (MKV only)</string>
+    <string name="advanced_job_snapshot_explanation">Settings are saved per queued job. Source means the setting is left unchanged for each input file.</string>
+    <string name="advanced_remux_explanation">Remux copies media streams; changing resolution, FPS, bitrate, pixel format or volume requires re-encoding. Switch to Custom first.</string>
+    <string name="advanced_crf_explanation">Lower CRF = higher quality and larger output. Default 23 for H.264.</string>
+    <string name="advanced_hardware_explanation">Hardware encoding requires an encoder supported by the bundled FFmpeg binary and Android device. CRF and some pixel formats are unavailable.</string>
+    <string name="advanced_volume_warning">Warning: raising volume can cause clipping.</string>
+    <string name="advanced_summary">%1$s · %2$s FPS · %3$s · %4$s %5$s</string>
+    <string name="advanced_rate_crf">%1$d</string>
+    <string name="advanced_rate_kbps">%1$d kbps</string>
+    <string name="audio_rate_32k">32 kHz</string>
+    <string name="audio_rate_44k">44.1 kHz</string>
+    <string name="audio_rate_48k">48 kHz</string>
+    <string name="audio_rate_96k">96 kHz</string>
+    <string name="advanced_auto">Auto</string>
+    <string name="advanced_vp9">VP9</string>
+    <!-- AV1 is the official video codec name, not the typo "AV!". -->
+    <string name="advanced_av1" tools:ignore="Typos">AV1</string>
+    <string name="advanced_opus">Opus</string>
+    <string name="advanced_mp3">MP3</string>
+    <string name="advanced_aac">AAC</string>
+    <string name="advanced_flac">FLAC</string>
+    <string name="advanced_5_1">5.1</string>
+
+    <!-- Dynamic Converter editor formats. Keep user-facing templates localized. -->
+    <string name="editor_category_format">%1$s → %2$s</string>
+    <string name="media_index_format">%1$d / %2$d</string>
+    <string name="parent_output_location">Parent folder/%1$s/</string>
+    <string name="start_conversion_count">Start Conversion (%1$d)</string>
+
+    <!-- Downloader accessibility and Queue status labels -->
+    <string name="action_clear_text">Clear</string>
+    <string name="action_paste_text">Paste</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_delete">Delete</string>
+    <string name="value_unknown">Unknown</string>
+    <string name="value_not_available">N/A</string>
+    <string name="downloader_source_author">Source: %1$s</string>
+    <string name="downloader_choose_format">Select Format &amp; Quality:</string>
+    <string name="downloader_format_summary">%1$s (%2$s)</string>
+    <string name="queue_job_summary">%1$s → %2$s • %3$s</string>
+    <string name="queue_speed">Speed: %1$s</string>
+    <string name="queue_eta">ETA: %1$s</string>
+    <string name="queue_output_size">Output Size: %1$s</string>
+    <string name="queue_error_description">Error: %1$s</string>
+    <string name="job_status_pending">Pending</string>
+    <string name="job_status_preparing">Preparing</string>
+    <string name="job_status_running">Running</string>
+    <string name="job_status_paused">Paused</string>
+    <string name="job_status_completed">Completed</string>
+    <string name="job_status_failed">Failed</string>
+    <string name="job_status_cancelled">Cancelled</string>
+    <string name="job_status_interrupted">Interrupted</string>
+
+    <!-- Conversion selection and job submission status messages -->
+    <plurals name="vm_files_added">
+        <item quantity="one">Added %d file.</item>
+        <item quantity="other">Added %d files.</item>
+    </plurals>
+    <plurals name="vm_matching_added">
+        <item quantity="one">Added %d matching file</item>
+        <item quantity="other">Added %d matching files</item>
+    </plurals>
+    <plurals name="vm_media_skipped">
+        <item quantity="one">skipped %d other media file</item>
+        <item quantity="other">skipped %d other media files</item>
+    </plurals>
+    <string name="vm_files_added_skipped">%1$s; %2$s.</string>
+    <string name="vm_files_read_failed">Could not read selected files: %1$s</string>
+    <string name="vm_parent_folder_scan_required">Set your parent folder in Settings before scanning batches.</string>
+    <string name="vm_scan_empty">No new matching files found. Output folders named Converter/Converted are excluded.</string>
+    <plurals name="vm_scan_added">
+        <item quantity="one">Added %1$d %2$s file. Folder structure will be preserved.</item>
+        <item quantity="other">Added %1$d %2$s files. Folder structure will be preserved.</item>
+    </plurals>
+    <string name="vm_scan_failed">Folder scan failed: %1$s</string>
+    <string name="vm_parent_folder_conversion_required">Choose a parent output folder in Settings first.</string>
+    <plurals name="vm_jobs_queued">
+        <item quantity="one">Queued %d file. Output: parent/Converter/ (batch folders preserved).</item>
+        <item quantity="other">Queued %d files. Output: parent/Converter/ (batch folders preserved).</item>
+    </plurals>
+    <string name="vm_queue_failed">Conversion queue could not start: %1$s</string>
+    <string name="vm_unknown_reason">Unknown error</string>
+
+    <!-- Downloader messages and Android foreground service notifications -->
+    <string name="download_inspection_failed">Failed to inspect URL</string>
+    <string name="download_queued_message">Download queued: %1$s</string>
+    <string name="conversion_notification_channel">Media Conversion Service</string>
+    <string name="conversion_notification_channel_description">Shows ongoing media conversion progress</string>
+    <string name="conversion_notification_processing">Processing media files…</string>
+    <string name="conversion_notification_title">Converting %1$s</string>
+    <string name="conversion_notification_progress">%1$d%% complete</string>
 </resources>

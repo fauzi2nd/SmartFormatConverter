@@ -1,6 +1,8 @@
 package org.roruku.smartformatconverter.service
 
-import android.annotation.SuppressLint
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -64,23 +66,30 @@ class MediaConversionService : Service() {
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Media Conversion Service",
+            getString(R.string.conversion_notification_channel),
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Shows ongoing media conversion progress"
+            description = getString(R.string.conversion_notification_channel_description)
         }
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.createNotificationChannel(channel)
     }
 
     private fun startForegroundServiceNotification() {
-        val notification = buildNotification("Smart Format Converter", "Processing media files...", 0)
+        val notification = buildNotification(getString(R.string.app_name), getString(R.string.conversion_notification_processing), 0)
         startForeground(NOTIFICATION_ID, notification)
     }
 
-    @SuppressLint("MissingPermission")
     private fun updateNotification(fileName: String, progressPct: Int) {
-        val notification = buildNotification("Converting $fileName", "$progressPct% complete", progressPct)
+        // Android 13+ may hide non-exempt notifications when permission is denied.
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) return
+        val notification = buildNotification(
+            getString(R.string.conversion_notification_title, fileName),
+            getString(R.string.conversion_notification_progress, progressPct),
+            progressPct
+        )
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID, notification)
     }

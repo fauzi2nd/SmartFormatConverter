@@ -7,6 +7,8 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Matrix
 import android.net.Uri
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -177,7 +179,7 @@ object ImageConverterEngine {
     }
 
     private fun compositeOverWhiteBackground(src: Bitmap): Bitmap {
-        val result = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
+        val result = createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
         canvas.drawColor(Color.WHITE)
         canvas.drawBitmap(src, 0f, 0f, null)
@@ -212,7 +214,7 @@ object ImageConverterEngine {
         } else {
             Pair(targetW, targetH)
         }
-        return Bitmap.createScaledBitmap(src, finalW, finalH, true)
+        return src.scale(finalW, finalH, true)
     }
 
     private fun getExifTransform(context: Context, uri: Uri): ExifTransform {

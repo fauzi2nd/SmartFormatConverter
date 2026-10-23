@@ -123,7 +123,7 @@ fun DownloaderScreenContent(
                 Row {
                     if (uiState.urlInput.isNotEmpty()) {
                         IconButton(onClick = { onUpdateUrlInput("") }) {
-                            Icon(imageVector = Icons.Default.Clear, contentDescription = "Clear")
+                            Icon(imageVector = Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear_text))
                         }
                     } else {
                         IconButton(onClick = {
@@ -134,7 +134,7 @@ fun DownloaderScreenContent(
                                 onUpdateUrlInput(text)
                             }
                         }) {
-                            Icon(imageVector = Icons.Default.ContentPaste, contentDescription = "Paste")
+                            Icon(imageVector = Icons.Default.ContentPaste, contentDescription = stringResource(R.string.action_paste_text))
                         }
                     }
                 }
@@ -180,7 +180,7 @@ fun DownloaderScreenContent(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Source: ${info.author ?: "Unknown"}",
+                        text = stringResource(R.string.downloader_source_author, info.author ?: stringResource(R.string.value_unknown)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -188,7 +188,7 @@ fun DownloaderScreenContent(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Select Format & Quality:",
+                        text = stringResource(R.string.downloader_choose_format),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -217,7 +217,7 @@ fun DownloaderScreenContent(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Column {
                                         Text(
-                                            text = "${fmt.resolution} (${fmt.extension.uppercase()})",
+                                            text = stringResource(R.string.downloader_format_summary, fmt.resolution, fmt.extension.uppercase()),
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.SemiBold
                                         )

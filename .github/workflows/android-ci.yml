@@ -20,18 +20,19 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
           fetch-depth: 0
           clean: false
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '25'
           distribution: 'temurin'
-          cache: gradle
+          # Gradle's own cache is retained by the self-hosted Windows runner.
+          # Avoid setup-java cache upload warnings (Windows tar, storage quota).
 
       - name: Create local.properties
         shell: powershell
@@ -42,23 +43,36 @@ jobs:
           Write-Host "SDK property: $(Get-Content local.properties)"
 
       - name: Build Debug APK
-        run: gradlew.bat assembleDebug --stacktrace
+        run: gradlew.bat assembleDebug --warning-mode summary --stacktrace
         shell: cmd
 
       - name: Run Unit Tests
-        run: gradlew.bat testDebugUnitTest --stacktrace
+        run: gradlew.bat testDebugUnitTest --warning-mode summary --stacktrace
         shell: cmd
 
       - name: Run Android Lint
         # Self-hosted runners retain Gradle outputs between jobs. Reanalyze
         # rather than reusing a stale lint report for generated local.properties.
-        run: gradlew.bat lintDebug --rerun-tasks --no-configuration-cache --stacktrace
+        run: gradlew.bat lintDebug --rerun-tasks --no-configuration-cache --warning-mode summary --stacktrace
         shell: cmd
 
-      - name: Upload Test Results
+      - name: Report pinned RxFFmpeg 16 KB risk
+        if: always()
+        shell: powershell
+        run: |
+          # This is an explicit advisory, NOT evidence of compatibility.
+          Write-Host "::warning title=RxFFmpeg native 16 KB page alignment::RxFFmpeg 4.9.0 bundles an unaligned x86_64/librxffmpeg-core.so. Android 16 KB page-size compatibility is NOT verified. This exact legacy dependency is scoped in app/lint.xml; other native libraries are still checked."
+
+      - name: Print Lint Diagnostics on Failure
         if: failure()
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: app/build/reports/
+        shell: powershell
+        run: |
+          # Self-hosted runner retains reports on disk. Print diagnostics in
+          # the GitHub Actions log without artifact-storage quota failures.
+          $report = 'app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt'
+          if (Test-Path $report) {
+            Write-Host '===== FULL ANDROID LINT REPORT ====='
+            Get-Content $report
+          } else {
+            Write-Host 'No lint text report found (failure may be from build or unit tests).'
+          }

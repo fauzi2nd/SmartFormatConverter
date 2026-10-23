@@ -1,3 +1,4 @@
+import org.gradle.api.tasks.testing.Test
 
 plugins {
     alias(libs.plugins.android.application)
@@ -61,6 +62,9 @@ android {
 
     lint {
         abortOnError = true
+        // Treat project lint warnings as regressions instead of silently
+        // green-lighting a debug build with outstanding issues.
+        warningsAsErrors = true
         checkReleaseBuilds = true
     }
 }
@@ -148,4 +152,10 @@ dependencies {
     debugImplementation(
         libs.androidx.compose.ui.tooling
     )
+}
+
+// The JVM unit-test process loads libjpeg's JNI availability probe on JDK 25.
+// Explicitly grant native access rather than emitting JEP 472 warnings.
+tasks.withType<Test>().configureEach {
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
 }

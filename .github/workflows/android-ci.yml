@@ -13,7 +13,6 @@ jobs:
     runs-on: self-hosted
     env:
       ANDROID_HOME: C:\Users\space\AppData\Local\Android\Sdk
-      ANDROID_NDK_HOME: C:\Users\space\AppData\Local\Android\Sdk\ndk\28.2.13676358
 
     steps:
       - name: Checkout Repository
@@ -30,9 +29,7 @@ jobs:
           cache: gradle
 
       - name: Create local.properties
-        run: |
-          echo sdk.dir=C:/Users/space/AppData/Local/Android/Sdk > local.properties
-          echo ndk.dir=C:/Users/space/AppData/Local/Android/Sdk/ndk/28.2.13676358 >> local.properties
+        run: echo sdk.dir=C\:\\Users\\space\\AppData\\Local\\Android\\Sdk > local.properties
         shell: cmd
 
       - name: Build Debug APK

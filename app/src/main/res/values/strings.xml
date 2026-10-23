@@ -51,7 +51,6 @@
     <string name="select_media_source">Select media source</string>
     <string name="original_filename_preserved">Original filename preserved · extension .%s</string>
     <string name="preparing_queue">Preparing queue...</string>
-    <string name="start_conversion">Start Conversion</string>
     <string name="back">Back</string>
     <string name="source_image_preview">Source image preview</string>
     <string name="remove_from_list">Remove from list</string>

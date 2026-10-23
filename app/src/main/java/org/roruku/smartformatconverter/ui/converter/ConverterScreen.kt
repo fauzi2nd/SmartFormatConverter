@@ -1,12 +1,10 @@
 package org.roruku.smartformatconverter.ui.converter
 
-import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -29,7 +27,6 @@ import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -39,7 +36,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -60,7 +56,6 @@ import org.roruku.smartformatconverter.AppBottomNavigationBar
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.roruku.smartformatconverter.data.storage.StorageManager
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 
 data class ConverterFormat(
     val tab: Int,

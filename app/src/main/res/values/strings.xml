@@ -309,8 +309,6 @@
     <string name="conversion_notification_channel">Media Conversion Service</string>
     <string name="conversion_notification_channel_description">Shows ongoing media conversion progress</string>
     <string name="conversion_notification_processing">Processing media files…</string>
-    <string name="conversion_notification_title">Converting %1$s</string>
-    <string name="conversion_notification_progress">%1$d%% complete</string>
 
     <!-- Format-specific image and audio editing controls -->
     <string name="advanced_image_title">Advanced Image Settings</string>

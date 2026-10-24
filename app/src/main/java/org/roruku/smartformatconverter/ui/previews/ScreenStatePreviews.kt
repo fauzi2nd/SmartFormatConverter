@@ -81,6 +81,8 @@ fun QueueEmptyStatePreview() {
             onClearCompleted = {},
             onSetFilter = {},
             onCancelJob = {},
+            onPauseJob = {},
+            onResumeJob = {},
             onRetryJob = {},
             onDeleteJob = {}
         )
@@ -121,6 +123,8 @@ fun QueueActiveStatePreview() {
             onClearCompleted = {},
             onSetFilter = {},
             onCancelJob = {},
+            onPauseJob = {},
+            onResumeJob = {},
             onRetryJob = {},
             onDeleteJob = {}
         )

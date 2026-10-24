@@ -103,12 +103,13 @@ object StorageManager {
         return context.contentResolver.getType(uri) ?: run {
             val extension = getFileName(context, uri).substringAfterLast('.', "").lowercase()
             when (extension) {
-                "mp4" -> "video/mp4"
+                "mp4", "m4v" -> "video/mp4"
                 "mkv" -> "video/x-matroska"
                 "webm" -> "video/webm"
                 "mov" -> "video/quicktime"
                 "avi" -> "video/x-msvideo"
                 "jpg", "jpeg" -> "image/jpeg"
+                "gif" -> "image/gif"
                 "png" -> "image/png"
                 "webp" -> "image/webp"
                 "mp3" -> "audio/mpeg"
@@ -130,6 +131,19 @@ object StorageManager {
         }
         val safeExt = if (extension.startsWith(".")) extension else ".$extension"
         return File.createTempFile("${prefix}_${System.currentTimeMillis()}", safeExt, cacheDir)
+    }
+
+    /**
+     * Stable cache destination for HTTP jobs. The same job ID survives retry,
+     * allowing validated HTTP Range resumes without ever touching user files.
+     */
+    fun downloadCacheFile(context: Context, jobId: String, extension: String): File {
+        val cache = File(context.cacheDir, "temp_conversion")
+        check(cache.isDirectory || cache.mkdirs()) { "Cannot create download cache directory" }
+        val safeId = jobId.filter { it.isLetterOrDigit() || it in "-_" }.take(90)
+        val safeExt = extension.lowercase().filter { it.isLetterOrDigit() }.take(8)
+        require(safeId.isNotEmpty() && safeExt.isNotEmpty()) { "Invalid download cache key" }
+        return File(cache, "download_${safeId}.${safeExt}")
     }
 
     /**

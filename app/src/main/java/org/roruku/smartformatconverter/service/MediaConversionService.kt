@@ -9,12 +9,16 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.roruku.smartformatconverter.MainActivity
 import org.roruku.smartformatconverter.R
@@ -55,9 +59,30 @@ class MediaConversionService : Service() {
                     break
                 }
 
-                for (job in pendingJobs) {
-                    updateNotification(job.fileName, (job.progress * 100).toInt())
-                    repository.executeJob(job, serviceScope)
+                for (snapshot in pendingJobs) {
+                    if (!serviceScope.isActive || !isRunning) break
+                    // Queue may cancel a pending entry after the list was read.
+                    val current = dao.getJobById(snapshot.id) ?: continue
+                    if (current.status !in setOf(
+                            org.roruku.smartformatconverter.data.db.JobStatus.PENDING,
+                            org.roruku.smartformatconverter.data.db.JobStatus.PREPARING,
+                            org.roruku.smartformatconverter.data.db.JobStatus.RUNNING
+                        )
+                    ) continue
+
+                    updateNotification(current.fileName, (current.progress * 100).toInt())
+                    try {
+                        // A task owns its own child Job. Queue cancellation
+                        // stops only this download/conversion, not the loop.
+                        serviceScope.async {
+                            repository.executeJob(current, this)
+                        }.await()
+                    } catch (cancelled: CancellationException) {
+                        if (!serviceScope.isActive) throw cancelled
+                        Log.i("MediaConversionService", "Job cancelled: ${current.id}")
+                    } catch (error: Exception) {
+                        Log.e("MediaConversionService", "Failed processing queued job", error)
+                    }
                 }
             }
         }

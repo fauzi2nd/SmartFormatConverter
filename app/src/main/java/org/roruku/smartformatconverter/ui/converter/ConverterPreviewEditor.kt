@@ -106,12 +106,15 @@ fun presetDisplayName(preset: String): String = when (preset) {
 }
 
 @Composable
-fun ZoomableImage(uri: Uri) {
+fun ZoomableImage(
+    uri: Uri,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     var scale by remember(uri) { mutableFloatStateOf(1f) }
     var pan by remember(uri) { mutableStateOf(Offset.Zero) }
     Box(
-        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+        modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
         AsyncImage(
@@ -337,7 +340,7 @@ fun ConverterPreviewEditor(
                                     } else {
                                         when (state.selectedTab) {
                                             0 -> SourcePlayer(media.uri, audio = false)
-                                            1 -> ZoomableImage(media.uri)
+                                            1 -> ZoomableImage(media.uri, modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f))
                                             else -> SourcePlayer(media.uri, audio = true)
                                         }
                                     }

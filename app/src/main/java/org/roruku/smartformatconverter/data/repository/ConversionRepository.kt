@@ -30,6 +30,9 @@ import org.roruku.smartformatconverter.engine.ffmpeg.AudioOutputFormat
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioCodec
 import org.roruku.smartformatconverter.engine.downloader.HttpDownloaderEngine
 import org.roruku.smartformatconverter.engine.downloader.HttpMediaFormatOption
+import org.roruku.smartformatconverter.engine.downloader.HttpDownloadableMediaInfo
+import org.roruku.smartformatconverter.engine.downloader.DirectDownloadSnapshot
+import org.roruku.smartformatconverter.engine.downloader.DirectMediaPolicy
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioConversionConfig
 import org.roruku.smartformatconverter.engine.ffmpeg.FFmpegEngine
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoConversionConfig
@@ -44,7 +47,6 @@ import org.roruku.smartformatconverter.engine.ffmpeg.ImageSettingsValidator
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioSettingsValidator
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 
 class ConversionRepository(
     private val context: Context,
@@ -54,7 +56,6 @@ class ConversionRepository(
     private companion object {
         const val TAG = "ConversionRepository"
     }
-    private val activeJobCoroutines = ConcurrentHashMap<String, Job>()
 
     val allJobsFlow: Flow<List<ConversionJobEntity>> = dao.getAllJobsFlow()
     val completedCountFlow: Flow<Int> = dao.getCompletedJobCountFlow()
@@ -70,9 +71,10 @@ class ConversionRepository(
     }
 
     suspend fun cancelJob(jobId: String) {
-        activeJobCoroutines[jobId]?.cancel()
-        activeJobCoroutines.remove(jobId)
+        // Persist CANCELLED before stopping the worker so a late progress
+        // callback cannot put a cancelled job back into RUNNING.
         dao.updateProgress(jobId, JobStatus.CANCELLED, 0f, null, null)
+        ActiveConversionJobs.cancel(jobId)
     }
 
     suspend fun retryJob(jobId: String) {
@@ -81,15 +83,22 @@ class ConversionRepository(
             status = JobStatus.PENDING,
             progress = 0f,
             errorMessage = null,
+            speed = null,
+            eta = null,
+            outputUri = null,
+            outputFileSize = 0L,
+            completedAt = null,
             retryCount = job.retryCount + 1
         )
         dao.updateJob(retriedJob)
     }
 
     suspend fun deleteJob(job: ConversionJobEntity) {
-        activeJobCoroutines[job.id]?.cancel()
-        activeJobCoroutines.remove(job.id)
+        ActiveConversionJobs.cancel(job.id)
         dao.deleteJob(job)
+        if (job.mediaType == MediaType.DOWNLOAD) {
+            StorageManager.downloadCacheFile(context, job.id, job.outputFormat).delete()
+        }
     }
 
     suspend fun clearCompletedJobs() {
@@ -97,16 +106,17 @@ class ConversionRepository(
     }
 
     suspend fun clearAllJobs() {
-        activeJobCoroutines.values.forEach { it.cancel() }
-        activeJobCoroutines.clear()
+        ActiveConversionJobs.cancelAll()
         dao.clearAllJobs()
+        File(context.cacheDir, "temp_conversion").listFiles()
+            ?.filter { it.name.startsWith("download_") }?.forEach { it.delete() }
     }
 
     suspend fun executeJob(job: ConversionJobEntity, scope: CoroutineScope): Result<String> = withContext(Dispatchers.IO) {
         // Track this conversion coroutine, never cancel the whole service supervisor.
         val jobCoro = currentCoroutineContext()[Job]
         if (jobCoro != null) {
-            activeJobCoroutines[job.id] = jobCoro
+            ActiveConversionJobs.register(job.id, jobCoro)
         }
 
         val estimator = ProgressEstimator()
@@ -137,11 +147,13 @@ class ConversionRepository(
                     "Select a parent output folder in Settings before converting."
                 )
 
-            val tempOutFile = StorageManager.createTempFileInCache(
-                context,
-                "out_${job.id}",
-                job.outputFormat.lowercase()
-            )
+            val tempOutFile = if (job.mediaType == MediaType.DOWNLOAD) {
+                StorageManager.downloadCacheFile(context, job.id, job.outputFormat)
+            } else {
+                StorageManager.createTempFileInCache(
+                    context, "out_${job.id}", job.outputFormat.lowercase()
+                )
+            }
 
             val conversionResult = when (job.mediaType) {
                 MediaType.IMAGE -> {
@@ -281,22 +293,56 @@ class ConversionRepository(
                     )
                 }
                 MediaType.DOWNLOAD -> {
-                    val infoResult = HttpDownloaderEngine.extractMediaInfo(context, job.inputUri)
+                    // New jobs persist the inspected file type and ETag/Last-Modified
+                    // so retry can resume without a second HEAD request.
+                    val snapshot = job.customParamsJson?.takeIf { it.isNotBlank() }
+                        ?.let(DirectDownloadSnapshot::fromJson)
+                    val infoResult = if (snapshot == null) {
+                        // Compatibility with jobs queued by previous APK versions.
+                        HttpDownloaderEngine.extractMediaInfo(context, job.inputUri)
+                    } else {
+                        Result.success(
+                            HttpDownloadableMediaInfo(
+                                url = job.inputUri,
+                                title = job.fileName,
+                                availableFormats = listOf(
+                                    HttpMediaFormatOption(
+                                        formatId = "direct_${snapshot.extension}",
+                                        extension = snapshot.extension,
+                                        resolution = "Source file",
+                                        note = "Direct download (no transcoding)"
+                                    )
+                                ),
+                                etag = snapshot.etag,
+                                lastModified = snapshot.lastModified
+                            )
+                        )
+                    }
                     if (infoResult.isFailure) {
-                        Result.failure(infoResult.exceptionOrNull() ?: Exception("Failed extracting direct HTTP stream info"))
+                        Result.failure(infoResult.exceptionOrNull()
+                            ?: Exception("Failed inspecting direct HTTP media"))
                     } else {
                         val info = infoResult.getOrThrow()
-                        val fmt = info.availableFormats.firstOrNull() ?: HttpMediaFormatOption("default", job.outputFormat, "Default", "Default Format")
-                        HttpDownloaderEngine.downloadMedia(
-                            context = context,
-                            mediaInfo = info,
-                            formatOption = fmt,
-                            tempOutputFile = tempOutFile,
-                            onProgress = { pct, speed, eta ->
-                                emitProgress(0.05f + pct.coerceIn(0f, 1f) * 0.84f,
-                                    reportedSpeed = speed, reportedEta = eta)
-                            }
-                        )
+                        val fmt = info.availableFormats.singleOrNull()
+                        if (fmt == null ||
+                            !fmt.extension.equals(job.outputFormat, ignoreCase = true)) {
+                            Result.failure(IllegalStateException(
+                                "Queued format does not match the direct file. Inspect and queue it again."
+                            ))
+                        } else {
+                            HttpDownloaderEngine.downloadMedia(
+                                context = context,
+                                mediaInfo = info,
+                                formatOption = fmt,
+                                tempOutputFile = tempOutFile,
+                                onProgress = { pct, speed, eta ->
+                                    emitProgress(
+                                        0.05f + pct.coerceIn(0f, 1f) * 0.84f,
+                                        reportedSpeed = speed, reportedEta = eta
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -320,7 +366,9 @@ class ConversionRepository(
                 format = settings.filenameFormat,
                 customPrefix = settings.customPrefix
             )
-            val mimeType = StorageManager.getMimeType(context, Uri.fromFile(finalFile))
+            val mimeType = if (job.mediaType == MediaType.DOWNLOAD) {
+                DirectMediaPolicy.mimeTypeForExtension(job.outputFormat)
+            } else StorageManager.getMimeType(context, Uri.fromFile(finalFile))
             val destination = StorageManager.createDestinationDocumentFile(
                 context = context,
                 treeUri = outputRootUri,
@@ -355,7 +403,7 @@ class ConversionRepository(
         } finally {
             updates.close()
             withContext(NonCancellable) { progressWriter.join() }
-            activeJobCoroutines.remove(job.id)
+            ActiveConversionJobs.unregister(job.id, jobCoro)
         }
     }
 }

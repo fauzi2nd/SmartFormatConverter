@@ -45,7 +45,8 @@ class MediaAdvancedSettingsTest {
     @Test
     fun imagePresetsAreFormatAware() {
         val webp = ImageAdvancedSettings(format = "webp").applyPreset("High Quality")
-        assertTrue(webp.webpLossless)
+        assertFalse(webp.webpLossless)
+        assertEquals(100, webp.webpQuality)
         val compressed = webp.applyPreset("Small File")
         assertFalse(compressed.webpLossless)
         assertEquals(75, compressed.webpQuality)

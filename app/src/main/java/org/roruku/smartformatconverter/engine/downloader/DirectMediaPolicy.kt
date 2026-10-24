@@ -89,6 +89,21 @@ object DirectMediaPolicy {
             .trim().take(120).ifBlank { "media_file" }
     }
 
+    /** Detect error pages returned with a misleading video/image Content-Type. */
+    fun looksLikeWebResponse(buffer: ByteArray, length: Int): Boolean {
+        if (length <= 0) return false
+        val prefix = String(buffer, 0, length.coerceAtMost(buffer.size).coerceAtMost(256),
+            Charsets.UTF_8).trimStart().lowercase(Locale.ROOT)
+        return prefix.startsWith("<!doctype html") ||
+            prefix.startsWith("<html") ||
+            prefix.startsWith("<head") ||
+            prefix.startsWith("<script") ||
+            prefix.startsWith("<?xml") ||
+            prefix.startsWith("<mpd") ||
+            prefix.startsWith("#extm3u") ||
+            prefix.startsWith("{\\\"error\\\"")
+    }
+
     fun mimeTypeForExtension(ext: String): String = when (ext.lowercase(Locale.ROOT)) {
         "mp4", "m4v" -> "video/mp4"
         "webm" -> "video/webm"

@@ -1,6 +1,17 @@
 package org.roruku.smartformatconverter
 
 import android.os.Bundle
+import android.Manifest
+import android.os.Build
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
+import kotlinx.coroutines.flow.first
+import org.roruku.smartformatconverter.data.db.AppDatabase
+import org.roruku.smartformatconverter.data.db.JobStatus
+import org.roruku.smartformatconverter.service.MediaConversionService
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -73,14 +84,39 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             SmartFormatConverterTheme {
-                MainAppScreen(showBrandedIntro = savedInstanceState == null)
+                val fromNotification = intent?.getBooleanExtra(MediaConversionService.EXTRA_OPEN_QUEUE, false) == true
+                MainAppScreen(
+                    showBrandedIntro = savedInstanceState == null && !fromNotification,
+                    startInQueue = fromNotification
+                )
             }
         }
     }
 }
 
 @Composable
-fun MainAppScreen(showBrandedIntro: Boolean = false) {
+fun MainAppScreen(showBrandedIntro: Boolean = false, startInQueue: Boolean = false) {
+    val context = LocalContext.current
+    val inspectionMode = LocalInspectionMode.current
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* Permission denial does not block foreground processing. */ }
+    // Ask once, contextually when the first job is queued; not on app launch.
+    LaunchedEffect(Unit) {
+        if (!inspectionMode && Build.VERSION.SDK_INT >= 33) {
+            AppDatabase.getInstance(context).conversionJobDao().getAllJobsFlow().first { jobs ->
+                jobs.any { it.status in setOf(JobStatus.PENDING, JobStatus.PREPARING, JobStatus.RUNNING) }
+            }
+            if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                val preferences = context.getSharedPreferences("notification_permission", android.content.Context.MODE_PRIVATE)
+                if (!preferences.getBoolean("asked_once", false)) {
+                    preferences.edit().putBoolean("asked_once", true).apply()
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        }
+    }
+
     val navController = rememberNavController()
     val snackBarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -121,7 +157,7 @@ fun MainAppScreen(showBrandedIntro: Boolean = false) {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = BottomNavItem.Home.route,
+            startDestination = if (startInQueue) BottomNavItem.Queue.route else BottomNavItem.Home.route,
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(BottomNavItem.Home.route) {

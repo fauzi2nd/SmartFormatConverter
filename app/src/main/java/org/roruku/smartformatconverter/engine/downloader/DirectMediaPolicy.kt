@@ -14,6 +14,7 @@ object DirectMediaPolicy {
     private val mimeExt = mapOf(
         "video/mp4" to "mp4",
         "video/x-m4v" to "m4v",
+        "video/3gpp" to "3gp",
         "video/webm" to "webm",
         "video/quicktime" to "mov",
         "video/x-matroska" to "mkv",
@@ -34,11 +35,17 @@ object DirectMediaPolicy {
         "image/jpeg" to "jpg",
         "image/png" to "png",
         "image/webp" to "webp",
-        "image/gif" to "gif"
+        "image/gif" to "gif",
+        "image/bmp" to "bmp",
+        "image/x-ms-bmp" to "bmp",
+        "image/heic" to "heic",
+        "image/heif" to "heif",
+        "image/avif" to "avif"
     )
     private val fileTypes = setOf(
         "mp4", "m4v", "webm", "mov", "mkv", "avi", "mp3", "m4a", "aac",
-        "wav", "flac", "ogg", "opus", "jpg", "jpeg", "png", "webp", "gif"
+        "wav", "flac", "ogg", "opus", "jpg", "jpeg", "png", "webp", "gif",
+        "bmp", "heic", "heif", "avif", "3gp"
     )
     private val genericMime = setOf(
         "", "application/octet-stream", "binary/octet-stream",
@@ -106,6 +113,7 @@ object DirectMediaPolicy {
 
     fun mimeTypeForExtension(ext: String): String = when (ext.lowercase(Locale.ROOT)) {
         "mp4", "m4v" -> "video/mp4"
+        "3gp" -> "video/3gpp"
         "webm" -> "video/webm"
         "mkv" -> "video/x-matroska"
         "mov" -> "video/quicktime"
@@ -121,6 +129,10 @@ object DirectMediaPolicy {
         "png" -> "image/png"
         "webp" -> "image/webp"
         "gif" -> "image/gif"
+        "bmp" -> "image/bmp"
+        "heic" -> "image/heic"
+        "heif" -> "image/heif"
+        "avif" -> "image/avif"
         else -> "application/octet-stream"
     }
 }

@@ -83,6 +83,23 @@ class DirectDownloaderAndQueueTest {
     }
 
     @Test
+    fun supportsAdditionalDirectMediaWithConsistentMimeMapping() {
+        val supported = mapOf(
+            "heic" to "image/heic",
+            "heif" to "image/heif",
+            "avif" to "image/avif",
+            "bmp" to "image/bmp",
+            "3gp" to "video/3gpp"
+        )
+        for ((extension, mime) in supported) {
+            assertEquals(extension, DirectMediaPolicy.extension("/remote/file.$extension", mime))
+            assertEquals(mime, DirectMediaPolicy.mimeTypeForExtension(extension))
+            assertEquals(extension, DirectMediaPolicy.extension(
+                "/signed?token=1", "application/octet-stream", "download.$extension"))
+        }
+    }
+
+    @Test
     fun queueUsesOutputExtensionForDownloads() {
         fun job(ext: String) = ConversionJobEntity(
             mediaType = MediaType.DOWNLOAD,
@@ -92,6 +109,9 @@ class DirectDownloaderAndQueueTest {
             status = JobStatus.COMPLETED, outputUri = "content://output/file"
         )
         assertEquals(CompletedMediaKind.IMAGE, completedMediaKind(job("webp")))
+        assertEquals(CompletedMediaKind.IMAGE, completedMediaKind(job("avif")))
+        assertEquals(CompletedMediaKind.IMAGE, completedMediaKind(job("heic")))
+        assertEquals(CompletedMediaKind.VIDEO, completedMediaKind(job("3gp")))
         assertEquals(CompletedMediaKind.AUDIO, completedMediaKind(job("mp3")))
         assertEquals(CompletedMediaKind.VIDEO, completedMediaKind(job("mp4")))
         assertEquals(CompletedMediaKind.UNKNOWN, completedMediaKind(job("bin")))

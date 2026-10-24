@@ -272,10 +272,19 @@ fun JobCardItem(
             when (job.status) {
                 JobStatus.RUNNING, JobStatus.PREPARING -> {
                     Spacer(modifier = Modifier.height(8.dp))
-                    LinearProgressIndicator(
-                        progress = { job.progress },
-                        modifier = Modifier.fillMaxWidth().height(6.dp)
-                    )
+                    if (job.mediaType == MediaType.DOWNLOAD && job.fileSize <= 0L) {
+                        // With unknown Content-Length the byte transfer rate is
+                        // measurable but percent completion is not: don't show
+                        // a misleading 2%-stuck determinate progress bar.
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth().height(6.dp)
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            progress = { job.progress },
+                            modifier = Modifier.fillMaxWidth().height(6.dp)
+                        )
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),

@@ -21,7 +21,7 @@ data class ImageAdvancedSettings(
 ) {
     fun applyPreset(name: String): ImageAdvancedSettings = when (name) {
         "High Quality" -> copy(preset = name, jpegQuality = 100, jpegSubsampling = "444",
-            webpQuality = 100, webpLossless = format == "webp")
+            webpQuality = 100, webpLossless = false)
         "Balanced" -> copy(preset = name, jpegQuality = 95, jpegSubsampling = "444",
             webpQuality = 90, webpLossless = false)
         "Small File" -> copy(preset = name, jpegQuality = 80, jpegSubsampling = "420",

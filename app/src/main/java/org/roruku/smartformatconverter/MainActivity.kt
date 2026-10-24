@@ -16,6 +16,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
+import androidx.core.content.edit
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -110,7 +111,7 @@ fun MainAppScreen(showBrandedIntro: Boolean = false, startInQueue: Boolean = fal
             if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 val preferences = context.getSharedPreferences("notification_permission", android.content.Context.MODE_PRIVATE)
                 if (!preferences.getBoolean("asked_once", false)) {
-                    preferences.edit().putBoolean("asked_once", true).apply()
+                    preferences.edit { putBoolean("asked_once", true) }
                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             }

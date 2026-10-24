@@ -34,8 +34,9 @@ fun HomeEmptyStatePreview() {
                 freeStorageBytes = 32L * 1024L * 1024L * 1024L,
                 totalStorageBytes = 128L * 1024L * 1024L * 1024L
             ),
-            onNavigateToConverterTab = {},
-            onNavigateToDownloader = {}
+            onNavigateToFormat = { _, _ -> },
+            onNavigateToDownloader = {},
+            onNavigateToQueue = {}
         )
     }
 }

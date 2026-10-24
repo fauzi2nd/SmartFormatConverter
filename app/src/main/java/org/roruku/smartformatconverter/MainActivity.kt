@@ -126,28 +126,39 @@ fun MainAppScreen(showBrandedIntro: Boolean = false) {
         ) {
             composable(BottomNavItem.Home.route) {
                 HomeScreen(
-                    onNavigateToConverterTab = { tabIndex ->
-                        navController.navigate("${BottomNavItem.Converter.route}?tab=$tabIndex") {
+                    onNavigateToFormat = { tabIndex, format ->
+                        navController.navigate("${BottomNavItem.Converter.route}?tab=$tabIndex&format=$format") {
                             launchSingleTop = true
                         }
                     },
                     onNavigateToDownloader = {
                         navController.navigate(BottomNavItem.Downloader.route)
+                    },
+                    onNavigateToQueue = {
+                        navController.navigate(BottomNavItem.Queue.route)
                     }
                 )
             }
 
             composable(
-                route = "${BottomNavItem.Converter.route}?tab={tab}",
-                arguments = listOf(navArgument("tab") {
-                    type = NavType.IntType
-                    defaultValue = 0
-                })
+                route = "${BottomNavItem.Converter.route}?tab={tab}&format={format}",
+                arguments = listOf(
+                    navArgument("tab") {
+                        type = NavType.IntType
+                        defaultValue = 0
+                    },
+                    navArgument("format") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    }
+                )
             ) { backStackEntry ->
                 val tabIndex = backStackEntry.arguments?.getInt("tab") ?: 0
+                val targetFormat = backStackEntry.arguments?.getString("format").orEmpty()
                 ConverterScreen(
                     snackbarHostState = snackBarHostState,
                     initialTab = tabIndex,
+                    initialFormat = targetFormat,
                     onEditorVisibilityChanged = { editorVisible = it }
                 )
             }

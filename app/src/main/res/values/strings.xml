@@ -2,17 +2,22 @@
     <string name="app_name" translatable="false">Smart Format Converter</string>
 
     <!-- Home Screen -->
-    <string name="dashboard_title">Dashboard</string>
-    <string name="dashboard_subtitle">Local &amp; High-Performance Multimedia Engine</string>
-    <string name="quick_actions">Quick Actions</string>
+    <string name="home_heading">Ready to convert?</string>
+    <string name="home_subtitle">Choose your output format and get started.</string>
+    <string name="home_choose_format">Quick convert</string>
+    <string name="home_mp4_desc">Video format</string>
+    <string name="home_jpg_desc">Image format</string>
+    <string name="home_mp3_desc">Audio format</string>
+    <string name="home_download_desc">Media from URL</string>
+    <string name="home_overview">Activity overview</string>
+    <string name="home_converted">Converted</string>
+    <string name="home_view_all">View all</string>
     <string name="media_video">Video</string>
     <string name="media_image">Image</string>
     <string name="media_audio">Audio</string>
     <string name="media_download">Download</string>
-    <string name="conversion_statistics">Conversion Statistics</string>
     <string name="stat_completed">Completed</string>
     <string name="stat_failed">Failed</string>
-    <string name="stat_converted_size">Converted Size</string>
     <string name="recent_jobs">Recent Jobs</string>
     <string name="no_recent_conversions">No recent conversions. Select a media type above to begin.</string>
     <string name="internal_storage">Internal Storage</string>

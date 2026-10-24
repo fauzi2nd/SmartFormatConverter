@@ -148,6 +148,12 @@ fun DownloaderScreenContent(
             }
         )
 
+        if (uiState.urlInput.trim().startsWith("http://", ignoreCase = true)) {
+            Text(stringResource(R.string.downloader_insecure_http),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall)
+        }
+
         Button(
             onClick = onExtractInfo,
             modifier = Modifier.fillMaxWidth(),

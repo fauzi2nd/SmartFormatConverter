@@ -47,10 +47,10 @@ interface ConversionJobDao {
     @Query("UPDATE conversion_jobs SET status = :status, progress = :progress, speed = :speed, eta = :eta WHERE id = :jobId AND status IN (\'PENDING\', \'PREPARING\', \'RUNNING\')")
     suspend fun updateProgress(jobId: String, status: JobStatus, progress: Float, speed: String?, eta: String?)
 
-    @Query("UPDATE conversion_jobs SET status = :status, progress = 1.0, speed = NULL, eta = \'00:00\', completedAt = :completedAt, outputUri = :outputUri, outputFileSize = :outputFileSize WHERE id = :jobId AND status NOT IN (\'CANCELLED\', \'FAILED\', \'INTERRUPTED\')")
+    @Query("UPDATE conversion_jobs SET status = :status, progress = 1.0, speed = NULL, eta = '00:00', completedAt = :completedAt, outputUri = :outputUri, outputFileSize = :outputFileSize WHERE id = :jobId AND status IN ('PENDING', 'PREPARING', 'RUNNING')")
     suspend fun markCompleted(jobId: String, status: JobStatus = JobStatus.COMPLETED, completedAt: Long = System.currentTimeMillis(), outputUri: String?, outputFileSize: Long)
 
-    @Query("UPDATE conversion_jobs SET status = :status, errorMessage = :errorMessage, speed = NULL, eta = NULL WHERE id = :jobId AND status NOT IN (\'COMPLETED\', \'CANCELLED\')")
+    @Query("UPDATE conversion_jobs SET status = :status, errorMessage = :errorMessage, speed = NULL, eta = NULL WHERE id = :jobId AND status IN ('PENDING', 'PREPARING', 'RUNNING')")
     suspend fun markFailed(jobId: String, errorMessage: String, status: JobStatus = JobStatus.FAILED)
 
     @Query("UPDATE conversion_jobs SET status = 'PENDING' WHERE status IN ('RUNNING', 'PREPARING')")

@@ -5,8 +5,7 @@
       librxffmpeg-core.so without 16 KB page alignment.
       Only reports mentioning THIS EXACT DEPENDENCY/version are excluded;
       all other Aligned16KB findings still fail strict lint.
-      Do not remove this known risk from the audit or claim compatibility.
-      See CODE_QUALITY_AUDIT.md. Remove when RxFFmpeg is replaced/rebuilt.
+      Pinned third-party dependency; remove when RxFFmpeg is replaced/rebuilt.
     -->
     <issue id="Aligned16KB">
         <ignore regexp=".*RxFFmpeg:4\.9\.0.*" />

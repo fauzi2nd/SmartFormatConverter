@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.withContext
 import org.roruku.smartformatconverter.data.db.AppDatabase
@@ -409,6 +409,10 @@ class ConversionRepository(
             )
             finalFile.delete()
             Result.success(outputUri)
+        } catch (e: CancellationException) {
+            // Cooperative cancellation from pauseJob or cancelJob.
+            // Do not mark the job as failed; its terminal/paused state was already persisted by the caller.
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Error executing job ${job.id}", e)
             dao.markFailed(job.id, e.message ?: "Job failed with exception")

@@ -116,4 +116,35 @@ class DirectDownloaderAndQueueTest {
         assertEquals(CompletedMediaKind.VIDEO, completedMediaKind(job("mp4")))
         assertEquals(CompletedMediaKind.UNKNOWN, completedMediaKind(job("bin")))
     }
+
+    @Test
+    fun downloadJobDistinguishesIndeterminateAndDeterminateProgress() {
+        val indeterminateDownload = ConversionJobEntity(
+            mediaType = MediaType.DOWNLOAD,
+            fileName = "stream.mp4",
+            inputUri = "https://example.com/stream.mp4",
+            inputFormat = "mp4",
+            outputFormat = "mp4",
+            fileSize = 0L,
+            progress = 0f,
+            status = JobStatus.RUNNING
+        )
+        val determinateDownload = indeterminateDownload.copy(
+            fileSize = 10_000_000L,
+            progress = 0.45f
+        )
+        val videoConversion = indeterminateDownload.copy(
+            mediaType = MediaType.VIDEO,
+            fileSize = 0L,
+            progress = 0.30f
+        )
+
+        val isIndeterminate1 = indeterminateDownload.mediaType == MediaType.DOWNLOAD && indeterminateDownload.fileSize <= 0L
+        val isIndeterminate2 = determinateDownload.mediaType == MediaType.DOWNLOAD && determinateDownload.fileSize <= 0L
+        val isIndeterminate3 = videoConversion.mediaType == MediaType.DOWNLOAD && videoConversion.fileSize <= 0L
+
+        org.junit.Assert.assertTrue(isIndeterminate1)
+        org.junit.Assert.assertFalse(isIndeterminate2)
+        org.junit.Assert.assertFalse(isIndeterminate3)
+    }
 }

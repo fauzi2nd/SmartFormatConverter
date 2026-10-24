@@ -192,7 +192,11 @@ class MediaConversionService : Service() {
         val title = getString(R.string.notification_progress_title, index.coerceAtLeast(1), ordered.size.coerceAtLeast(1), job.fileName)
         val extra = job.eta?.takeIf { it.isNotBlank() } ?: getString(R.string.queue_measuring)
         val detail = if (job.mediaType == MediaType.DOWNLOAD && job.fileSize <= 0L) {
-            getString(R.string.conversion_notification_processing)
+            if (!job.speed.isNullOrBlank()) {
+                getString(R.string.queue_speed, job.speed)
+            } else {
+                getString(R.string.conversion_notification_processing)
+            }
         } else getString(R.string.notification_progress_detail, percent, extra)
         notificationManager.notify(
             NOTIFICATION_ID, buildProgressNotification(title, detail, percent, job.id, job.mediaType == MediaType.DOWNLOAD && job.fileSize <= 0L)

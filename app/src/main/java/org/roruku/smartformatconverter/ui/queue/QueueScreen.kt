@@ -417,12 +417,17 @@ fun JobCardItem(
                         )
                     }
                     Spacer(modifier = Modifier.height(6.dp))
+                    val isIndeterminateDownload = job.mediaType == MediaType.DOWNLOAD && job.fileSize <= 0L
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val percentText = "${(job.progress * 100).toInt()}%"
+                        val percentText = if (isIndeterminateDownload) {
+                            stringResource(R.string.queue_downloading_indeterminate)
+                        } else {
+                            "${(job.progress * 100).toInt()}%"
+                        }
                         Text(
                             text = percentText,
                             style = MaterialTheme.typography.labelSmall,
@@ -440,7 +445,11 @@ fun JobCardItem(
                         Text(
                             text = stringResource(
                                 R.string.queue_eta,
-                                job.eta?.takeIf { it.isNotBlank() } ?: stringResource(R.string.queue_measuring)
+                                if (isIndeterminateDownload) {
+                                    stringResource(R.string.value_unknown)
+                                } else {
+                                    job.eta?.takeIf { it.isNotBlank() } ?: stringResource(R.string.queue_measuring)
+                                }
                             ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant

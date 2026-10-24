@@ -2,6 +2,8 @@ package org.roruku.smartformatconverter.ui.queue
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.ClipData
+import android.provider.OpenableColumns
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -25,6 +27,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
@@ -76,7 +79,7 @@ enum class CompletedMediaKind { IMAGE, VIDEO, AUDIO, UNKNOWN }
 fun completedMediaKind(job: ConversionJobEntity): CompletedMediaKind {
     val extension = job.outputFormat.lowercase()
     return when (extension) {
-        "jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif" -> CompletedMediaKind.IMAGE
+        "jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif", "avif" -> CompletedMediaKind.IMAGE
         "mp4", "mkv", "webm", "mov", "avi", "m4v", "3gp" -> CompletedMediaKind.VIDEO
         "mp3", "aac", "m4a", "wav", "flac", "ogg", "opus" -> CompletedMediaKind.AUDIO
         else -> when (job.mediaType) {
@@ -181,13 +184,34 @@ fun CompletedOutputViewer(job: ConversionJobEntity, onDismiss: () -> Unit) {
     val kind = completedMediaKind(job)
     val chooserTitle = stringResource(R.string.queue_external_viewer_title)
     val outputUri = job.outputUri?.let(Uri::parse)
+    var resultName by remember(job.id, job.outputUri) { mutableStateOf(job.fileName) }
     var readState by remember(job.id, job.outputUri) { mutableStateOf<Boolean?>(null) }
     var externalError by remember(job.id) { mutableStateOf(false) }
     LaunchedEffect(job.outputUri, inspection) {
-        readState = if (inspection) true else withContext(Dispatchers.IO) {
-            if (outputUri == null) false else try {
-                context.contentResolver.openInputStream(outputUri)?.use { true } ?: false
-            } catch (_: Exception) { false }
+        if (inspection) {
+            readState = true
+        } else {
+            val result = withContext(Dispatchers.IO) {
+                if (outputUri == null) false to job.fileName
+                else try {
+                    var name = job.fileName
+                    context.contentResolver.query(
+                        outputUri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null
+                    )?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                            if (column >= 0) {
+                                name = cursor.getString(column)?.takeIf(String::isNotBlank) ?: name
+                            }
+                        }
+                    }
+                    val readable = context.contentResolver
+                        .openFileDescriptor(outputUri, "r")?.use { true } ?: false
+                    readable to name
+                } catch (_: Exception) { false to job.fileName }
+            }
+            readState = result.first
+            resultName = result.second
         }
     }
     Dialog(
@@ -207,7 +231,7 @@ fun CompletedOutputViewer(job: ConversionJobEntity, onDismiss: () -> Unit) {
                         Text(stringResource(R.string.queue_result_preview),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary)
-                        Text(job.fileName, fontWeight = FontWeight.SemiBold,
+                        Text(resultName, fontWeight = FontWeight.SemiBold,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     IconButton(onClick = onDismiss) {
@@ -234,6 +258,33 @@ fun CompletedOutputViewer(job: ConversionJobEntity, onDismiss: () -> Unit) {
                     }
                 }
                 if (readState == true && outputUri != null && !inspection) {
+                    OutlinedButton(
+                        onClick = {
+                            try {
+                                val mime = DirectMediaPolicy.mimeTypeForExtension(job.outputFormat)
+                                val share = Intent(Intent.ACTION_SEND).apply {
+                                    type = mime
+                                    putExtra(Intent.EXTRA_STREAM, outputUri)
+                                    clipData = ClipData.newUri(
+                                        context.contentResolver, resultName, outputUri
+                                    )
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(
+                                    share, context.getString(R.string.queue_share_output)
+                                ))
+                                externalError = false
+                            } catch (_: Exception) {
+                                externalError = true
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null)
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(R.string.queue_share_output))
+                    }
                     OutlinedButton(
                         onClick = {
                             try {

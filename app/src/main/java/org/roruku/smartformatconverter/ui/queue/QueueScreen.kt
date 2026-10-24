@@ -243,8 +243,8 @@ fun JobCardItem(
                 }
             }
 
-            when {
-                (job.status == JobStatus.RUNNING) || (job.status == JobStatus.PREPARING) -> {
+            when (job.status) {
+                JobStatus.RUNNING, JobStatus.PREPARING -> {
                     Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
                         progress = { job.progress },
@@ -267,22 +267,27 @@ fun JobCardItem(
                         )
                     }
                 }
-                job.status == JobStatus.COMPLETED && job.outputFileSize > 0 -> {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.queue_output_size, Formatter.formatShortFileSize(context, job.outputFileSize)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                JobStatus.COMPLETED -> {
+                    if (job.outputFileSize > 0) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.queue_output_size, Formatter.formatShortFileSize(context, job.outputFileSize)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
-                job.status == JobStatus.FAILED && !job.errorMessage.isNullOrBlank() -> {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.queue_error_description, job.errorMessage.orEmpty()),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                JobStatus.FAILED -> {
+                    if (!job.errorMessage.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.queue_error_description, job.errorMessage.orEmpty()),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
+                else -> {}
             }
         }
     }

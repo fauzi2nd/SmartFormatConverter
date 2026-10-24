@@ -627,16 +627,18 @@ fun ConverterPreviewEditor(
                                         }
                                     )
                                 }
-                                val hasOverride = selectedFile?.let {
-                                    if (state.selectedTab == 1)
-                                        state.perFileImageSettings.containsKey(it.uri.toString())
-                                    else state.perFileAudioSettings.containsKey(it.uri.toString())
-                                } ?: false
-                                if (!applyToAll && hasOverride && selectedFile != null) {
-                                    OutlinedButton(onClick = {
-                                        onClearMediaSettingsOverride(selectedFile.uri)
-                                    }) {
-                                        Text(stringResource(R.string.back_to_all_settings))
+                                if (!applyToAll && selectedFile != null) {
+                                    val hasOverride = if (state.selectedTab == 1) {
+                                        state.perFileImageSettings.containsKey(selectedFile.uri.toString())
+                                    } else {
+                                        state.perFileAudioSettings.containsKey(selectedFile.uri.toString())
+                                    }
+                                    if (hasOverride) {
+                                        OutlinedButton(onClick = {
+                                            onClearMediaSettingsOverride(selectedFile.uri)
+                                        }) {
+                                            Text(stringResource(R.string.back_to_all_settings))
+                                        }
                                     }
                                 }
                             }

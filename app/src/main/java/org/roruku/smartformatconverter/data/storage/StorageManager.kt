@@ -118,7 +118,6 @@ object StorageManager {
                 "heic" -> "image/heic"
                 "heif" -> "image/heif"
                 "avif" -> "image/avif"
-                "gif" -> "image/gif"
                 "png" -> "image/png"
                 "webp" -> "image/webp"
                 "mp3" -> "audio/mpeg"

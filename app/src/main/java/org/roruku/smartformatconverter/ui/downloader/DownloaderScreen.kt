@@ -22,7 +22,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material3.Button
@@ -173,8 +173,9 @@ fun DownloaderScreenContent(
 
         if (info == null && !uiState.isLoadingInfo) {
             Card(
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -198,6 +199,7 @@ fun DownloaderScreenContent(
 
         if (info != null && !uiState.isLoadingInfo) {
             Card(
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -241,7 +243,7 @@ fun DownloaderScreenContent(
                                     fmt.isAudioOnly -> Icons.Default.AudioFile
                                     DirectMediaPolicy.mimeTypeForExtension(fmt.extension)
                                         .startsWith("video/") -> Icons.Default.Movie
-                                    else -> Icons.Default.InsertDriveFile
+                                    else -> Icons.AutoMirrored.Filled.InsertDriveFile
                                 }
                                 Icon(icon, contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary)

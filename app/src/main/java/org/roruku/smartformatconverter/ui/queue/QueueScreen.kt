@@ -310,7 +310,11 @@ fun JobCardItem(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "${job.inputFormat.uppercase()} → ${job.outputFormat.uppercase()}",
+                            text = stringResource(
+                                R.string.queue_job_format_flow,
+                                job.inputFormat.uppercase(),
+                                job.outputFormat.uppercase()
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -538,7 +542,7 @@ private fun JobStatusBadge(status: JobStatus, modifier: Modifier = Modifier) {
     }
 }
 
-@Preview(showBackground = true)
+@Preview(name = "Queue Screen", showBackground = true, widthDp = 393, heightDp = 800)
 @Composable
 fun QueueScreenPreview() {
     SmartFormatConverterTheme {

@@ -223,7 +223,7 @@ fun ConverterCatalogContent(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = stringResource(R.string.converter_title),
-                            style = MaterialTheme.typography.headlineLarge,
+                            style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(

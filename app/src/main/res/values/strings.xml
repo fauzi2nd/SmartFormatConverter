@@ -259,7 +259,7 @@
     <string name="action_delete">Delete</string>
     <string name="value_unknown">Unknown</string>
     <string name="downloader_choose_format">Select Format &amp; Quality:</string>
-    <string name="queue_job_summary">%1$s → %2$s • %3$s</string>
+    <string name="queue_job_format_flow">%1$s → %2$s</string>
     <string name="queue_speed">Speed: %1$s</string>
     <string name="queue_eta">ETA: %1$s</string>
     <string name="queue_output_size">Output Size: %1$s</string>

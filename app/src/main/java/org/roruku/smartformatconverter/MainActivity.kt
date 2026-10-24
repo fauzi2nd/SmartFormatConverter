@@ -37,6 +37,8 @@ import androidx.compose.material.icons.filled.Transform
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -255,7 +257,10 @@ fun AppBottomNavigationBar(
         BottomNavItem.Queue,
         BottomNavItem.Settings
     )
-    NavigationBar {
+    NavigationBar(
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurface
+    ) {
         navItems.forEach { item ->
             val title = stringResource(item.titleResId)
             NavigationBarItem(
@@ -263,7 +268,14 @@ fun AppBottomNavigationBar(
                 onClick = { onNavigate(item) },
                 icon = { Icon(imageVector = item.icon, contentDescription = title) },
                 label = { Text(title, maxLines = 1) },
-                alwaysShowLabel = true
+                alwaysShowLabel = true,
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
         }
     }

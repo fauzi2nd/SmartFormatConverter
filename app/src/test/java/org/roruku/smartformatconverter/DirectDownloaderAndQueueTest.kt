@@ -55,7 +55,7 @@ class DirectDownloaderAndQueueTest {
             "<!DOCTYPE html><html>Sign in</html>",
             "<html><body>403 forbidden</body></html>",
             "#EXTM3U\\n#EXT-X-STREAM-INF",
-            "{\\\"error\\\":\\\"expired token\\\"}"
+            """{"error":"expired token"}"""
         )) {
             val bytes = bad.toByteArray(Charsets.UTF_8)
             org.junit.Assert.assertTrue(

@@ -73,7 +73,7 @@ class ConversionRepository(
     suspend fun cancelJob(jobId: String) {
         // Persist CANCELLED before stopping the worker so a late progress
         // callback cannot put a cancelled job back into RUNNING.
-        dao.updateProgress(jobId, JobStatus.CANCELLED, 0f, null, null)
+        dao.cancelJob(jobId)
         ActiveConversionJobs.cancel(jobId)
     }
 

@@ -557,6 +557,9 @@ fun ConverterPreviewEditor(
                         }
                     }
                 } else {
+                    // PNG, FLAC and WAV are lossless; "small file"/quality presets
+                    // would be misleading because their encoders ignore bitrate/quality.
+                    if (state.targetFormat !in setOf("png", "flac", "wav")) {
                     item {
                         Text(stringResource(R.string.preset), fontWeight = FontWeight.SemiBold)
                         val presets = listOf("High Quality", "Balanced", "Small File", "Custom")
@@ -587,6 +590,7 @@ fun ConverterPreviewEditor(
                                 }
                             }
                         }
+                    }
                     }
                     item {
                         Card(modifier = Modifier.fillMaxWidth()) {

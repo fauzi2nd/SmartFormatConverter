@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <style name="Theme.SmartFormatConverter" parent="android:Theme.Material.Light.NoActionBar">
+    <item name="android:windowSplashScreenBackground">#0B1330</item>
+    <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+    <item name="android:windowSplashScreenIconBackgroundColor">#142653</item>
+    <item name="android:windowLightStatusBar">false</item>
+  </style>
+</resources>

@@ -55,6 +55,25 @@ class MediaAdvancedSettingsTest {
     }
 
     @Test
+    fun imageSettingsSupportCropToExactRatio() {
+        val defaultSettings = ImageAdvancedSettings()
+        assertFalse(defaultSettings.cropToExactRatio)
+
+        val cropSettings = defaultSettings.copy(
+            width = 1080,
+            height = 1080,
+            keepAspectRatio = true,
+            cropToExactRatio = true,
+            preventUpscale = false
+        )
+        assertTrue(cropSettings.cropToExactRatio)
+        assertTrue(cropSettings.keepAspectRatio)
+        assertEquals(1080, cropSettings.width)
+        assertEquals(1080, cropSettings.height)
+        assertNull(ImageSettingsValidator.validate(cropSettings))
+    }
+
+    @Test
     fun audioCodecAndLosslessControlsAreCorrectForEveryOutput() {
         val formats = mapOf(
             "mp3" to "libmp3lame", "aac" to "aac", "m4a" to "aac",

@@ -335,6 +335,7 @@
     <string name="setting_image_width">Width (px)</string>
     <string name="setting_image_height">Height (px)</string>
     <string name="setting_maintain_ratio">Maintain aspect ratio</string>
+    <string name="setting_crop_to_exact">Center crop to exact dimensions</string>
     <string name="setting_no_upscale">Never upscale images</string>
     <string name="setting_jpeg_exif">Preserve JPEG EXIF (when available)</string>
     <string name="setting_audio_bitrate">Audio bitrate: %1$d kbps</string>

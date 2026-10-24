@@ -199,6 +199,7 @@ class ConversionRepository(
                         customHeight = advanced?.height,
                         maintainAspectRatio = advanced?.keepAspectRatio ?: true,
                         preventUpscale = advanced?.preventUpscale ?: true,
+                        cropToExactRatio = advanced?.cropToExactRatio ?: false,
                         preserveExif = advanced?.preserveMetadata ?: settings.preserveMetadata
                     )
                     ImageConverterEngine.convertImage(

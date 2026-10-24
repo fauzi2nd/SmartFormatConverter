@@ -15,6 +15,7 @@ data class ImageAdvancedSettings(
     val width: Int? = null,
     val height: Int? = null,
     val keepAspectRatio: Boolean = true,
+    val cropToExactRatio: Boolean = false,
     val preventUpscale: Boolean = true,
     val preserveMetadata: Boolean = true,
     val preset: String = "Custom",
@@ -41,6 +42,7 @@ data class ImageAdvancedSettings(
         width?.let { put("width", it) }
         height?.let { put("height", it) }
         put("keepAspectRatio", keepAspectRatio)
+        put("cropToExactRatio", cropToExactRatio)
         put("preventUpscale", preventUpscale)
         put("preserveMetadata", preserveMetadata)
     }.toString()
@@ -61,6 +63,7 @@ data class ImageAdvancedSettings(
                 width = if (obj.has("width")) obj.getInt("width") else null,
                 height = if (obj.has("height")) obj.getInt("height") else null,
                 keepAspectRatio = obj.optBoolean("keepAspectRatio", true),
+                cropToExactRatio = obj.optBoolean("cropToExactRatio", false),
                 preventUpscale = obj.optBoolean("preventUpscale", true),
                 preserveMetadata = obj.optBoolean("preserveMetadata", true)
             )

@@ -72,15 +72,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.withFrameNanos
+import androidx.media3.common.VideoSize
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Forward10
@@ -200,6 +196,15 @@ private fun ModernVideoPlayer(
     var duration by remember { mutableLongStateOf(player.duration.coerceAtLeast(0L)) }
     var isMuted by remember { mutableStateOf(player.volume == 0f) }
     var showControls by remember { mutableStateOf(true) }
+    var isScrubbing by remember { mutableStateOf(false) }
+    var scrubPos by remember { mutableFloatStateOf(0f) }
+    var videoRatio by remember {
+        mutableFloatStateOf(
+            if (player.videoSize.width > 0 && player.videoSize.height > 0) {
+                (player.videoSize.width.toFloat() / player.videoSize.height.toFloat()).coerceIn(9f / 16f, 21f / 9f)
+            } else 16f / 9f
+        )
+    }
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
@@ -209,6 +214,11 @@ private fun ModernVideoPlayer(
             override fun onPlaybackStateChanged(state: Int) {
                 duration = player.duration.coerceAtLeast(0L)
             }
+            override fun onVideoSizeChanged(videoSize: VideoSize) {
+                if (videoSize.width > 0 && videoSize.height > 0) {
+                    videoRatio = (videoSize.width.toFloat() / videoSize.height.toFloat()).coerceIn(9f / 16f, 21f / 9f)
+                }
+            }
         }
         player.addListener(listener)
         onDispose { player.removeListener(listener) }
@@ -216,14 +226,16 @@ private fun ModernVideoPlayer(
 
     LaunchedEffect(player, isPlaying) {
         while (isActive) {
-            currentPos = player.currentPosition.coerceAtLeast(0L)
+            if (!isScrubbing) {
+                currentPos = player.currentPosition.coerceAtLeast(0L)
+            }
             duration = player.duration.coerceAtLeast(0L)
             delay(250)
         }
     }
 
-    LaunchedEffect(showControls, isPlaying) {
-        if (showControls && isPlaying) {
+    LaunchedEffect(showControls, isPlaying, isScrubbing) {
+        if (showControls && isPlaying && !isScrubbing) {
             delay(3500)
             showControls = false
         }
@@ -232,7 +244,7 @@ private fun ModernVideoPlayer(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(16f / 9f)
+            .aspectRatio(videoRatio)
             .clip(RoundedCornerShape(16.dp))
             .background(Color.Black)
             .clickable { showControls = !showControls },
@@ -328,9 +340,18 @@ private fun ModernVideoPlayer(
                         )
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
+                    val displayPos = if (isScrubbing) scrubPos.toLong() else currentPos
                     Slider(
-                        value = currentPos.toFloat(),
-                        onValueChange = { player.seekTo(it.toLong()) },
+                        value = if (isScrubbing) scrubPos else currentPos.toFloat(),
+                        onValueChange = {
+                            isScrubbing = true
+                            scrubPos = it
+                        },
+                        onValueChangeFinished = {
+                            player.seekTo(scrubPos.toLong())
+                            currentPos = scrubPos.toLong()
+                            isScrubbing = false
+                        },
                         valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
                         colors = SliderDefaults.colors(
                             thumbColor = MaterialTheme.colorScheme.primary,
@@ -347,7 +368,7 @@ private fun ModernVideoPlayer(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "${formatDuration(currentPos)} / ${formatDuration(duration)}",
+                            text = "${formatDuration(displayPos)} / ${formatDuration(duration)}",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White,
                             fontWeight = FontWeight.Medium
@@ -383,6 +404,9 @@ private fun ModernAudioPlayer(
     var currentPos by remember { mutableLongStateOf(player.currentPosition.coerceAtLeast(0L)) }
     var duration by remember { mutableLongStateOf(player.duration.coerceAtLeast(0L)) }
     var isMuted by remember { mutableStateOf(player.volume == 0f) }
+    var isScrubbing by remember { mutableStateOf(false) }
+    var scrubPos by remember { mutableFloatStateOf(0f) }
+    var rotationAngle by remember { mutableFloatStateOf(0f) }
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
@@ -399,22 +423,27 @@ private fun ModernAudioPlayer(
 
     LaunchedEffect(player, isPlaying) {
         while (isActive) {
-            currentPos = player.currentPosition.coerceAtLeast(0L)
+            if (!isScrubbing) {
+                currentPos = player.currentPosition.coerceAtLeast(0L)
+            }
             duration = player.duration.coerceAtLeast(0L)
             delay(250)
         }
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "disc")
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rotateDisc"
-    )
+    LaunchedEffect(isPlaying) {
+        if (!isPlaying) return@LaunchedEffect
+        var lastFrameTime = 0L
+        while (isActive) {
+            withFrameNanos { frameTimeNanos ->
+                if (lastFrameTime != 0L) {
+                    val dtSec = (frameTimeNanos - lastFrameTime) / 1_000_000_000f
+                    rotationAngle = (rotationAngle + dtSec * 90f) % 360f
+                }
+                lastFrameTime = frameTimeNanos
+            }
+        }
+    }
 
     Card(
         shape = RoundedCornerShape(20.dp),
@@ -444,7 +473,7 @@ private fun ModernAudioPlayer(
                             .size(46.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                            .rotate(if (isPlaying) rotation else 0f),
+                            .rotate(rotationAngle),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -487,10 +516,19 @@ private fun ModernAudioPlayer(
                 }
             }
 
+            val displayPos = if (isScrubbing) scrubPos.toLong() else currentPos
             Column(modifier = Modifier.fillMaxWidth()) {
                 Slider(
-                    value = currentPos.toFloat(),
-                    onValueChange = { player.seekTo(it.toLong()) },
+                    value = if (isScrubbing) scrubPos else currentPos.toFloat(),
+                    onValueChange = {
+                        isScrubbing = true
+                        scrubPos = it
+                    },
+                    onValueChangeFinished = {
+                        player.seekTo(scrubPos.toLong())
+                        currentPos = scrubPos.toLong()
+                        isScrubbing = false
+                    },
                     valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
                     colors = SliderDefaults.colors(
                         thumbColor = MaterialTheme.colorScheme.primary,
@@ -506,7 +544,7 @@ private fun ModernAudioPlayer(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = formatDuration(currentPos),
+                        text = formatDuration(displayPos),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

@@ -29,6 +29,7 @@ data class ImageConversionConfig(
     val customHeight: Int? = null,
     val maintainAspectRatio: Boolean = true,
     val preventUpscale: Boolean = true,
+    val cropToExactRatio: Boolean = false,
 )
 
 enum class ImageOutputFormat(val extension: String, val mimeType: String) {
@@ -94,7 +95,14 @@ object ImageConverterEngine {
             if (config.customWidth != null || config.customHeight != null) {
                 val targetW = config.customWidth ?: originalWidth
                 val targetH = config.customHeight ?: originalHeight
-                bitmap = resizeBitmap(bitmap!!, targetW, targetH, config.maintainAspectRatio, config.preventUpscale)
+                bitmap = resizeBitmap(
+                    bitmap!!,
+                    targetW,
+                    targetH,
+                    config.maintainAspectRatio,
+                    config.preventUpscale,
+                    config.cropToExactRatio
+                )
             }
 
             val finalBitmap: Bitmap = if (config.outputFormat == ImageOutputFormat.JPEG && bitmap!!.hasAlpha()) {
@@ -231,11 +239,32 @@ object ImageConverterEngine {
         targetW: Int,
         targetH: Int,
         maintainRatio: Boolean,
-        preventUpscale: Boolean
+        preventUpscale: Boolean,
+        cropToExactRatio: Boolean = false
     ): Bitmap {
         require(targetW > 0 && targetH > 0) { "Image dimensions must be positive" }
         val boundedW = if (preventUpscale) targetW.coerceAtMost(src.width) else targetW
         val boundedH = if (preventUpscale) targetH.coerceAtMost(src.height) else targetH
+        if (maintainRatio && cropToExactRatio) {
+            val scale = maxOf(
+                boundedW.toDouble() / src.width,
+                boundedH.toDouble() / src.height
+            )
+            val scaledW = (src.width * scale).toInt().coerceAtLeast(boundedW)
+            val scaledH = (src.height * scale).toInt().coerceAtLeast(boundedH)
+            val scaled = if (src.width == scaledW && src.height == scaledH) src else src.scale(scaledW, scaledH, true)
+            if (scaled !== src) {
+                src.recycle()
+            }
+            if (scaled.width == boundedW && scaled.height == boundedH) return scaled
+            val x = ((scaled.width - boundedW) / 2).coerceAtLeast(0)
+            val y = ((scaled.height - boundedH) / 2).coerceAtLeast(0)
+            val cropped = Bitmap.createBitmap(scaled, x, y, boundedW, boundedH)
+            if (cropped !== scaled) {
+                scaled.recycle()
+            }
+            return cropped
+        }
         val (finalW, finalH) = if (maintainRatio) {
             val scale = minOf(
                 boundedW.toDouble() / src.width,

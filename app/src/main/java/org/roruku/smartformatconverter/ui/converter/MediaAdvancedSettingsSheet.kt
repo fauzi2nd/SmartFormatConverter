@@ -202,6 +202,9 @@ fun ImageAdvancedSettingsControl(
                                 onClick = {
                                     widthText = dims.first
                                     heightText = dims.second
+                                    if (dims.first.isNotEmpty() && dims.first == dims.second) {
+                                        draft = draft.copy(cropToExactRatio = true)
+                                    }
                                 },
                                 label = { Text(stringResource(resId), style = MaterialTheme.typography.labelSmall) },
                                 shape = RoundedCornerShape(8.dp)
@@ -258,6 +261,11 @@ fun ImageAdvancedSettingsControl(
 
                     MediaSwitch(stringResource(R.string.setting_maintain_ratio), draft.keepAspectRatio) {
                         draft = draft.copy(keepAspectRatio = it)
+                    }
+                    if (draft.keepAspectRatio && widthText.isNotBlank() && heightText.isNotBlank()) {
+                        MediaSwitch(stringResource(R.string.setting_crop_to_exact), draft.cropToExactRatio) {
+                            draft = draft.copy(cropToExactRatio = it)
+                        }
                     }
                     MediaSwitch(stringResource(R.string.setting_no_upscale), draft.preventUpscale) {
                         draft = draft.copy(preventUpscale = it)

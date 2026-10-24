@@ -243,42 +243,46 @@ fun JobCardItem(
                 }
             }
 
-            if ((job.status == JobStatus.RUNNING) || (job.status == JobStatus.PREPARING)) {
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { job.progress },
-                    modifier = Modifier.fillMaxWidth().height(6.dp)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = stringResource(R.string.queue_speed, job.speed ?: stringResource(R.string.value_not_available)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            when {
+                (job.status == JobStatus.RUNNING) || (job.status == JobStatus.PREPARING) -> {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { job.progress },
+                        modifier = Modifier.fillMaxWidth().height(6.dp)
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = stringResource(R.string.queue_speed, job.speed ?: stringResource(R.string.value_not_available)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = stringResource(R.string.queue_eta, job.eta ?: stringResource(R.string.value_not_available)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                job.status == JobStatus.COMPLETED && job.outputFileSize > 0 -> {
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = stringResource(R.string.queue_eta, job.eta ?: stringResource(R.string.value_not_available)),
+                        text = stringResource(R.string.queue_output_size, Formatter.formatShortFileSize(context, job.outputFileSize)),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
-            } else if (job.status == JobStatus.COMPLETED && job.outputFileSize > 0) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.queue_output_size, Formatter.formatShortFileSize(context, job.outputFileSize)),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            } else if (job.status == JobStatus.FAILED && !job.errorMessage.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.queue_error_description, job.errorMessage.orEmpty()),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error
-                )
+                job.status == JobStatus.FAILED && !job.errorMessage.isNullOrBlank() -> {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.queue_error_description, job.errorMessage.orEmpty()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
     }

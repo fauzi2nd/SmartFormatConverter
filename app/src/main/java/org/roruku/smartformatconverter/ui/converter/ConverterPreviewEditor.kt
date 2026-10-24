@@ -83,6 +83,8 @@ import coil.request.ImageRequest
 import coil.request.videoFrameMillis
 import kotlinx.coroutines.launch
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
+import org.roruku.smartformatconverter.engine.ffmpeg.ImageAdvancedSettings
+import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
 import org.roruku.smartformatconverter.data.storage.OutputPathPolicy
 import org.roruku.smartformatconverter.data.storage.MediaDetails
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
@@ -241,6 +243,13 @@ fun ConverterPreviewEditor(
     onUpdateVideoSettings: (VideoAdvancedSettings) -> Unit,
     onUpdateVideoFileSettings: (Uri, VideoAdvancedSettings) -> Unit,
     onClearVideoFileSettings: (Uri) -> Unit,
+    onUpdateImageSettings: (ImageAdvancedSettings) -> Unit,
+    onUpdateAudioSettings: (AudioAdvancedSettings) -> Unit,
+    onUpdateImagePreset: (String) -> Unit,
+    onUpdateAudioPreset: (String) -> Unit,
+    onUpdateImageFileSettings: (Uri, ImageAdvancedSettings) -> Unit,
+    onUpdateAudioFileSettings: (Uri, AudioAdvancedSettings) -> Unit,
+    onClearMediaSettingsOverride: (Uri) -> Unit,
 ) {
     val files = state.selectedFiles
     val context = LocalContext.current
@@ -269,6 +278,12 @@ fun ConverterPreviewEditor(
     val resolvedVideoSettings = selectedFile?.let { file ->
         state.perFileVideoSettings[file.uri.toString()] ?: state.videoSettings
     } ?: state.videoSettings
+    val resolvedImageSettings = selectedFile?.let { file ->
+        state.perFileImageSettings[file.uri.toString()] ?: state.imageSettings
+    } ?: state.imageSettings
+    val resolvedAudioSettings = selectedFile?.let { file ->
+        state.perFileAudioSettings[file.uri.toString()] ?: state.audioSettings
+    } ?: state.audioSettings
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -459,7 +474,7 @@ fun ConverterPreviewEditor(
                         modifier = Modifier.padding(top = 10.dp)
                     )
                 }
-                if (state.selectedTab == 0) {
+                run {
                     item {
                         val allFilesText = stringResource(R.string.all_files)
                         val thisFileOnlyText = stringResource(R.string.this_file_only)
@@ -543,21 +558,80 @@ fun ConverterPreviewEditor(
                     }
                 } else {
                     item {
+                        Text(stringResource(R.string.preset), fontWeight = FontWeight.SemiBold)
+                        val presets = listOf("High Quality", "Balanced", "Small File", "Custom")
+                        val chosenPreset = if (state.selectedTab == 1)
+                            resolvedImageSettings.preset else resolvedAudioSettings.preset
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(presets.size) { i ->
+                                val choice = presets[i]
+                                val choose: () -> Unit = {
+                                    if (state.selectedTab == 1) {
+                                        if (applyToAll) onUpdateImagePreset(choice)
+                                        else selectedFile?.let { file ->
+                                            onUpdateImageFileSettings(file.uri,
+                                                resolvedImageSettings.applyPreset(choice))
+                                        }
+                                    } else {
+                                        if (applyToAll) onUpdateAudioPreset(choice)
+                                        else selectedFile?.let { file ->
+                                            onUpdateAudioFileSettings(file.uri,
+                                                resolvedAudioSettings.applyPreset(choice))
+                                        }
+                                    }
+                                }
+                                if (chosenPreset == choice) Button(onClick = {}) {
+                                    Text(presetDisplayName(choice))
+                                } else OutlinedButton(onClick = choose) {
+                                    Text(presetDisplayName(choice))
+                                }
+                            }
+                        }
+                    }
+                    item {
                         Card(modifier = Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Column(
+                                Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                                 Text(
-                                    if (state.selectedTab == 1) stringResource(R.string.image_settings) else stringResource(R.string.audio_settings),
+                                    if (state.selectedTab == 1) stringResource(R.string.image_settings)
+                                    else stringResource(R.string.audio_settings),
                                     fontWeight = FontWeight.SemiBold
                                 )
-                                Text(
-                                    if (state.selectedTab == 1) {
-                                        stringResource(R.string.image_settings_desc)
-                                    } else {
-                                        stringResource(R.string.audio_settings_desc)
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                if (state.selectedTab == 1) {
+                                    ImageAdvancedSettingsControl(
+                                        settings = resolvedImageSettings.copy(format = state.targetFormat),
+                                        onApply = { changed ->
+                                            if (applyToAll) onUpdateImageSettings(changed)
+                                            else selectedFile?.let {
+                                                onUpdateImageFileSettings(it.uri, changed)
+                                            }
+                                        }
+                                    )
+                                } else {
+                                    AudioAdvancedSettingsControl(
+                                        settings = resolvedAudioSettings.copy(format = state.targetFormat),
+                                        onApply = { changed ->
+                                            if (applyToAll) onUpdateAudioSettings(changed)
+                                            else selectedFile?.let {
+                                                onUpdateAudioFileSettings(it.uri, changed)
+                                            }
+                                        }
+                                    )
+                                }
+                                val hasOverride = selectedFile?.let {
+                                    if (state.selectedTab == 1)
+                                        state.perFileImageSettings.containsKey(it.uri.toString())
+                                    else state.perFileAudioSettings.containsKey(it.uri.toString())
+                                } ?: false
+                                if (!applyToAll && hasOverride && selectedFile != null) {
+                                    OutlinedButton(onClick = {
+                                        onClearMediaSettingsOverride(selectedFile.uri)
+                                    }) {
+                                        Text(stringResource(R.string.back_to_all_settings))
+                                    }
+                                }
                             }
                         }
                     }
@@ -656,7 +730,14 @@ fun PreviewEditorSample(tab: Int) {
             onUpdatePreset = {},
             onUpdateVideoSettings = {},
             onUpdateVideoFileSettings = { _, _ -> },
-            onClearVideoFileSettings = {}
+            onClearVideoFileSettings = {},
+            onUpdateImageSettings = {},
+            onUpdateAudioSettings = {},
+            onUpdateImagePreset = {},
+            onUpdateAudioPreset = {},
+            onUpdateImageFileSettings = { _, _ -> },
+            onUpdateAudioFileSettings = { _, _ -> },
+            onClearMediaSettingsOverride = {}
         )
     }
 }
@@ -691,7 +772,14 @@ fun ConverterEmptyEditorPreview() {
             onUpdatePreset = {},
             onUpdateVideoSettings = {},
             onUpdateVideoFileSettings = { _, _ -> },
-            onClearVideoFileSettings = {}
+            onClearVideoFileSettings = {},
+            onUpdateImageSettings = {},
+            onUpdateAudioSettings = {},
+            onUpdateImagePreset = {},
+            onUpdateAudioPreset = {},
+            onUpdateImageFileSettings = { _, _ -> },
+            onUpdateAudioFileSettings = { _, _ -> },
+            onClearMediaSettingsOverride = {}
         )
     }
 }

@@ -348,4 +348,5 @@
     <string name="queue_open_with_app">Open with another app</string>
     <string name="queue_external_viewer_title">Open converted media</string>
     <string name="queue_external_viewer_unavailable">No installed app can open this format.</string>
+    <string name="downloader_insecure_http">HTTP is unencrypted. Prefer HTTPS for privacy and file integrity.</string>
 </resources>

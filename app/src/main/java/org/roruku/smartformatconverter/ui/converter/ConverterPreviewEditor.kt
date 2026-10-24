@@ -106,12 +106,15 @@ fun presetDisplayName(preset: String): String = when (preset) {
 }
 
 @Composable
-fun ZoomableImage(uri: Uri) {
+fun ZoomableImage(
+    uri: Uri,
+    modifier: Modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+) {
     val context = LocalContext.current
     var scale by remember(uri) { mutableFloatStateOf(1f) }
     var pan by remember(uri) { mutableStateOf(Offset.Zero) }
     Box(
-        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+        modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
         AsyncImage(

@@ -100,6 +100,7 @@ private val formats = listOf(
 fun ConverterScreen(
     snackbarHostState: SnackbarHostState,
     initialTab: Int = 0,
+    initialFormat: String = "",
     onEditorVisibilityChanged: (Boolean) -> Unit,
     viewModel: ConverterViewModel = viewModel()
 ) {
@@ -107,8 +108,20 @@ fun ConverterScreen(
     val context = LocalContext.current
     var selected by remember { mutableStateOf<ConverterFormat?>(null) }
 
-    LaunchedEffect(initialTab) {
-        if (initialTab in 0..2) viewModel.selectTab(initialTab)
+    LaunchedEffect(initialTab, initialFormat) {
+        if (initialTab in 0..2) {
+            val shortcut = formats[initialTab].firstOrNull {
+                it.extension.equals(initialFormat, ignoreCase = true)
+            }
+            if (shortcut != null) {
+                // Landing from Home selects a real output format and opens Files/Folder.
+                viewModel.selectFormat(initialTab, shortcut.extension)
+                selected = shortcut
+            } else {
+                viewModel.selectTab(initialTab)
+                selected = null
+            }
+        }
     }
     LaunchedEffect(state.isEditorOpen) {
         onEditorVisibilityChanged(state.isEditorOpen)

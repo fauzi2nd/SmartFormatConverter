@@ -2,6 +2,7 @@ package org.roruku.smartformatconverter.ui.downloader
 
 import android.content.ClipboardManager
 import android.content.Context
+import android.text.format.Formatter
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,13 +13,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -38,15 +44,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.ui.platform.LocalInspectionMode
 import org.roruku.smartformatconverter.R
 import org.roruku.smartformatconverter.engine.downloader.HttpDownloadableMediaInfo
 import org.roruku.smartformatconverter.engine.downloader.HttpMediaFormatOption
+import org.roruku.smartformatconverter.engine.downloader.DirectMediaPolicy
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 
 @Composable
@@ -60,24 +70,22 @@ fun DownloaderScreen(
             onUpdateUrlInput = {},
             onExtractInfo = {},
             onSelectFormat = {},
-            onStartDownload = {},
+            onStartDownload = {}
         )
     } else {
         val uiState by viewModel.uiState.collectAsState()
-
         LaunchedEffect(uiState.message) {
-            uiState.message?.let { msg ->
-                snackbarHostState.showSnackbar(msg)
+            uiState.message?.let { message ->
+                snackbarHostState.showSnackbar(message)
                 viewModel.clearMessage()
             }
         }
-
         DownloaderScreenContent(
             uiState = uiState,
-            onUpdateUrlInput = { viewModel.updateUrlInput(it) },
-            onExtractInfo = { viewModel.extractInfo() },
-            onSelectFormat = { viewModel.selectFormat(it) },
-            onStartDownload = { viewModel.startDownload() },
+            onUpdateUrlInput = viewModel::updateUrlInput,
+            onExtractInfo = viewModel::extractInfo,
+            onSelectFormat = viewModel::selectFormat,
+            onStartDownload = viewModel::startDownload
         )
     }
 }
@@ -89,59 +97,56 @@ fun DownloaderScreenContent(
     onExtractInfo: () -> Unit,
     onSelectFormat: (HttpMediaFormatOption) -> Unit,
     onStartDownload: () -> Unit,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-
+    val info = uiState.mediaInfo
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp)
+        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = stringResource(R.string.downloader_title),
+            stringResource(R.string.downloader_title),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = stringResource(R.string.downloader_subtitle),
+            stringResource(R.string.direct_download_help),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // URL Input Row
         OutlinedTextField(
             value = uiState.urlInput,
             onValueChange = onUpdateUrlInput,
             label = { Text(stringResource(R.string.media_url)) },
             placeholder = { Text(stringResource(R.string.media_url_placeholder)) },
             modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(imageVector = Icons.Default.Link, contentDescription = null) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            leadingIcon = { Icon(Icons.Default.Link, contentDescription = null) },
             trailingIcon = {
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                            as ClipboardManager
+                        val clip = clipboard.primaryClip
+                        if (clip != null && clip.itemCount > 0) {
+                            val text = clip.getItemAt(0).coerceToText(context).toString()
+                            onUpdateUrlInput(text.trim())
+                        }
+                    }) {
+                        Icon(Icons.Default.ContentPaste,
+                            contentDescription = stringResource(R.string.action_paste_text))
+                    }
                     if (uiState.urlInput.isNotEmpty()) {
                         IconButton(onClick = { onUpdateUrlInput("") }) {
-                            Icon(imageVector = Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear_text))
-                        }
-                    } else {
-                        IconButton(onClick = {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            val clipData = clipboard.primaryClip
-                            if (clipData != null && clipData.itemCount > 0) {
-                                val text = clipData.getItemAt(0).text?.toString() ?: ""
-                                onUpdateUrlInput(text)
-                            }
-                        }) {
-                            Icon(imageVector = Icons.Default.ContentPaste, contentDescription = stringResource(R.string.action_paste_text))
+                            Icon(Icons.Default.Clear,
+                                contentDescription = stringResource(R.string.action_clear_text))
                         }
                     }
                 }
             }
         )
-
-        Spacer(modifier = Modifier.height(12.dp))
 
         Button(
             onClick = onExtractInfo,
@@ -150,97 +155,125 @@ fun DownloaderScreenContent(
         ) {
             if (uiState.isLoadingInfo) {
                 CircularProgressIndicator(
-                    modifier = Modifier.height(20.dp).width(20.dp),
+                    modifier = Modifier.width(20.dp).height(20.dp),
                     color = MaterialTheme.colorScheme.onPrimary,
                     strokeWidth = 2.dp
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.inspecting_url))
-            } else {
-                Text(stringResource(R.string.inspect_url))
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(stringResource(if (uiState.isLoadingInfo)
+                R.string.inspecting_url else R.string.inspect_url))
+        }
+
+        if (info == null && !uiState.isLoadingInfo) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary)
+                    Column {
+                        Text(stringResource(R.string.downloader_pending_inspection),
+                            fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.direct_download_only),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        val info = uiState.mediaInfo
-        if (info != null) {
+        if (info != null && !uiState.isLoadingInfo) {
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                )
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    Text(info.title, style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text(
-                        text = info.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        stringResource(R.string.downloader_host, info.author
+                            ?: stringResource(R.string.value_unknown)),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall
                     )
-                    Text(
-                        text = stringResource(R.string.downloader_source_author, info.author ?: stringResource(R.string.value_unknown)),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = stringResource(R.string.downloader_choose_format),
+                    Text(stringResource(R.string.downloader_choose_format),
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                        fontWeight = FontWeight.Bold)
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(info.availableFormats) { fmt ->
-                            val isSelected = uiState.selectedFormat == fmt
-                            OutlinedCard(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onSelectFormat(fmt) }
+                    // This list always reflects actual direct source formats; no
+                    // pretend "audio extraction" or resolution choices.
+                    info.availableFormats.forEach { fmt ->
+                        val selected = fmt == uiState.selectedFormat
+                        OutlinedCard(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                onSelectFormat(fmt)
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    RadioButton(
-                                        selected = isSelected,
-                                        onClick = { onSelectFormat(fmt) }
+                                RadioButton(selected = selected, onClick = {
+                                    onSelectFormat(fmt)
+                                })
+                                val icon = when {
+                                    fmt.isAudioOnly -> Icons.Default.AudioFile
+                                    DirectMediaPolicy.mimeTypeForExtension(fmt.extension)
+                                        .startsWith("video/") -> Icons.Default.Movie
+                                    else -> Icons.Default.InsertDriveFile
+                                }
+                                Icon(icon, contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        stringResource(R.string.downloader_source_format,
+                                            fmt.extension.uppercase()),
+                                        fontWeight = FontWeight.SemiBold
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Column {
-                                        Text(
-                                            text = stringResource(R.string.downloader_format_summary, fmt.resolution, fmt.extension.uppercase()),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                        Text(
-                                            text = fmt.note,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
+                                    Text(stringResource(R.string.downloader_direct_file),
+                                        style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        if (fmt.fileSizeEstimate > 0)
+                                            stringResource(R.string.downloader_file_size,
+                                                Formatter.formatShortFileSize(
+                                                    context, fmt.fileSizeEstimate))
+                                        else stringResource(R.string.downloader_size_unknown),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
                                 }
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
+                    Text(
+                        stringResource(R.string.downloader_network_warning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Button(
                         onClick = onStartDownload,
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = uiState.selectedFormat != null
+                        enabled = uiState.selectedFormat != null &&
+                            uiState.urlInput.trim() == info.url
                     ) {
-                        Icon(imageVector = Icons.Default.Download, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(Icons.Default.Download, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.start_download))
                     }
                 }
@@ -249,43 +282,52 @@ fun DownloaderScreenContent(
     }
 }
 
-@Preview(showBackground = true)
+private val previewDirectFormat = HttpMediaFormatOption(
+    formatId = "direct_mp4", extension = "mp4", resolution = "Source file",
+    note = "Direct download (no transcoding)", fileSizeEstimate = 150L * 1024L * 1024L
+)
+
+@Preview(name = "Downloader — empty", showBackground = true, widthDp = 393, heightDp = 780)
+@Composable
+fun DownloaderEmptyPreview() {
+    SmartFormatConverterTheme {
+        DownloaderScreenContent(
+            uiState = DownloaderUiState(),
+            onUpdateUrlInput = {}, onExtractInfo = {}, onSelectFormat = {},
+            onStartDownload = {}
+        )
+    }
+}
+
+@Preview(name = "Downloader — inspecting", showBackground = true, widthDp = 393, heightDp = 780)
+@Composable
+fun DownloaderInspectingPreview() {
+    SmartFormatConverterTheme {
+        DownloaderScreenContent(
+            uiState = DownloaderUiState(
+                urlInput = "https://example.com/video.mp4", isLoadingInfo = true),
+            onUpdateUrlInput = {}, onExtractInfo = {}, onSelectFormat = {},
+            onStartDownload = {}
+        )
+    }
+}
+
+@Preview(name = "Downloader — media detected", showBackground = true, widthDp = 393, heightDp = 780)
 @Composable
 fun DownloaderScreenPreview() {
-    val sampleFormat = HttpMediaFormatOption(
-        formatId = "video_best",
-        extension = "mp4",
-        resolution = "1080p HD",
-        note = "Source Quality Video Stream",
-        fileSizeEstimate = 1024L * 1024L * 150L,
-        isAudioOnly = false
-    )
     SmartFormatConverterTheme {
         DownloaderScreenContent(
             uiState = DownloaderUiState(
                 urlInput = "https://example.com/video.mp4",
-                isLoadingInfo = false,
                 mediaInfo = HttpDownloadableMediaInfo(
                     url = "https://example.com/video.mp4",
                     title = "Sample Online Video",
-                    author = "Example Network",
-                    availableFormats = listOf(
-                        sampleFormat,
-                        HttpMediaFormatOption(
-                            formatId = "audio_mp3",
-                            extension = "mp3",
-                            resolution = "Audio Only",
-                            note = "Extract MP3 Audio Stream",
-                            fileSizeEstimate = 1024L * 1024L * 15L,
-                            isAudioOnly = true
-                        )
-                    )
+                    author = "example.com",
+                    availableFormats = listOf(previewDirectFormat)
                 ),
-                selectedFormat = sampleFormat
+                selectedFormat = previewDirectFormat
             ),
-            onUpdateUrlInput = {},
-            onExtractInfo = {},
-            onSelectFormat = {},
+            onUpdateUrlInput = {}, onExtractInfo = {}, onSelectFormat = {},
             onStartDownload = {}
         )
     }

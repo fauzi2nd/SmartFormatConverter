@@ -1,6 +1,10 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">Smart Format Converter</string>
 
+    <string name="settings_notifications">Background notifications</string>
+    <string name="settings_notify_completed">Notify when completed</string>
+    <string name="settings_notify_failed">Notify when failed</string>
+    <string name="settings_system_notifications">Android notification settings</string>
     <string name="action_pause">Pause</string>
     <string name="action_resume">Resume</string>
     <string name="pause_resume_hint">Paused. Resume restarts conversion; supported HTTP downloads can continue from validated cached bytes.</string>

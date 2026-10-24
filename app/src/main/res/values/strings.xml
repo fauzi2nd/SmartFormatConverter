@@ -320,9 +320,20 @@
     <string name="setting_lossless_webp">Lossless WebP (file size may increase)</string>
     <string name="setting_png_lossless">PNG always uses lossless compression.</string>
     <string name="setting_jpeg_native_note">4:4:4 is preserved when the native encoder is available. On unsupported devices, JPEG falls back to the Android encoder, whose subsampling may differ.</string>
-    <string name="setting_resize">Resize (optional)</string>
-    <string name="setting_image_width">Width (px; blank = original)</string>
-    <string name="setting_image_height">Height (px; blank = original)</string>
+    <string name="setting_resize">Resize &amp; Dimensions</string>
+    <string name="setting_preset_original">Original</string>
+    <string name="setting_preset_1080p">1080p FHD</string>
+    <string name="setting_preset_720p">720p HD</string>
+    <string name="setting_preset_square">Square</string>
+    <string name="setting_preset_icon">Icon 512</string>
+    <string name="player_play">Play</string>
+    <string name="player_pause">Pause</string>
+    <string name="player_rewind_10">Rewind 10 seconds</string>
+    <string name="player_forward_10">Forward 10 seconds</string>
+    <string name="player_mute">Mute</string>
+    <string name="player_unmute">Unmute</string>
+    <string name="setting_image_width">Width (px)</string>
+    <string name="setting_image_height">Height (px)</string>
     <string name="setting_maintain_ratio">Maintain aspect ratio</string>
     <string name="setting_no_upscale">Never upscale images</string>
     <string name="setting_jpeg_exif">Preserve JPEG EXIF (when available)</string>

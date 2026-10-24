@@ -11,12 +11,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -24,6 +37,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -141,27 +157,112 @@ fun ImageAdvancedSettingsControl(
             }
 
             HorizontalDivider()
-            Text(stringResource(R.string.setting_resize),
-                style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = widthText,
-                    onValueChange = { widthText = it.filter(Char::isDigit).take(5) },
-                    label = { Text(stringResource(R.string.setting_image_width)) },
-                    modifier = Modifier.weight(1f), singleLine = true
-                )
-                OutlinedTextField(
-                    value = heightText,
-                    onValueChange = { heightText = it.filter(Char::isDigit).take(5) },
-                    label = { Text(stringResource(R.string.setting_image_height)) },
-                    modifier = Modifier.weight(1f), singleLine = true
-                )
-            }
-            MediaSwitch(stringResource(R.string.setting_maintain_ratio), draft.keepAspectRatio) {
-                draft = draft.copy(keepAspectRatio = it)
-            }
-            MediaSwitch(stringResource(R.string.setting_no_upscale), draft.preventUpscale) {
-                draft = draft.copy(preventUpscale = it)
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AspectRatio,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            stringResource(R.string.setting_resize),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val presets = listOf(
+                            R.string.setting_preset_original to ("" to ""),
+                            R.string.setting_preset_1080p to ("1920" to "1080"),
+                            R.string.setting_preset_720p to ("1280" to "720"),
+                            R.string.setting_preset_square to ("1080" to "1080"),
+                            R.string.setting_preset_icon to ("512" to "512")
+                        )
+                        items(presets.size) { idx ->
+                            val (resId, dims) = presets[idx]
+                            val isSelected = widthText == dims.first && heightText == dims.second
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    widthText = dims.first
+                                    heightText = dims.second
+                                },
+                                label = { Text(stringResource(resId), style = MaterialTheme.typography.labelSmall) },
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = widthText,
+                            onValueChange = { widthText = it.filter(Char::isDigit).take(5) },
+                            label = { Text(stringResource(R.string.setting_image_width)) },
+                            suffix = { Text("px", style = MaterialTheme.typography.labelSmall) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                            trailingIcon = {
+                                if (widthText.isNotEmpty()) {
+                                    IconButton(onClick = { widthText = "" }, modifier = Modifier.size(24.dp)) {
+                                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        Icon(
+                            imageVector = if (draft.keepAspectRatio) Icons.Default.Link else Icons.Default.LinkOff,
+                            contentDescription = null,
+                            tint = if (draft.keepAspectRatio) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        OutlinedTextField(
+                            value = heightText,
+                            onValueChange = { heightText = it.filter(Char::isDigit).take(5) },
+                            label = { Text(stringResource(R.string.setting_image_height)) },
+                            suffix = { Text("px", style = MaterialTheme.typography.labelSmall) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                            trailingIcon = {
+                                if (heightText.isNotEmpty()) {
+                                    IconButton(onClick = { heightText = "" }, modifier = Modifier.size(24.dp)) {
+                                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                    }
+
+                    MediaSwitch(stringResource(R.string.setting_maintain_ratio), draft.keepAspectRatio) {
+                        draft = draft.copy(keepAspectRatio = it)
+                    }
+                    MediaSwitch(stringResource(R.string.setting_no_upscale), draft.preventUpscale) {
+                        draft = draft.copy(preventUpscale = it)
+                    }
+                }
             }
             val proposed = draft.copy(
                 width = widthText.toIntOrNull(),

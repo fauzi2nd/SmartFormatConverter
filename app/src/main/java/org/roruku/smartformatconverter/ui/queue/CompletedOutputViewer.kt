@@ -253,8 +253,8 @@ fun CompletedOutputViewer(job: ConversionJobEntity, onDismiss: () -> Unit) {
                         kind == CompletedMediaKind.IMAGE -> ZoomableImage(
                             outputUri, modifier = Modifier.fillMaxSize()
                         )
-                        kind == CompletedMediaKind.VIDEO -> SourcePlayer(outputUri, audio = false)
-                        kind == CompletedMediaKind.AUDIO -> SourcePlayer(outputUri, audio = true)
+                        kind == CompletedMediaKind.VIDEO -> SourcePlayer(outputUri, audio = false, title = resultName)
+                        kind == CompletedMediaKind.AUDIO -> SourcePlayer(outputUri, audio = true, title = resultName)
                         else -> Text(stringResource(R.string.queue_preview_unsupported))
                     }
                 }

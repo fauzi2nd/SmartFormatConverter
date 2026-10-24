@@ -333,4 +333,5 @@
     <string name="queue_copying">Saving output…</string>
     <string name="queue_ready">Preparing…</string>
     <string name="setting_all_media_note">Saved separately for each queued file. Existing source files are never overwritten.</string>
+    <string name="setting_webp_lossless_unsupported">Lossless WebP requires Android 11 (API 30) or newer.</string>
 </resources>

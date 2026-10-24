@@ -24,7 +24,14 @@ enum class QueueFilterTab {
 data class QueueUiState(
     val selectedFilter: QueueFilterTab = QueueFilterTab.ALL,
     val jobs: List<ConversionJobEntity> = emptyList(),
-)
+    val allCount: Int = 0,
+    val activeCount: Int = 0,
+    val completedCount: Int = 0,
+    val failedCount: Int = 0,
+) {
+    val hasCompletedJobs: Boolean
+        get() = completedCount > 0
+}
 
 class QueueViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = ConversionRepository(application)
@@ -34,6 +41,15 @@ class QueueViewModel(application: Application) : AndroidViewModel(application) {
         repository.allJobsFlow,
         selectedFilterFlow,
     ) { allJobs, filter ->
+        val allCount = allJobs.size
+        val activeCount = allJobs.count {
+            (it.status == JobStatus.PENDING) || (it.status == JobStatus.PREPARING) || (it.status == JobStatus.RUNNING) || (it.status == JobStatus.PAUSED)
+        }
+        val completedCount = allJobs.count { it.status == JobStatus.COMPLETED }
+        val failedCount = allJobs.count {
+            (it.status == JobStatus.FAILED) || (it.status == JobStatus.CANCELLED) || (it.status == JobStatus.INTERRUPTED)
+        }
+
         val filtered = when (filter) {
             QueueFilterTab.ALL -> allJobs
             QueueFilterTab.ACTIVE -> allJobs.filter {
@@ -44,7 +60,14 @@ class QueueViewModel(application: Application) : AndroidViewModel(application) {
                 (it.status == JobStatus.FAILED) || (it.status == JobStatus.CANCELLED) || (it.status == JobStatus.INTERRUPTED)
             }
         }
-        QueueUiState(selectedFilter = filter, jobs = filtered)
+        QueueUiState(
+            selectedFilter = filter,
+            jobs = filtered,
+            allCount = allCount,
+            activeCount = activeCount,
+            completedCount = completedCount,
+            failedCount = failedCount,
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),

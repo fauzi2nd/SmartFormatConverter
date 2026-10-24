@@ -1,55 +1,66 @@
 package org.roruku.smartformatconverter.ui.queue
 
 import android.text.format.Formatter
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import coil.ImageLoader
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.ImageLoader
 import org.roruku.smartformatconverter.R
 import org.roruku.smartformatconverter.data.db.ConversionJobEntity
 import org.roruku.smartformatconverter.data.db.JobStatus
@@ -116,33 +127,57 @@ fun QueueScreenContent(
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
-            Button(onClick = onClearCompleted) {
-                Text(stringResource(R.string.clear_completed))
+            FilledTonalButton(
+                onClick = onClearCompleted,
+                enabled = uiState.hasCompletedJobs,
+                shape = RoundedCornerShape(20.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.clear_completed),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        PrimaryTabRow(selectedTabIndex = uiState.selectedFilter.ordinal) {
-            Tab(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            QueueFilterChip(
                 selected = uiState.selectedFilter == QueueFilterTab.ALL,
-                onClick = { onSetFilter(QueueFilterTab.ALL) },
-                text = { Text(stringResource(R.string.tab_all)) }
+                label = stringResource(R.string.tab_all),
+                count = uiState.allCount,
+                onClick = { onSetFilter(QueueFilterTab.ALL) }
             )
-            Tab(
+            QueueFilterChip(
                 selected = uiState.selectedFilter == QueueFilterTab.ACTIVE,
-                onClick = { onSetFilter(QueueFilterTab.ACTIVE) },
-                text = { Text(stringResource(R.string.tab_active)) }
+                label = stringResource(R.string.tab_active),
+                count = uiState.activeCount,
+                onClick = { onSetFilter(QueueFilterTab.ACTIVE) }
             )
-            Tab(
+            QueueFilterChip(
                 selected = uiState.selectedFilter == QueueFilterTab.COMPLETED,
-                onClick = { onSetFilter(QueueFilterTab.COMPLETED) },
-                text = { Text(stringResource(R.string.tab_completed)) }
+                label = stringResource(R.string.tab_completed),
+                count = uiState.completedCount,
+                onClick = { onSetFilter(QueueFilterTab.COMPLETED) }
             )
-            Tab(
+            QueueFilterChip(
                 selected = uiState.selectedFilter == QueueFilterTab.FAILED,
-                onClick = { onSetFilter(QueueFilterTab.FAILED) },
-                text = { Text(stringResource(R.string.tab_failed)) }
+                label = stringResource(R.string.tab_failed),
+                count = uiState.failedCount,
+                onClick = { onSetFilter(QueueFilterTab.FAILED) }
             )
         }
 
@@ -152,25 +187,34 @@ fun QueueScreenContent(
             OutlinedCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .weight(1f),
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(24.dp),
+                        .padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.HourglassEmpty,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = stringResource(R.string.no_jobs_in_queue),
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = stringResource(R.string.jobs_appear_here),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -179,7 +223,7 @@ fun QueueScreenContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(uiState.jobs, key = { it.id }) { job ->
                     JobCardItem(
@@ -222,104 +266,178 @@ fun JobCardItem(
 
     val canOpenResult = job.status == JobStatus.COMPLETED && !job.outputUri.isNullOrBlank()
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(enabled = canOpenResult) { onOpenResult() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = canOpenResult) { onOpenResult() },
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 if (job.status == JobStatus.COMPLETED) {
                     CompletedOutputThumbnail(job = job, imageLoader = thumbnailLoader)
                 } else {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = job.fileName,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        text = stringResource(R.string.queue_job_summary, job.inputFormat.uppercase(), job.outputFormat.uppercase(), localizedJobStatus(job.status)),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "${job.inputFormat.uppercase()} → ${job.outputFormat.uppercase()}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        JobStatusBadge(status = job.status)
+                    }
                     if (canOpenResult) {
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = stringResource(R.string.queue_tap_to_preview),
                             color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelSmall
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
 
-                when (job.status) {
-                    JobStatus.RUNNING, JobStatus.PREPARING, JobStatus.PENDING -> {
-                        IconButton(onClick = onPause) {
-                            Icon(imageVector = Icons.Default.PauseCircle, contentDescription = stringResource(R.string.action_pause))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    when (job.status) {
+                        JobStatus.RUNNING, JobStatus.PREPARING, JobStatus.PENDING -> {
+                            IconButton(onClick = onPause, modifier = Modifier.size(36.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.PauseCircle,
+                                    contentDescription = stringResource(R.string.action_pause),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            IconButton(onClick = onCancel, modifier = Modifier.size(36.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.Cancel,
+                                    contentDescription = stringResource(R.string.cancel),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
                         }
-                        IconButton(onClick = onCancel) {
-                            Icon(imageVector = Icons.Default.Cancel, contentDescription = stringResource(R.string.cancel))
+                        JobStatus.PAUSED -> {
+                            IconButton(onClick = onResume, modifier = Modifier.size(36.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayCircle,
+                                    contentDescription = stringResource(R.string.action_resume),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            IconButton(onClick = onCancel, modifier = Modifier.size(36.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.Cancel,
+                                    contentDescription = stringResource(R.string.cancel),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+                        JobStatus.FAILED, JobStatus.CANCELLED, JobStatus.INTERRUPTED -> {
+                            IconButton(onClick = onRetry, modifier = Modifier.size(36.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = stringResource(R.string.action_retry),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = stringResource(R.string.action_delete),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+                        JobStatus.COMPLETED -> {
+                            IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = stringResource(R.string.action_delete),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
                         }
                     }
-                    JobStatus.PAUSED -> {
-                        IconButton(onClick = onResume) {
-                            Icon(imageVector = Icons.Default.PlayCircle, contentDescription = stringResource(R.string.action_resume))
-                        }
-                        IconButton(onClick = onCancel) {
-                            Icon(imageVector = Icons.Default.Cancel, contentDescription = stringResource(R.string.cancel))
-                        }
-                    }
-                    JobStatus.FAILED, JobStatus.CANCELLED, JobStatus.INTERRUPTED -> {
-                        IconButton(onClick = onRetry) {
-                            Icon(imageVector = Icons.Default.Refresh, contentDescription = stringResource(R.string.action_retry))
-                        }
-                        IconButton(onClick = onDelete) {
-                            Icon(imageVector = Icons.Default.Delete, contentDescription = stringResource(R.string.action_delete))
-                        }
-                    }
-                    JobStatus.COMPLETED -> {
-                        IconButton(onClick = onDelete) {
-                            Icon(imageVector = Icons.Default.Delete, contentDescription = stringResource(R.string.action_delete))
-                        }
-                    }
-                    else -> {}
                 }
             }
 
             when (job.status) {
                 JobStatus.RUNNING, JobStatus.PREPARING -> {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     if (job.mediaType == MediaType.DOWNLOAD && job.fileSize <= 0L) {
-                        // With unknown Content-Length the byte transfer rate is
-                        // measurable but percent completion is not: don't show
-                        // a misleading 2%-stuck determinate progress bar.
                         LinearProgressIndicator(
-                            modifier = Modifier.fillMaxWidth().height(6.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
                         )
                     } else {
                         LinearProgressIndicator(
                             progress = { job.progress },
-                            modifier = Modifier.fillMaxWidth().height(6.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
                         )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val percentText = "${(job.progress * 100).toInt()}%"
                         Text(
-                            text = stringResource(R.string.queue_speed, job.speed?.takeIf { it.isNotBlank() } ?: stringResource(R.string.queue_measuring)),
+                            text = percentText,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.queue_speed,
+                                job.speed?.takeIf { it.isNotBlank() } ?: stringResource(R.string.queue_measuring)
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = stringResource(R.string.queue_eta, job.eta?.takeIf { it.isNotBlank() } ?: stringResource(R.string.queue_measuring)),
+                            text = stringResource(
+                                R.string.queue_eta,
+                                job.eta?.takeIf { it.isNotBlank() } ?: stringResource(R.string.queue_measuring)
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -335,7 +453,7 @@ fun JobCardItem(
                 }
                 JobStatus.COMPLETED -> {
                     if (job.outputFileSize > 0) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = stringResource(R.string.queue_output_size, Formatter.formatShortFileSize(context, job.outputFileSize)),
                             style = MaterialTheme.typography.labelSmall,
@@ -345,11 +463,9 @@ fun JobCardItem(
                 }
                 JobStatus.FAILED -> {
                     if (!job.errorMessage.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = stringResource(R.string.queue_error_description,
-                                job.errorMessage
-                            ),
+                            text = stringResource(R.string.queue_error_description, job.errorMessage),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.error
                         )
@@ -361,6 +477,67 @@ fun JobCardItem(
     }
 }
 
+@Composable
+private fun QueueFilterChip(
+    selected: Boolean,
+    label: String,
+    count: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val displayText = if (count > 0) "$label ($count)" else label
+    Surface(
+        selected = selected,
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.animateContentSize()
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = displayText,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1,
+                softWrap = false
+            )
+        }
+    }
+}
+
+@Composable
+private fun JobStatusBadge(status: JobStatus, modifier: Modifier = Modifier) {
+    val (bgColor, textColor) = when (status) {
+        JobStatus.COMPLETED ->
+            Color(0xFF1E382B) to Color(0xFF81C784)
+        JobStatus.RUNNING, JobStatus.PREPARING ->
+            MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.primary
+        JobStatus.PAUSED, JobStatus.PENDING ->
+            Color(0xFF3E3219) to Color(0xFFFFD54F)
+        JobStatus.FAILED, JobStatus.CANCELLED, JobStatus.INTERRUPTED ->
+            Color(0xFF3E1F24) to Color(0xFFE57373)
+    }
+
+    Surface(
+        color = bgColor,
+        shape = RoundedCornerShape(8.dp),
+        modifier = modifier
+    ) {
+        Text(
+            text = localizedJobStatus(status),
+            color = textColor,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+        )
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun QueueScreenPreview() {
@@ -368,6 +545,10 @@ fun QueueScreenPreview() {
         QueueScreenContent(
             uiState = QueueUiState(
                 selectedFilter = QueueFilterTab.ALL,
+                allCount = 3,
+                activeCount = 1,
+                completedCount = 1,
+                failedCount = 1,
                 jobs = listOf(
                     ConversionJobEntity(
                         fileName = "big_buck_bunny.mp4",
@@ -411,7 +592,6 @@ fun QueueScreenPreview() {
         )
     }
 }
-
 
 @Composable
 private fun localizedJobStatus(status: JobStatus): String = stringResource(

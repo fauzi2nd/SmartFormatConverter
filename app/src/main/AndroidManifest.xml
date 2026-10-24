@@ -37,6 +37,7 @@
 
     <uses-permission
         android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
 
     <!-- Notifications: Android 13+ -->
     <uses-permission
@@ -73,7 +74,7 @@
             android:name=".service.MediaConversionService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="dataSync|mediaProcessing" />
 
     </application>
 

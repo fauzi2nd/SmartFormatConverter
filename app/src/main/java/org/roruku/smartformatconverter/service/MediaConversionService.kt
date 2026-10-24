@@ -210,7 +210,7 @@ class MediaConversionService : Service() {
             .setProgress(100, percent, indeterminate)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
-            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
         if (jobId != null) {
             builder.addAction(
                 android.R.drawable.ic_media_pause, getString(R.string.action_pause),

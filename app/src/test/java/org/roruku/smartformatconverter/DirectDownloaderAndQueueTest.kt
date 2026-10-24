@@ -50,6 +50,28 @@ class DirectDownloaderAndQueueTest {
     }
 
     @Test
+    fun mislabeledHtmlAndManifestBodiesAreBlocked() {
+        for (bad in listOf(
+            "<!DOCTYPE html><html>Sign in</html>",
+            "<html><body>403 forbidden</body></html>",
+            "#EXTM3U\\n#EXT-X-STREAM-INF",
+            "{\\\"error\\\":\\\"expired token\\\"}"
+        )) {
+            val bytes = bad.toByteArray(Charsets.UTF_8)
+            org.junit.Assert.assertTrue(
+                "Should reject direct file spoof: $bad",
+                DirectMediaPolicy.looksLikeWebResponse(bytes, bytes.size)
+            )
+        }
+        val validJpeg = byteArrayOf(
+            0xff.toByte(), 0xd8.toByte(), 0xff.toByte(), 0xe0.toByte(), 0x00
+        )
+        org.junit.Assert.assertFalse(
+            DirectMediaPolicy.looksLikeWebResponse(validJpeg, validJpeg.size)
+        )
+    }
+
+    @Test
     fun onlyHttpOrHttpsWithHostCanBeUsed() {
         assertNotNull(DirectMediaPolicy.validatedHttpUrl("https://example.com/file.mp4"))
         assertThrows(IllegalArgumentException::class.java) {

@@ -10,6 +10,10 @@ import android.util.Log
 import androidx.documentfile.provider.DocumentFile
 import java.io.File
 import java.io.InputStream
+import java.io.FileInputStream
+import java.io.FileNotFoundException
+import java.io.IOException
+import android.os.ParcelFileDescriptor
 import java.io.OutputStream
 
 data class MediaDetails(
@@ -205,9 +209,38 @@ object StorageManager {
         }
     }
 
+    /**
+     * Read SAF/MediaStore sources without depending on a provider supporting
+     * openInputStream(). Some providers expose only a file descriptor.
+     * Keep the returned stream scoped with use{} so descriptors are closed.
+     */
+    fun openReadableInputStream(context: Context, uri: Uri): InputStream {
+        try {
+            if (uri.scheme == ContentResolver.SCHEME_FILE) {
+                val path = uri.path ?: throw FileNotFoundException("Missing file path")
+                return FileInputStream(File(path))
+            }
+            context.contentResolver.openInputStream(uri)?.let { return it }
+            context.contentResolver.openFileDescriptor(uri, "r")?.let {
+                return ParcelFileDescriptor.AutoCloseInputStream(it)
+            }
+            throw FileNotFoundException("Provider returned no readable stream")
+        } catch (e: SecurityException) {
+            throw IOException(
+                "Image access permission expired. Select the source file or folder again, then retry.",
+                e
+            )
+        } catch (e: FileNotFoundException) {
+            throw IOException(
+                "Source image is missing or cannot be opened. Select it again and retry.",
+                e
+            )
+        }
+    }
+
     fun copyUriToTempFile(context: Context, uri: Uri, destFile: File): Boolean {
         return try {
-            context.contentResolver.openInputStream(uri)?.use { input ->
+            openReadableInputStream(context, uri).use { input ->
                 destFile.outputStream().use { output ->
                     copyStream(input, output)
                 }

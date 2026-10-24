@@ -152,7 +152,14 @@ fun ConverterScreen(
             onUpdatePreset = viewModel::updatePreset,
             onUpdateVideoSettings = viewModel::updateVideoSettings,
             onUpdateVideoFileSettings = viewModel::updateVideoSettingsForFile,
-            onClearVideoFileSettings = viewModel::clearVideoSettingsOverride
+            onClearVideoFileSettings = viewModel::clearVideoSettingsOverride,
+            onUpdateImageSettings = viewModel::updateImageSettings,
+            onUpdateAudioSettings = viewModel::updateAudioSettings,
+            onUpdateImagePreset = viewModel::updateImagePreset,
+            onUpdateAudioPreset = viewModel::updateAudioPreset,
+            onUpdateImageFileSettings = viewModel::updateImageSettingsForFile,
+            onUpdateAudioFileSettings = viewModel::updateAudioSettingsForFile,
+            onClearMediaSettingsOverride = viewModel::clearMediaSettingsOverride
         )
         return
     }

@@ -12,17 +12,12 @@
     <string name="home_overview">Activity overview</string>
     <string name="home_converted">Converted</string>
     <string name="home_view_all">View all</string>
-    <string name="dashboard_title">Dashboard</string>
-    <string name="dashboard_subtitle">Local &amp; High-Performance Multimedia Engine</string>
-    <string name="quick_actions">Quick Actions</string>
     <string name="media_video">Video</string>
     <string name="media_image">Image</string>
     <string name="media_audio">Audio</string>
     <string name="media_download">Download</string>
-    <string name="conversion_statistics">Conversion Statistics</string>
     <string name="stat_completed">Completed</string>
     <string name="stat_failed">Failed</string>
-    <string name="stat_converted_size">Converted Size</string>
     <string name="recent_jobs">Recent Jobs</string>
     <string name="no_recent_conversions">No recent conversions. Select a media type above to begin.</string>
     <string name="internal_storage">Internal Storage</string>

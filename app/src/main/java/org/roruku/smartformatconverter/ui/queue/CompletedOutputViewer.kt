@@ -1,5 +1,7 @@
 package org.roruku.smartformatconverter.ui.queue
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -24,6 +26,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,6 +62,7 @@ import coil.request.videoFrameMillis
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.roruku.smartformatconverter.R
+import org.roruku.smartformatconverter.engine.downloader.DirectMediaPolicy
 import org.roruku.smartformatconverter.data.db.ConversionJobEntity
 import org.roruku.smartformatconverter.data.db.JobStatus
 import org.roruku.smartformatconverter.data.db.MediaType
@@ -177,6 +181,7 @@ fun CompletedOutputViewer(job: ConversionJobEntity, onDismiss: () -> Unit) {
     val kind = completedMediaKind(job)
     val outputUri = job.outputUri?.let(Uri::parse)
     var readState by remember(job.id, job.outputUri) { mutableStateOf<Boolean?>(null) }
+    var externalError by remember(job.id) { mutableStateOf(false) }
     LaunchedEffect(job.outputUri, inspection) {
         readState = if (inspection) true else withContext(Dispatchers.IO) {
             if (outputUri == null) false else try {
@@ -219,10 +224,43 @@ fun CompletedOutputViewer(job: ConversionJobEntity, onDismiss: () -> Unit) {
                             modifier = Modifier.padding(24.dp))
                         outputUri == null -> Text(stringResource(R.string.queue_result_unavailable))
                         inspection -> Text(stringResource(R.string.queue_preview_on_device))
-                        kind == CompletedMediaKind.IMAGE -> ZoomableImage(outputUri)
+                        kind == CompletedMediaKind.IMAGE -> ZoomableImage(
+                            outputUri, modifier = Modifier.fillMaxSize()
+                        )
                         kind == CompletedMediaKind.VIDEO -> SourcePlayer(outputUri, audio = false)
                         kind == CompletedMediaKind.AUDIO -> SourcePlayer(outputUri, audio = true)
                         else -> Text(stringResource(R.string.queue_preview_unsupported))
+                    }
+                }
+                if (readState == true && outputUri != null && !inspection) {
+                    OutlinedButton(
+                        onClick = {
+                            try {
+                                val mime = DirectMediaPolicy.mimeTypeForExtension(job.outputFormat)
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    setDataAndType(outputUri, mime)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(
+                                    intent,
+                                    context.getString(R.string.queue_external_viewer_title)
+                                ))
+                                externalError = false
+                            } catch (_: ActivityNotFoundException) {
+                                externalError = true
+                            } catch (_: SecurityException) {
+                                externalError = true
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        Text(stringResource(R.string.queue_open_with_app))
+                    }
+                    if (externalError) {
+                        Text(stringResource(R.string.queue_external_viewer_unavailable),
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 16.dp))
                     }
                 }
                 Text(

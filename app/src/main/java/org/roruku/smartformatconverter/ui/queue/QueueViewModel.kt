@@ -37,7 +37,7 @@ class QueueViewModel(application: Application) : AndroidViewModel(application) {
         val filtered = when (filter) {
             QueueFilterTab.ALL -> allJobs
             QueueFilterTab.ACTIVE -> allJobs.filter {
-                (it.status == JobStatus.PENDING) || (it.status == JobStatus.PREPARING) || (it.status == JobStatus.RUNNING)
+                (it.status == JobStatus.PENDING) || (it.status == JobStatus.PREPARING) || (it.status == JobStatus.RUNNING) || (it.status == JobStatus.PAUSED)
             }
             QueueFilterTab.COMPLETED -> allJobs.filter { it.status == JobStatus.COMPLETED }
             QueueFilterTab.FAILED -> allJobs.filter {
@@ -57,6 +57,18 @@ class QueueViewModel(application: Application) : AndroidViewModel(application) {
 
     fun cancelJob(jobId: String) {
         viewModelScope.launch { repository.cancelJob(jobId) }
+    }
+
+    fun pauseJob(jobId: String) {
+        viewModelScope.launch { repository.pauseJob(jobId) }
+    }
+
+    fun resumeJob(jobId: String) {
+        viewModelScope.launch {
+            if (repository.resumeJob(jobId)) {
+                MediaConversionService.startService(getApplication())
+            }
+        }
     }
 
     fun retryJob(jobId: String) {

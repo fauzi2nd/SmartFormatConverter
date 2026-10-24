@@ -21,7 +21,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -214,7 +214,7 @@ fun HomeScreenContent(
                 TextButton(onClick = onNavigateToQueue) {
                     Text(stringResource(R.string.home_view_all))
                     Spacer(Modifier.width(3.dp))
-                    Icon(Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(17.dp))
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(17.dp))
                 }
             }
         }
@@ -264,7 +264,7 @@ private fun FormatShortcut(
                 Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(24.dp))
                 Spacer(Modifier.weight(1f))
                 Icon(
-                    Icons.Default.ArrowForward,
+                    Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(17.dp)

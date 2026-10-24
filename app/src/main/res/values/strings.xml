@@ -1,6 +1,19 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">Smart Format Converter</string>
 
+    <string name="action_pause">Pause</string>
+    <string name="action_resume">Resume</string>
+    <string name="pause_resume_hint">Paused. Resume restarts conversion; supported HTTP downloads can continue from validated cached bytes.</string>
+    <string name="notification_progress_title">Processing %1$d of %2$d: %3$s</string>
+    <string name="notification_progress_detail">%1$d%% · %2$s</string>
+    <string name="notification_status_paused">Paused: %1$s</string>
+    <string name="notification_status_completed">Completed: %1$s</string>
+    <string name="notification_status_failed">Failed: %1$s</string>
+    <string name="notification_status_complete_detail">Output saved in your Converter folder</string>
+    <string name="notification_status_failure_detail">Open Queue for error details and retry</string>
+    <string name="notification_action_queue">Queue</string>
+    <string name="notification_channel_results">Conversion results</string>
+    <string name="notification_permission_description">Allow notifications to see live progress and completion messages while Smart Format Converter runs in the background.</string>
     <!-- Home Screen -->
     <string name="home_heading">Ready to convert?</string>
     <string name="home_subtitle">Choose your output format and get started.</string>

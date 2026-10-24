@@ -106,7 +106,6 @@
 
     <!-- Downloader Screen -->
     <string name="downloader_title">URL Downloader</string>
-    <string name="downloader_subtitle">Download media from supported web URLs</string>
     <string name="media_url">Media URL</string>
     <string name="media_url_placeholder">https://…</string>
     <string name="inspecting_url">Inspecting URL…</string>
@@ -237,9 +236,7 @@
     <string name="action_retry">Retry</string>
     <string name="action_delete">Delete</string>
     <string name="value_unknown">Unknown</string>
-    <string name="downloader_source_author">Source: %1$s</string>
     <string name="downloader_choose_format">Select Format &amp; Quality:</string>
-    <string name="downloader_format_summary">%1$s (%2$s)</string>
     <string name="queue_job_summary">%1$s → %2$s • %3$s</string>
     <string name="queue_speed">Speed: %1$s</string>
     <string name="queue_eta">ETA: %1$s</string>
@@ -346,7 +343,6 @@
     <string name="downloader_source_format">Detected: %1$s</string>
     <string name="downloader_url_changed">URL changed. Inspect the new address before downloading.</string>
     <string name="downloader_pending_inspection">Inspect a direct media URL to see its actual file format.</string>
-    <string name="downloader_invalid_media">The URL does not return a supported direct media file.</string>
     <string name="downloader_network_warning">Downloads use the source file as-is; converting formats requires the Converter tab.</string>
     <string name="downloader_inspect_error">Cannot inspect the media URL: %1$s</string>
 </resources>

@@ -143,6 +143,13 @@ object ImageConverterEngine {
                     if (!written) throw IllegalStateException("PNG encoder rejected the image")
                 }
                 ImageOutputFormat.WEBP -> {
+                    if (config.webpLossless &&
+                        android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R
+                    ) {
+                        throw UnsupportedOperationException(
+                            "Lossless WebP encoding requires Android 11 (API 30) or newer"
+                        )
+                    }
                     val written = FileOutputStream(outputFile).use { outStream ->
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
                             val format = if (config.webpLossless) {

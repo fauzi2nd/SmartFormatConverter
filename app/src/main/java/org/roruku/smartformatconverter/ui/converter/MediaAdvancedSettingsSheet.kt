@@ -202,9 +202,9 @@ fun ImageAdvancedSettingsControl(
                                 onClick = {
                                     widthText = dims.first
                                     heightText = dims.second
-                                    if (dims.first.isNotEmpty() && dims.first == dims.second) {
-                                        draft = draft.copy(cropToExactRatio = true)
-                                    }
+                                    draft = draft.copy(
+                                        cropToExactRatio = dims.first.isNotEmpty() && dims.first == dims.second
+                                    )
                                 },
                                 label = { Text(stringResource(resId), style = MaterialTheme.typography.labelSmall) },
                                 shape = RoundedCornerShape(8.dp)

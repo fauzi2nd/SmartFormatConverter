@@ -186,6 +186,16 @@ private fun formatDuration(ms: Long): String {
     }
 }
 
+@Suppress("DEPRECATION")
+private fun calculateVideoDisplayRatio(videoSize: VideoSize): Float {
+    if (videoSize.width <= 0 || videoSize.height <= 0) return 16f / 9f
+    val pixelRatio = if (videoSize.pixelWidthHeightRatio > 0f) videoSize.pixelWidthHeightRatio else 1f
+    val rawRatio = (videoSize.width.toFloat() / videoSize.height.toFloat()) * pixelRatio
+    val isRotated = videoSize.unappliedRotationDegrees == 90 || videoSize.unappliedRotationDegrees == 270
+    val displayRatio = if (isRotated) 1f / rawRatio else rawRatio
+    return displayRatio.coerceIn(9f / 21f, 21f / 9f)
+}
+
 @Composable
 private fun ModernVideoPlayer(
     player: ExoPlayer,
@@ -199,11 +209,7 @@ private fun ModernVideoPlayer(
     var isScrubbing by remember { mutableStateOf(false) }
     var scrubPos by remember { mutableFloatStateOf(0f) }
     var videoRatio by remember {
-        mutableFloatStateOf(
-            if (player.videoSize.width > 0 && player.videoSize.height > 0) {
-                (player.videoSize.width.toFloat() / player.videoSize.height.toFloat()).coerceIn(9f / 16f, 21f / 9f)
-            } else 16f / 9f
-        )
+        mutableFloatStateOf(calculateVideoDisplayRatio(player.videoSize))
     }
 
     DisposableEffect(player) {
@@ -215,9 +221,7 @@ private fun ModernVideoPlayer(
                 duration = player.duration.coerceAtLeast(0L)
             }
             override fun onVideoSizeChanged(videoSize: VideoSize) {
-                if (videoSize.width > 0 && videoSize.height > 0) {
-                    videoRatio = (videoSize.width.toFloat() / videoSize.height.toFloat()).coerceIn(9f / 16f, 21f / 9f)
-                }
+                videoRatio = calculateVideoDisplayRatio(videoSize)
             }
         }
         player.addListener(listener)
@@ -340,23 +344,39 @@ private fun ModernVideoPlayer(
                         )
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    val displayPos = if (isScrubbing) scrubPos.toLong() else currentPos
+                    val hasKnownDuration = duration > 0L
+                    val displayPos = if (hasKnownDuration && isScrubbing) scrubPos.toLong() else currentPos
+                    val currentVal = if (hasKnownDuration && isScrubbing) {
+                        scrubPos
+                    } else if (hasKnownDuration) {
+                        currentPos.toFloat().coerceIn(0f, duration.toFloat())
+                    } else {
+                        0f
+                    }
                     Slider(
-                        value = if (isScrubbing) scrubPos else currentPos.toFloat(),
+                        value = currentVal,
                         onValueChange = {
-                            isScrubbing = true
-                            scrubPos = it
+                            if (hasKnownDuration) {
+                                isScrubbing = true
+                                scrubPos = it
+                            }
                         },
                         onValueChangeFinished = {
-                            player.seekTo(scrubPos.toLong())
-                            currentPos = scrubPos.toLong()
-                            isScrubbing = false
+                            if (hasKnownDuration) {
+                                player.seekTo(scrubPos.toLong())
+                                currentPos = scrubPos.toLong()
+                                isScrubbing = false
+                            }
                         },
+                        enabled = hasKnownDuration,
                         valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
                         colors = SliderDefaults.colors(
                             thumbColor = MaterialTheme.colorScheme.primary,
                             activeTrackColor = MaterialTheme.colorScheme.primary,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                            inactiveTrackColor = Color.White.copy(alpha = 0.3f),
+                            disabledThumbColor = Color.Gray,
+                            disabledActiveTrackColor = Color.Gray,
+                            disabledInactiveTrackColor = Color.DarkGray
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -367,8 +387,9 @@ private fun ModernVideoPlayer(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val durationText = if (hasKnownDuration) formatDuration(duration) else "--:--"
                         Text(
-                            text = "${formatDuration(displayPos)} / ${formatDuration(duration)}",
+                            text = "${formatDuration(displayPos)} / $durationText",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White,
                             fontWeight = FontWeight.Medium
@@ -516,24 +537,40 @@ private fun ModernAudioPlayer(
                 }
             }
 
-            val displayPos = if (isScrubbing) scrubPos.toLong() else currentPos
+            val hasKnownDuration = duration > 0L
+            val displayPos = if (hasKnownDuration && isScrubbing) scrubPos.toLong() else currentPos
+            val currentVal = if (hasKnownDuration && isScrubbing) {
+                scrubPos
+            } else if (hasKnownDuration) {
+                currentPos.toFloat().coerceIn(0f, duration.toFloat())
+            } else {
+                0f
+            }
             Column(modifier = Modifier.fillMaxWidth()) {
                 Slider(
-                    value = if (isScrubbing) scrubPos else currentPos.toFloat(),
+                    value = currentVal,
                     onValueChange = {
-                        isScrubbing = true
-                        scrubPos = it
+                        if (hasKnownDuration) {
+                            isScrubbing = true
+                            scrubPos = it
+                        }
                     },
                     onValueChangeFinished = {
-                        player.seekTo(scrubPos.toLong())
-                        currentPos = scrubPos.toLong()
-                        isScrubbing = false
+                        if (hasKnownDuration) {
+                            player.seekTo(scrubPos.toLong())
+                            currentPos = scrubPos.toLong()
+                            isScrubbing = false
+                        }
                     },
+                    enabled = hasKnownDuration,
                     valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
                     colors = SliderDefaults.colors(
                         thumbColor = MaterialTheme.colorScheme.primary,
                         activeTrackColor = MaterialTheme.colorScheme.primary,
-                        inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerLowest
+                        inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        disabledThumbColor = MaterialTheme.colorScheme.outlineVariant,
+                        disabledActiveTrackColor = MaterialTheme.colorScheme.outlineVariant,
+                        disabledInactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerLowest
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -549,7 +586,7 @@ private fun ModernAudioPlayer(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = formatDuration(duration),
+                        text = if (hasKnownDuration) formatDuration(duration) else "--:--",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

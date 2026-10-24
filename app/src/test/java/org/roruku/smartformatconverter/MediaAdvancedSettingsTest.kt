@@ -11,6 +11,7 @@ import org.roruku.smartformatconverter.engine.ffmpeg.AudioCommandBuilder
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioSettingsValidator
 import org.roruku.smartformatconverter.engine.ffmpeg.ImageAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.ImageSettingsValidator
+import org.roruku.smartformatconverter.engine.image.ImageConverterEngine
 import org.roruku.smartformatconverter.data.repository.ProgressEstimator
 
 class MediaAdvancedSettingsTest {
@@ -71,6 +72,73 @@ class MediaAdvancedSettingsTest {
         assertEquals(1080, cropSettings.width)
         assertEquals(1080, cropSettings.height)
         assertNull(ImageSettingsValidator.validate(cropSettings))
+    }
+
+    @Test
+    fun calculateResizePlanHandlesCenterCropWithAndWithoutUpscale() {
+        val planNoUpscale = ImageConverterEngine.calculateResizePlan(
+            srcW = 800,
+            srcH = 1600,
+            targetW = 1080,
+            targetH = 1080,
+            maintainRatio = true,
+            preventUpscale = true,
+            cropToExactRatio = true
+        )
+        assertEquals(0, planNoUpscale.cropX)
+        assertEquals(400, planNoUpscale.cropY)
+        assertEquals(800, planNoUpscale.cropW)
+        assertEquals(800, planNoUpscale.cropH)
+        assertEquals(800, planNoUpscale.outputW)
+        assertEquals(800, planNoUpscale.outputH)
+
+        val planWithUpscale = ImageConverterEngine.calculateResizePlan(
+            srcW = 800,
+            srcH = 1600,
+            targetW = 1080,
+            targetH = 1080,
+            maintainRatio = true,
+            preventUpscale = false,
+            cropToExactRatio = true
+        )
+        assertEquals(0, planWithUpscale.cropX)
+        assertEquals(400, planWithUpscale.cropY)
+        assertEquals(800, planWithUpscale.cropW)
+        assertEquals(800, planWithUpscale.cropH)
+        assertEquals(1080, planWithUpscale.outputW)
+        assertEquals(1080, planWithUpscale.outputH)
+
+        val planLandscapeSquare = ImageConverterEngine.calculateResizePlan(
+            srcW = 4000,
+            srcH = 3000,
+            targetW = 1080,
+            targetH = 1080,
+            maintainRatio = true,
+            preventUpscale = true,
+            cropToExactRatio = true
+        )
+        assertEquals(500, planLandscapeSquare.cropX)
+        assertEquals(0, planLandscapeSquare.cropY)
+        assertEquals(3000, planLandscapeSquare.cropW)
+        assertEquals(3000, planLandscapeSquare.cropH)
+        assertEquals(1080, planLandscapeSquare.outputW)
+        assertEquals(1080, planLandscapeSquare.outputH)
+
+        val planFit = ImageConverterEngine.calculateResizePlan(
+            srcW = 4000,
+            srcH = 3000,
+            targetW = 1920,
+            targetH = 1080,
+            maintainRatio = true,
+            preventUpscale = true,
+            cropToExactRatio = false
+        )
+        assertEquals(0, planFit.cropX)
+        assertEquals(0, planFit.cropY)
+        assertEquals(4000, planFit.cropW)
+        assertEquals(3000, planFit.cropH)
+        assertEquals(1440, planFit.outputW)
+        assertEquals(1080, planFit.outputH)
     }
 
     @Test

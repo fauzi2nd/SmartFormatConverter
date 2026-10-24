@@ -43,6 +43,15 @@ data class ExifTransform(
     val flipHorizontal: Boolean = false,
 )
 
+data class ResizePlan(
+    val cropX: Int,
+    val cropY: Int,
+    val cropW: Int,
+    val cropH: Int,
+    val outputW: Int,
+    val outputH: Int,
+)
+
 object ImageConverterEngine {
     private const val TAG = "ImageConverterEngine"
 
@@ -234,6 +243,52 @@ object ImageConverterEngine {
         return transformed
     }
 
+    fun calculateResizePlan(
+        srcW: Int,
+        srcH: Int,
+        targetW: Int,
+        targetH: Int,
+        maintainRatio: Boolean,
+        preventUpscale: Boolean,
+        cropToExactRatio: Boolean = false
+    ): ResizePlan {
+        require(srcW > 0 && srcH > 0 && targetW > 0 && targetH > 0) { "Image dimensions must be positive" }
+        if (maintainRatio && cropToExactRatio) {
+            val targetRatio = targetW.toDouble() / targetH.toDouble()
+            val srcRatio = srcW.toDouble() / srcH.toDouble()
+            val (cropW, cropH) = if (srcRatio > targetRatio) {
+                val w = (srcH * targetRatio).toInt().coerceIn(1, srcW)
+                Pair(w, srcH)
+            } else {
+                val h = (srcW / targetRatio).toInt().coerceIn(1, srcH)
+                Pair(srcW, h)
+            }
+            val cropX = ((srcW - cropW) / 2).coerceAtLeast(0)
+            val cropY = ((srcH - cropH) / 2).coerceAtLeast(0)
+
+            val (outW, outH) = if (preventUpscale) {
+                val scale = minOf(1.0, targetW.toDouble() / cropW)
+                Pair((cropW * scale).toInt().coerceAtLeast(1), (cropH * scale).toInt().coerceAtLeast(1))
+            } else {
+                Pair(targetW, targetH)
+            }
+            return ResizePlan(cropX, cropY, cropW, cropH, outW, outH)
+        }
+
+        val boundedW = if (preventUpscale) targetW.coerceAtMost(srcW) else targetW
+        val boundedH = if (preventUpscale) targetH.coerceAtMost(srcH) else targetH
+        val (finalW, finalH) = if (maintainRatio) {
+            val scale = minOf(
+                boundedW.toDouble() / srcW,
+                boundedH.toDouble() / srcH
+            )
+            Pair((srcW * scale).toInt().coerceAtLeast(1), (srcH * scale).toInt().coerceAtLeast(1))
+        } else {
+            Pair(boundedW, boundedH)
+        }
+        return ResizePlan(0, 0, srcW, srcH, finalW, finalH)
+    }
+
     private fun resizeBitmap(
         src: Bitmap,
         targetW: Int,
@@ -242,43 +297,35 @@ object ImageConverterEngine {
         preventUpscale: Boolean,
         cropToExactRatio: Boolean = false
     ): Bitmap {
-        require(targetW > 0 && targetH > 0) { "Image dimensions must be positive" }
-        val boundedW = if (preventUpscale) targetW.coerceAtMost(src.width) else targetW
-        val boundedH = if (preventUpscale) targetH.coerceAtMost(src.height) else targetH
-        if (maintainRatio && cropToExactRatio) {
-            val scale = maxOf(
-                boundedW.toDouble() / src.width,
-                boundedH.toDouble() / src.height
-            )
-            val scaledW = (src.width * scale).toInt().coerceAtLeast(boundedW)
-            val scaledH = (src.height * scale).toInt().coerceAtLeast(boundedH)
-            val scaled = if (src.width == scaledW && src.height == scaledH) src else src.scale(scaledW, scaledH, true)
-            if (scaled !== src) {
+        val plan = calculateResizePlan(
+            srcW = src.width,
+            srcH = src.height,
+            targetW = targetW,
+            targetH = targetH,
+            maintainRatio = maintainRatio,
+            preventUpscale = preventUpscale,
+            cropToExactRatio = cropToExactRatio
+        )
+
+        var current = if (plan.cropW != src.width || plan.cropH != src.height) {
+            val cropped = Bitmap.createBitmap(src, plan.cropX, plan.cropY, plan.cropW, plan.cropH)
+            if (cropped !== src) {
                 src.recycle()
             }
-            if (scaled.width == boundedW && scaled.height == boundedH) return scaled
-            val x = ((scaled.width - boundedW) / 2).coerceAtLeast(0)
-            val y = ((scaled.height - boundedH) / 2).coerceAtLeast(0)
-            val cropped = Bitmap.createBitmap(scaled, x, y, boundedW, boundedH)
-            if (cropped !== scaled) {
-                scaled.recycle()
-            }
-            return cropped
-        }
-        val (finalW, finalH) = if (maintainRatio) {
-            val scale = minOf(
-                boundedW.toDouble() / src.width,
-                boundedH.toDouble() / src.height
-            )
-            Pair((src.width * scale).toInt().coerceAtLeast(1),
-                (src.height * scale).toInt().coerceAtLeast(1))
+            cropped
         } else {
-            Pair(boundedW, boundedH)
+            src
         }
-        if (src.width == finalW && src.height == finalH) return src
-        val resized = src.scale(finalW, finalH, true)
-        src.recycle()
-        return resized
+
+        if (current.width != plan.outputW || current.height != plan.outputH) {
+            val resized = current.scale(plan.outputW, plan.outputH, true)
+            if (resized !== current) {
+                current.recycle()
+            }
+            current = resized
+        }
+
+        return current
     }
 
     private fun getExifTransform(context: Context, uri: Uri): ExifTransform {

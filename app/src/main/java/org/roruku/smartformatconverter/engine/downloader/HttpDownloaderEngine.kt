@@ -254,6 +254,12 @@ object HttpDownloaderEngine {
                             val count = input.read(buffer)
                             if (count < 0) break
                             if (count == 0) continue
+                            if (downloaded == 0L &&
+                                DirectMediaPolicy.looksLikeWebResponse(buffer, count)) {
+                                throw InvalidMediaException(
+                                    "Server returned an HTML/JSON page or streaming manifest instead of media bytes."
+                                )
+                            }
                             output.write(buffer, 0, count)
                             downloaded += count
                             val now = System.nanoTime()

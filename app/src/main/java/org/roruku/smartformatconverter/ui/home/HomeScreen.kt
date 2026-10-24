@@ -1,6 +1,7 @@
 package org.roruku.smartformatconverter.ui.home
 
 import android.text.format.Formatter
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,15 +10,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -25,16 +29,19 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -42,12 +49,17 @@ import org.roruku.smartformatconverter.R
 import org.roruku.smartformatconverter.data.db.ConversionJobEntity
 import org.roruku.smartformatconverter.data.db.JobStatus
 import org.roruku.smartformatconverter.data.db.MediaType
+import org.roruku.smartformatconverter.ui.theme.PixelBlue
+import org.roruku.smartformatconverter.ui.theme.PixelCyan
+import org.roruku.smartformatconverter.ui.theme.PixelViolet
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 
+/** Home shortcuts choose an actual target format, not just a media category. */
 @Composable
 fun HomeScreen(
-    onNavigateToConverterTab: (Int) -> Unit,
+    onNavigateToFormat: (Int, String) -> Unit,
     onNavigateToDownloader: () -> Unit,
+    onNavigateToQueue: () -> Unit,
     viewModel: HomeViewModel? = if (LocalInspectionMode.current) null else viewModel(),
 ) {
     val uiState = if (viewModel != null) {
@@ -56,129 +68,160 @@ fun HomeScreen(
     } else {
         HomeUiState()
     }
-
-    HomeScreenContent(
-        uiState = uiState,
-        onNavigateToConverterTab = onNavigateToConverterTab,
-        onNavigateToDownloader = onNavigateToDownloader,
-    )
+    HomeScreenContent(uiState, onNavigateToFormat, onNavigateToDownloader, onNavigateToQueue)
 }
 
 @Composable
 fun HomeScreenContent(
     uiState: HomeUiState,
-    onNavigateToConverterTab: (Int) -> Unit,
+    onNavigateToFormat: (Int, String) -> Unit,
     onNavigateToDownloader: () -> Unit,
+    onNavigateToQueue: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-
     LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = 18.dp, end = 18.dp, top = 20.dp, bottom = 28.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         item {
-            Text(
-                text = stringResource(R.string.dashboard_title),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = stringResource(R.string.dashboard_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        item {
-            StorageCard(
-                freeBytes = uiState.freeStorageBytes,
-                totalBytes = uiState.totalStorageBytes
-            )
-        }
-
-        item {
-            Text(
-                text = stringResource(R.string.quick_actions),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                QuickActionItem(
-                    title = stringResource(R.string.media_video),
-                    icon = Icons.Default.Movie,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onNavigateToConverterTab(0) }
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(
+                    text = stringResource(R.string.app_name).uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = PixelCyan,
+                    fontWeight = FontWeight.Bold
                 )
-                QuickActionItem(
-                    title = stringResource(R.string.media_image),
-                    icon = Icons.Default.Image,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onNavigateToConverterTab(1) }
+                Text(
+                    text = stringResource(R.string.home_heading),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
-                QuickActionItem(
-                    title = stringResource(R.string.media_audio),
-                    icon = Icons.Default.AudioFile,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onNavigateToConverterTab(2) }
-                )
-                QuickActionItem(
-                    title = stringResource(R.string.media_download),
-                    icon = Icons.Default.Download,
-                    modifier = Modifier.weight(1f),
-                    onClick = onNavigateToDownloader
+                Text(
+                    text = stringResource(R.string.home_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
 
         item {
-            Text(
-                text = stringResource(R.string.conversion_statistics),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                StatCard(
-                    title = stringResource(R.string.stat_completed),
-                    value = uiState.completedCount.toString(),
-                    modifier = Modifier.weight(1f)
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = stringResource(R.string.home_choose_format),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
                 )
-                StatCard(
-                    title = stringResource(R.string.stat_failed),
-                    value = uiState.failedCount.toString(),
-                    modifier = Modifier.weight(1f)
-                )
-                StatCard(
-                    title = stringResource(R.string.stat_converted_size),
-                    value = Formatter.formatShortFileSize(context, uiState.totalBytesConverted),
-                    modifier = Modifier.weight(1f)
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FormatShortcut(
+                        format = "MP4",
+                        description = stringResource(R.string.home_mp4_desc),
+                        icon = Icons.Default.Movie,
+                        accent = PixelCyan,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onNavigateToFormat(0, "mp4") }
+                    )
+                    FormatShortcut(
+                        format = "JPG",
+                        description = stringResource(R.string.home_jpg_desc),
+                        icon = Icons.Default.Image,
+                        accent = PixelBlue,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onNavigateToFormat(1, "jpg") }
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FormatShortcut(
+                        format = "MP3",
+                        description = stringResource(R.string.home_mp3_desc),
+                        icon = Icons.Default.AudioFile,
+                        accent = PixelViolet,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onNavigateToFormat(2, "mp3") }
+                    )
+                    FormatShortcut(
+                        format = stringResource(R.string.media_download),
+                        description = stringResource(R.string.home_download_desc),
+                        icon = Icons.Default.Download,
+                        accent = PixelCyan,
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToDownloader
+                    )
+                }
             }
         }
 
         item {
-            Text(
-                text = stringResource(R.string.recent_jobs),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = stringResource(R.string.home_overview),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 17.dp, horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Metric(
+                            title = stringResource(R.string.stat_completed),
+                            value = uiState.completedCount.toString(),
+                            tint = PixelCyan,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Metric(
+                            title = stringResource(R.string.stat_failed),
+                            value = uiState.failedCount.toString(),
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Metric(
+                            title = stringResource(R.string.home_converted),
+                            value = Formatter.formatShortFileSize(context, uiState.totalBytesConverted),
+                            tint = PixelBlue,
+                            modifier = Modifier.weight(1.2f)
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            StorageCard(uiState.freeStorageBytes, uiState.totalStorageBytes)
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = stringResource(R.string.recent_jobs),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                TextButton(onClick = onNavigateToQueue) {
+                    Text(stringResource(R.string.home_view_all))
+                    Spacer(Modifier.width(3.dp))
+                    Icon(Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(17.dp))
+                }
+            }
         }
 
         if (uiState.recentJobs.isEmpty()) {
             item {
-                OutlinedCard(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = stringResource(R.string.no_recent_conversions),
                         modifier = Modifier.padding(16.dp),
@@ -188,57 +231,58 @@ fun HomeScreenContent(
                 }
             }
         } else {
-            items(uiState.recentJobs) { job ->
-                RecentJobItem(job = job)
+            items(uiState.recentJobs.take(3), key = { it.id }) { job ->
+                RecentJobItem(job)
             }
         }
     }
 }
 
 @Composable
-fun StorageCard(freeBytes: Long, totalBytes: Long) {
-    val usedBytes = (totalBytes - freeBytes).coerceAtLeast(0L)
-    val fraction = if (totalBytes > 0) usedBytes.toFloat() / totalBytes.toFloat() else 0f
-    val context = LocalContext.current
-
+private fun FormatShortcut(
+    format: String,
+    description: String,
+    icon: ImageVector,
+    accent: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+        modifier = modifier.height(132.dp),
+        onClick = onClick,
+        shape = RoundedCornerShape(22.dp),
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.28f)),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.weight(1f))
                 Icon(
-                    imageVector = Icons.Default.Storage,
+                    Icons.Default.ArrowForward,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.internal_storage),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(17.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { fraction },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp),
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    text = stringResource(R.string.storage_free, Formatter.formatShortFileSize(context, freeBytes)),
-                    style = MaterialTheme.typography.bodySmall
+                    text = format,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = stringResource(R.string.storage_total, Formatter.formatShortFileSize(context, totalBytes)),
-                    style = MaterialTheme.typography.bodySmall,
+                    text = description,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -247,61 +291,80 @@ fun StorageCard(freeBytes: Long, totalBytes: Long) {
 }
 
 @Composable
-fun QuickActionItem(
-    title: String,
-    icon: ImageVector,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
+private fun Metric(title: String, value: String, tint: Color, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = value,
+            color = tint,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
 @Composable
-fun StatCard(title: String, value: String, modifier: Modifier = Modifier) {
+fun StorageCard(freeBytes: Long, totalBytes: Long) {
+    val usedBytes = (totalBytes - freeBytes).coerceAtLeast(0L)
+    val fraction = if (totalBytes > 0) usedBytes.toFloat() / totalBytes.toFloat() else 0f
+    val context = LocalContext.current
     Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Storage,
+                    contentDescription = null,
+                    tint = PixelCyan,
+                    modifier = Modifier.size(19.dp)
+                )
+                Spacer(Modifier.width(9.dp))
+                Text(
+                    text = stringResource(R.string.internal_storage),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = "${(fraction * 100).toInt()}%",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            LinearProgressIndicator(
+                progress = { fraction.coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth().height(6.dp),
+                color = PixelCyan,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    text = stringResource(R.string.storage_free, Formatter.formatShortFileSize(context, freeBytes)),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+                Text(
+                    text = stringResource(R.string.storage_total, Formatter.formatShortFileSize(context, totalBytes)),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
         }
     }
 }
@@ -314,40 +377,37 @@ fun RecentJobItem(job: ConversionJobEntity) {
         MediaType.AUDIO -> Icons.Default.AudioFile
         MediaType.DOWNLOAD -> Icons.Default.Download
     }
-
     OutlinedCard(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(13.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
+            Icon(icon, contentDescription = null, tint = PixelCyan)
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
                     text = job.fileName,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "${job.inputFormat.uppercase()} → ${job.outputFormat.uppercase()} • ${job.status.name}",
+                    text = "${job.inputFormat.uppercase()} → ${job.outputFormat.uppercase()}  •  ${job.status.name.lowercase().replaceFirstChar { it.uppercase() }}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, widthDp = 393)
 @Composable
 fun HomeScreenPreview() {
     SmartFormatConverterTheme {
@@ -366,27 +426,12 @@ fun HomeScreenPreview() {
                         inputFormat = "mp4",
                         outputFormat = "mkv",
                         status = JobStatus.COMPLETED
-                    ),
-                    ConversionJobEntity(
-                        fileName = "vacation_photo.jpg",
-                        inputUri = "",
-                        mediaType = MediaType.IMAGE,
-                        inputFormat = "jpg",
-                        outputFormat = "webp",
-                        status = JobStatus.COMPLETED
-                    ),
-                    ConversionJobEntity(
-                        fileName = "podcast_episode.wav",
-                        inputUri = "",
-                        mediaType = MediaType.AUDIO,
-                        inputFormat = "wav",
-                        outputFormat = "mp3",
-                        status = JobStatus.FAILED
                     )
                 )
             ),
-            onNavigateToConverterTab = {},
-            onNavigateToDownloader = {}
+            onNavigateToFormat = { _, _ -> },
+            onNavigateToDownloader = {},
+            onNavigateToQueue = {}
         )
     }
 }

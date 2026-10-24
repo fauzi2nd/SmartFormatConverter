@@ -329,4 +329,24 @@
     <string name="queue_measuring">Measuring…</string>
     <string name="setting_all_media_note">Saved separately for each queued file. Existing source files are never overwritten.</string>
     <string name="setting_webp_lossless_unsupported">Lossless WebP requires Android 11 (API 30) or newer.</string>
+    <string name="queue_output_thumbnail">Output thumbnail</string>
+    <string name="queue_result_preview">Completed output</string>
+    <string name="queue_close_preview">Close preview</string>
+    <string name="queue_result_unavailable">The saved file can no longer be opened. Check whether it was moved, deleted, or its folder permission changed.</string>
+    <string name="queue_preview_on_device">This preview plays on a device.</string>
+    <string name="queue_preview_unsupported">Preview is not available for this output format.</string>
+    <string name="queue_preview_source_output">Showing the saved output file, not the original input.</string>
+    <string name="queue_tap_to_preview">Tap to view or play</string>
+    <string name="direct_download_only">Only direct HTTP(S) image, audio and video file URLs are supported. Web pages, DRM streams and HLS/DASH playlists are not supported.</string>
+    <string name="direct_download_help">Enter a direct URL ending in a media file or served with an image/audio/video Content-Type.</string>
+    <string name="downloader_direct_file">Direct file · original quality</string>
+    <string name="downloader_host">Host: %1$s</string>
+    <string name="downloader_file_size">File size: %1$s</string>
+    <string name="downloader_size_unknown">Unknown size</string>
+    <string name="downloader_source_format">Detected: %1$s</string>
+    <string name="downloader_url_changed">URL changed. Inspect the new address before downloading.</string>
+    <string name="downloader_pending_inspection">Inspect a direct media URL to see its actual file format.</string>
+    <string name="downloader_invalid_media">The URL does not return a supported direct media file.</string>
+    <string name="downloader_network_warning">Downloads use the source file as-is; converting formats requires the Converter tab.</string>
+    <string name="downloader_inspect_error">Cannot inspect the media URL: %1$s</string>
 </resources>

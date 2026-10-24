@@ -1,6 +1,7 @@
 package org.roruku.smartformatconverter.ui.queue
 
 import android.text.format.Formatter
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,6 +35,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import coil.ImageLoader
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -86,6 +91,8 @@ fun QueueScreenContent(
     onDeleteJob: (ConversionJobEntity) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var selectedOutput by remember { mutableStateOf<ConversionJobEntity?>(null) }
+    val thumbnailLoader = rememberCompletedThumbnailLoader()
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -166,16 +173,21 @@ fun QueueScreenContent(
                     .weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(uiState.jobs) { job ->
+                items(uiState.jobs, key = { it.id }) { job ->
                     JobCardItem(
                         job = job,
                         onCancel = { onCancelJob(job.id) },
                         onRetry = { onRetryJob(job.id) },
-                        onDelete = { onDeleteJob(job) }
+                        onDelete = { onDeleteJob(job) },
+                        onOpenResult = { selectedOutput = job },
+                        thumbnailLoader = thumbnailLoader
                     )
                 }
             }
         }
+    }
+    selectedOutput?.let { job ->
+        CompletedOutputViewer(job = job, onDismiss = { selectedOutput = null })
     }
 }
 
@@ -184,7 +196,9 @@ fun JobCardItem(
     job: ConversionJobEntity,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onOpenResult: () -> Unit = {},
+    thumbnailLoader: ImageLoader? = null,
 ) {
     val context = LocalContext.current
     val icon = when (job.mediaType) {
@@ -194,17 +208,22 @@ fun JobCardItem(
         MediaType.DOWNLOAD -> Icons.Default.Download
     }
 
+    val canOpenResult = job.status == JobStatus.COMPLETED && !job.outputUri.isNullOrBlank()
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(enabled = canOpenResult) { onOpenResult() },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
+                if (job.status == JobStatus.COMPLETED) {
+                    CompletedOutputThumbnail(job = job, imageLoader = thumbnailLoader)
+                } else {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -218,6 +237,13 @@ fun JobCardItem(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (canOpenResult) {
+                        Text(
+                            text = stringResource(R.string.queue_tap_to_preview),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                 }
 
                 when (job.status) {
@@ -321,6 +347,7 @@ fun QueueScreenPreview() {
                         inputFormat = "png",
                         outputFormat = "webp",
                         status = JobStatus.COMPLETED,
+                        outputUri = "content://preview/completed/holiday",
                         outputFileSize = 1024L * 800L
                     ),
                     ConversionJobEntity(

@@ -200,14 +200,29 @@ object StorageManager {
         }
     }
 
-    fun copyFileToDocumentUri(context: Context, sourceFile: File, destDocumentFile: DocumentFile): Boolean {
+    fun copyFileToDocumentUri(
+        context: Context,
+        sourceFile: File,
+        destDocumentFile: DocumentFile,
+        onProgress: ((Float) -> Unit)? = null
+    ): Boolean {
         if (!sourceFile.isFile || sourceFile.length() <= 0L) return false
         return try {
+            val total = sourceFile.length().coerceAtLeast(1L)
             val output = context.contentResolver.openOutputStream(destDocumentFile.uri, "w")
                 ?: return false
             output.use { destination ->
                 sourceFile.inputStream().use { input ->
-                    copyStream(input, destination)
+                    val buffer = ByteArray(64 * 1024)
+                    var written = 0L
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        destination.write(buffer, 0, count)
+                        written += count
+                        onProgress?.invoke((written.toDouble() / total).toFloat().coerceIn(0f, 1f))
+                    }
+                    destination.flush()
                 }
             }
             true

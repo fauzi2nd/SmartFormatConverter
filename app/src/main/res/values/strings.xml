@@ -345,4 +345,7 @@
     <string name="downloader_pending_inspection">Inspect a direct media URL to see its actual file format.</string>
     <string name="downloader_network_warning">Downloads use the source file as-is; converting formats requires the Converter tab.</string>
     <string name="downloader_inspect_error">Cannot inspect the media URL: %1$s</string>
+    <string name="queue_open_with_app">Open with another app</string>
+    <string name="queue_external_viewer_title">Open converted media</string>
+    <string name="queue_external_viewer_unavailable">No installed app can open this format.</string>
 </resources>

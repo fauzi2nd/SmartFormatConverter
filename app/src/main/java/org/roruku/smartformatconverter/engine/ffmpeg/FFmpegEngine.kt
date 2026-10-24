@@ -232,6 +232,7 @@ object FFmpegEngine {
         inputUri: Uri,
         tempOutputFile: File,
         config: AudioConversionConfig,
+        advancedSettings: AudioAdvancedSettings? = null,
         onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
         try {
@@ -246,24 +247,29 @@ object FFmpegEngine {
 
                 coroutineContext.ensureActive()
 
-                val cmdList = mutableListOf("ffmpeg", "-y", "-i", tempInputFile.absolutePath, "-vn")
-
-                if (config.copyStream || config.audioCodec == AudioCodec.COPY) {
-                    cmdList.addAll(listOf("-c:a", "copy"))
+                val cmdList = if (advancedSettings != null) {
+                    AudioCommandBuilder.build(
+                        inputPath = tempInputFile.absolutePath,
+                        outputPath = tempOutputFile.absolutePath,
+                        s = advancedSettings
+                    )
                 } else {
-                    cmdList.addAll(listOf("-c:a", config.audioCodec.ffmpegName))
-                    if (config.audioCodec != AudioCodec.PCM_S16LE && config.audioCodec != AudioCodec.FLAC) {
-                        cmdList.addAll(listOf("-b:a", "${config.bitrateKbps}k"))
-                    }
-                    if (config.sampleRate != null) {
-                        cmdList.addAll(listOf("-ar", config.sampleRate.toString()))
-                    }
-                    if (config.channels != null) {
-                        cmdList.addAll(listOf("-ac", config.channels.toString()))
+                    // Jobs created before Advanced Audio Settings keep their legacy arguments.
+                    mutableListOf("ffmpeg", "-y", "-i", tempInputFile.absolutePath, "-vn").apply {
+                        if (config.copyStream || config.audioCodec == AudioCodec.COPY) {
+                            addAll(listOf("-c:a", "copy"))
+                        } else {
+                            addAll(listOf("-c:a", config.audioCodec.ffmpegName))
+                            if (config.audioCodec != AudioCodec.PCM_S16LE &&
+                                config.audioCodec != AudioCodec.FLAC) {
+                                addAll(listOf("-b:a", "${config.bitrateKbps}k"))
+                            }
+                            config.sampleRate?.let { addAll(listOf("-ar", it.toString())) }
+                            config.channels?.let { addAll(listOf("-ac", it.toString())) }
+                        }
+                        add(tempOutputFile.absolutePath)
                     }
                 }
-
-                cmdList.add(tempOutputFile.absolutePath)
 
                 val ffmpegCmdArray = cmdList.toTypedArray()
                 Log.d(TAG, "Executing FFmpeg Audio command: ${cmdList.joinToString(" ")}")

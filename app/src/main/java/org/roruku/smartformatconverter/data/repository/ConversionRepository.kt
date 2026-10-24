@@ -47,7 +47,6 @@ import org.roruku.smartformatconverter.engine.ffmpeg.ImageSettingsValidator
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioSettingsValidator
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 
 class ConversionRepository(
     private val context: Context,
@@ -57,7 +56,6 @@ class ConversionRepository(
     private companion object {
         const val TAG = "ConversionRepository"
     }
-    private val activeJobCoroutines = ConcurrentHashMap<String, Job>()
 
     val allJobsFlow: Flow<List<ConversionJobEntity>> = dao.getAllJobsFlow()
     val completedCountFlow: Flow<Int> = dao.getCompletedJobCountFlow()
@@ -73,9 +71,10 @@ class ConversionRepository(
     }
 
     suspend fun cancelJob(jobId: String) {
-        activeJobCoroutines[jobId]?.cancel()
-        activeJobCoroutines.remove(jobId)
+        // Persist CANCELLED before stopping the worker so a late progress
+        // callback cannot put a cancelled job back into RUNNING.
         dao.updateProgress(jobId, JobStatus.CANCELLED, 0f, null, null)
+        ActiveConversionJobs.cancel(jobId)
     }
 
     suspend fun retryJob(jobId: String) {
@@ -84,14 +83,18 @@ class ConversionRepository(
             status = JobStatus.PENDING,
             progress = 0f,
             errorMessage = null,
+            speed = null,
+            eta = null,
+            outputUri = null,
+            outputFileSize = 0L,
+            completedAt = null,
             retryCount = job.retryCount + 1
         )
         dao.updateJob(retriedJob)
     }
 
     suspend fun deleteJob(job: ConversionJobEntity) {
-        activeJobCoroutines[job.id]?.cancel()
-        activeJobCoroutines.remove(job.id)
+        ActiveConversionJobs.cancel(job.id)
         dao.deleteJob(job)
         if (job.mediaType == MediaType.DOWNLOAD) {
             StorageManager.downloadCacheFile(context, job.id, job.outputFormat).delete()
@@ -103,8 +106,7 @@ class ConversionRepository(
     }
 
     suspend fun clearAllJobs() {
-        activeJobCoroutines.values.forEach { it.cancel() }
-        activeJobCoroutines.clear()
+        ActiveConversionJobs.cancelAll()
         dao.clearAllJobs()
         File(context.cacheDir, "temp_conversion").listFiles()
             ?.filter { it.name.startsWith("download_") }?.forEach { it.delete() }
@@ -114,7 +116,7 @@ class ConversionRepository(
         // Track this conversion coroutine, never cancel the whole service supervisor.
         val jobCoro = currentCoroutineContext()[Job]
         if (jobCoro != null) {
-            activeJobCoroutines[job.id] = jobCoro
+            ActiveConversionJobs.register(job.id, jobCoro)
         }
 
         val estimator = ProgressEstimator()
@@ -401,7 +403,7 @@ class ConversionRepository(
         } finally {
             updates.close()
             withContext(NonCancellable) { progressWriter.join() }
-            activeJobCoroutines.remove(job.id)
+            ActiveConversionJobs.unregister(job.id, jobCoro)
         }
     }
 }

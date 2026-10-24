@@ -183,6 +183,7 @@ fun CompletedOutputViewer(job: ConversionJobEntity, onDismiss: () -> Unit) {
     val inspection = LocalInspectionMode.current
     val kind = completedMediaKind(job)
     val chooserTitle = stringResource(R.string.queue_external_viewer_title)
+    val shareTitle = stringResource(R.string.queue_share_output)
     val outputUri = job.outputUri?.let(Uri::parse)
     var resultName by remember(job.id, job.outputUri) { mutableStateOf(job.fileName) }
     var readState by remember(job.id, job.outputUri) { mutableStateOf<Boolean?>(null) }
@@ -271,7 +272,7 @@ fun CompletedOutputViewer(job: ConversionJobEntity, onDismiss: () -> Unit) {
                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 }
                                 context.startActivity(Intent.createChooser(
-                                    share, context.getString(R.string.queue_share_output)
+                                    share, shareTitle
                                 ))
                                 externalError = false
                             } catch (_: Exception) {

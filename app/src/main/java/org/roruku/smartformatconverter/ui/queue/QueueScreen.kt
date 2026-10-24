@@ -281,7 +281,9 @@ fun JobCardItem(
                     if (!job.errorMessage.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = stringResource(R.string.queue_error_description, job.errorMessage.orEmpty()),
+                            text = stringResource(R.string.queue_error_description,
+                                job.errorMessage
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.error
                         )

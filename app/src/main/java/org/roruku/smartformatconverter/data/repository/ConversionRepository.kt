@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.core.net.toUri
+import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -126,14 +127,22 @@ class ConversionRepository(
                         outputFormat = format,
                         preserveExif = settings.preserveMetadata
                     )
+                    val startTime = System.currentTimeMillis()
                     ImageConverterEngine.convertImage(
                         context = context,
                         inputUri = job.inputUri.toUri(),
                         outputFile = tempOutFile,
                         config = config,
                         onProgress = { pct ->
+                            val elapsedSec = (System.currentTimeMillis() - startTime) / 1000.0
+                            val speedStr = if (elapsedSec > 0.2) String.format(Locale.US, "%.1fx", (pct / elapsedSec * 5.0).coerceIn(0.5, 99.9)) else "1.0x"
+                            val etaStr = if (elapsedSec > 0.2 && pct > 0.01f) {
+                                val totalEstSec = elapsedSec / pct
+                                val remSec = (totalEstSec - elapsedSec).coerceAtLeast(0.0).toLong()
+                                String.format(Locale.US, "%02d:%02d", remSec / 60, remSec % 60)
+                            } else "--:--"
                             scope.launch(Dispatchers.IO) {
-                                dao.updateProgress(job.id, JobStatus.RUNNING, pct, "N/A", null)
+                                dao.updateProgress(job.id, JobStatus.RUNNING, pct, speedStr, etaStr)
                             }
                         }
                     )

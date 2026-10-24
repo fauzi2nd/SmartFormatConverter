@@ -256,12 +256,12 @@ fun JobCardItem(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = stringResource(R.string.queue_speed, job.speed ?: stringResource(R.string.value_not_available)),
+                            text = stringResource(R.string.queue_speed, job.speed?.takeIf { it.isNotBlank() } ?: stringResource(R.string.queue_measuring)),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = stringResource(R.string.queue_eta, job.eta ?: stringResource(R.string.value_not_available)),
+                            text = stringResource(R.string.queue_eta, job.eta?.takeIf { it.isNotBlank() } ?: stringResource(R.string.queue_measuring)),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

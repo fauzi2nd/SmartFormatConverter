@@ -1,6 +1,8 @@
 package org.roruku.smartformatconverter.ui.settings
 
 import android.net.Uri
+import android.content.Intent
+import android.provider.Settings
 import android.provider.DocumentsContract
 import androidx.core.net.toUri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -18,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -68,6 +71,8 @@ fun SettingsScreen(
             onUpdatePreserveMetadata = {},
             onUpdateHardwareAcceleration = {},
             onClearCache = {},
+            onUpdateNotifyCompleted = {},
+            onUpdateNotifyFailed = {},
             onShowSnackbar = {},
             cacheClearedMsg = cacheClearedMsg,
         )
@@ -97,6 +102,8 @@ fun SettingsScreen(
             onUpdatePreserveMetadata = { viewModel.updatePreserveMetadata(it) },
             onUpdateHardwareAcceleration = { viewModel.updateHardwareAcceleration(it) },
             onClearCache = { viewModel.clearCache() },
+            onUpdateNotifyCompleted = { viewModel.updateNotifyCompleted(it) },
+            onUpdateNotifyFailed = { viewModel.updateNotifyFailed(it) },
             onShowSnackbar = { msg ->
                 coroutineScope.launch {
                     snackbarHostState.showSnackbar(msg)
@@ -118,6 +125,8 @@ fun SettingsScreenContent(
     onUpdatePreserveMetadata: (Boolean) -> Unit,
     onUpdateHardwareAcceleration: (Boolean) -> Unit,
     onClearCache: () -> Unit,
+    onUpdateNotifyCompleted: (Boolean) -> Unit,
+    onUpdateNotifyFailed: (Boolean) -> Unit,
     onShowSnackbar: (String) -> Unit,
     cacheClearedMsg: String = "",
 ) {
@@ -295,6 +304,43 @@ fun SettingsScreenContent(
             }
         }
 
+        // Notification controls are optional. Foreground progress remains
+        // available while work runs; users can disable result alerts.
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Notifications, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.settings_notifications), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+                Text(
+                    stringResource(R.string.notification_permission_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.settings_notify_completed), modifier = Modifier.weight(1f))
+                    Switch(checked = settings.notifyCompleted, onCheckedChange = onUpdateNotifyCompleted)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.settings_notify_failed), modifier = Modifier.weight(1f))
+                    Switch(checked = settings.notifyFailed, onCheckedChange = onUpdateNotifyFailed)
+                }
+                val context = LocalContext.current
+                OutlinedButton(
+                    onClick = {
+                        context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        })
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(stringResource(R.string.settings_system_notifications)) }
+            }
+        }
+
         // Maintenance & Storage
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -339,6 +385,8 @@ fun SettingsScreenPreview() {
             onUpdatePreserveMetadata = {},
             onUpdateHardwareAcceleration = {},
             onClearCache = {},
+            onUpdateNotifyCompleted = {},
+            onUpdateNotifyFailed = {},
             onShowSnackbar = {}
         )
     }

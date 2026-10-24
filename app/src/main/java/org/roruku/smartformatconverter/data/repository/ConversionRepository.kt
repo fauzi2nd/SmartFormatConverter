@@ -73,9 +73,22 @@ class ConversionRepository(
     suspend fun cancelJob(jobId: String) {
         // Persist CANCELLED before stopping the worker so a late progress
         // callback cannot put a cancelled job back into RUNNING.
-        dao.updateProgress(jobId, JobStatus.CANCELLED, 0f, null, null)
+        dao.cancelJob(jobId)
         ActiveConversionJobs.cancel(jobId)
     }
+
+    /**
+     * Cooperative pause: active FFmpeg/image/audio work is cancelled and
+     * restarts from zero on Resume. Direct HTTP downloads preserve validated
+     * cache bytes so Range/If-Range can continue on a compatible server.
+     */
+    suspend fun pauseJob(jobId: String): Boolean {
+        val changed = dao.pauseJob(jobId) > 0
+        if (changed) ActiveConversionJobs.cancel(jobId)
+        return changed
+    }
+
+    suspend fun resumeJob(jobId: String): Boolean = dao.resumeJob(jobId) > 0
 
     suspend fun retryJob(jobId: String) {
         val job = dao.getJobById(jobId) ?: return

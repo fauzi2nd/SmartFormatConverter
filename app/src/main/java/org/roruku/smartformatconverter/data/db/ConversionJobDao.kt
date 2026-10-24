@@ -25,6 +25,16 @@ interface ConversionJobDao {
     @Query("SELECT * FROM conversion_jobs WHERE status IN ('PENDING', 'PREPARING', 'RUNNING') ORDER BY createdAt ASC")
     suspend fun getActiveAndPendingJobs(): List<ConversionJobEntity>
 
+    @Query("UPDATE conversion_jobs SET status = 'CANCELLED', progress = 0, speed = NULL, eta = NULL WHERE id = :jobId AND status IN ('PENDING', 'PREPARING', 'RUNNING', 'PAUSED')")
+    suspend fun cancelJob(jobId: String): Int
+
+    /** CAS transitions prevent races with a worker reporting late progress. */
+    @Query("UPDATE conversion_jobs SET status = 'PAUSED', speed = NULL, eta = NULL WHERE id = :jobId AND status IN ('PENDING', 'PREPARING', 'RUNNING')")
+    suspend fun pauseJob(jobId: String): Int
+
+    @Query("UPDATE conversion_jobs SET status = 'PENDING', progress = 0, speed = NULL, eta = NULL, errorMessage = NULL WHERE id = :jobId AND status = 'PAUSED'")
+    suspend fun resumeJob(jobId: String): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertJob(job: ConversionJobEntity)
 
@@ -45,6 +55,9 @@ interface ConversionJobDao {
 
     @Query("UPDATE conversion_jobs SET status = 'PENDING' WHERE status IN ('RUNNING', 'PREPARING')")
     suspend fun resetStuckJobsToPending()
+
+    @Query("UPDATE conversion_jobs SET status = 'INTERRUPTED', speed = NULL, eta = NULL, errorMessage = :reason WHERE status IN ('RUNNING', 'PREPARING')")
+    suspend fun interruptRunningJobs(reason: String): Int
 
     @Delete
     suspend fun deleteJob(job: ConversionJobEntity)

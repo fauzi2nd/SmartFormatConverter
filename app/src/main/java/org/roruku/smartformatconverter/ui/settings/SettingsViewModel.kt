@@ -50,6 +50,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { repository.updateThemeMode(themeMode) }
     }
 
+    fun updateNotifyCompleted(value: Boolean) {
+        viewModelScope.launch { repository.updateNotifyCompleted(value) }
+    }
+
+    fun updateNotifyFailed(value: Boolean) {
+        viewModelScope.launch { repository.updateNotifyFailed(value) }
+    }
+
     fun clearCache() {
         StorageManager.clearCache(getApplication())
     }

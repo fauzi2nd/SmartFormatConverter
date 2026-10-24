@@ -6,30 +6,8 @@
     <uses-permission
         android:name="android.permission.INTERNET" />
 
-    <!-- Media access: Android 13+ -->
-    <uses-permission
-        android:name="android.permission.READ_MEDIA_IMAGES" />
-
-    <uses-permission
-        android:name="android.permission.READ_MEDIA_VIDEO" />
-
-    <uses-permission
-        android:name="android.permission.READ_MEDIA_AUDIO" />
-
-    <!-- Selected photos/videos: Android 14+ -->
-    <uses-permission
-        android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
-
-    <!-- Legacy media access: Android 12L and below -->
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-
-    <!-- Legacy write access: Android 9 and below -->
-    <uses-permission
-        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28"
-        tools:ignore="ScopedStorage" />
+    <!-- File and folder access uses user-selected Storage Access Framework URIs.
+         No broad photo/video/audio or all-files storage permission is needed. -->
 
     <!-- Foreground conversion service -->
     <uses-permission
@@ -37,6 +15,7 @@
 
     <uses-permission
         android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
 
     <!-- Notifications: Android 13+ -->
     <uses-permission
@@ -73,7 +52,7 @@
             android:name=".service.MediaConversionService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="dataSync|mediaProcessing" />
 
     </application>
 

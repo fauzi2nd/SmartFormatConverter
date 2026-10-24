@@ -81,6 +81,8 @@ fun QueueEmptyStatePreview() {
             onClearCompleted = {},
             onSetFilter = {},
             onCancelJob = {},
+            onPauseJob = {},
+            onResumeJob = {},
             onRetryJob = {},
             onDeleteJob = {}
         )
@@ -121,6 +123,8 @@ fun QueueActiveStatePreview() {
             onClearCompleted = {},
             onSetFilter = {},
             onCancelJob = {},
+            onPauseJob = {},
+            onResumeJob = {},
             onRetryJob = {},
             onDeleteJob = {}
         )
@@ -140,6 +144,8 @@ fun SettingsDefaultStatePreview() {
             onUpdatePreserveMetadata = {},
             onUpdateHardwareAcceleration = {},
             onClearCache = {},
+            onUpdateNotifyCompleted = {},
+            onUpdateNotifyFailed = {},
             onShowSnackbar = {}
         )
     }
@@ -164,6 +170,8 @@ fun SettingsCustomFilenamePreview() {
             onUpdatePreserveMetadata = {},
             onUpdateHardwareAcceleration = {},
             onClearCache = {},
+            onUpdateNotifyCompleted = {},
+            onUpdateNotifyFailed = {},
             onShowSnackbar = {}
         )
     }

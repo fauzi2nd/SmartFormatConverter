@@ -53,6 +53,9 @@ interface ConversionJobDao {
     @Query("UPDATE conversion_jobs SET status = 'PENDING' WHERE status IN ('RUNNING', 'PREPARING')")
     suspend fun resetStuckJobsToPending()
 
+    @Query("UPDATE conversion_jobs SET status = 'INTERRUPTED', speed = NULL, eta = NULL, errorMessage = :reason WHERE status IN ('RUNNING', 'PREPARING')")
+    suspend fun interruptRunningJobs(reason: String): Int
+
     @Delete
     suspend fun deleteJob(job: ConversionJobEntity)
 

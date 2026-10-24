@@ -101,7 +101,7 @@ object DirectMediaPolicy {
             prefix.startsWith("<?xml") ||
             prefix.startsWith("<mpd") ||
             prefix.startsWith("#extm3u") ||
-            prefix.startsWith("{\\\"error\\\"")
+            prefix.startsWith("{\"error\"")
     }
 
     fun mimeTypeForExtension(ext: String): String = when (ext.lowercase(Locale.ROOT)) {

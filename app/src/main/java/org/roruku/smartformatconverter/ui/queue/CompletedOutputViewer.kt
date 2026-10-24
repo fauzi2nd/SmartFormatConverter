@@ -179,6 +179,7 @@ fun CompletedOutputViewer(job: ConversionJobEntity, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val inspection = LocalInspectionMode.current
     val kind = completedMediaKind(job)
+    val chooserTitle = stringResource(R.string.queue_external_viewer_title)
     val outputUri = job.outputUri?.let(Uri::parse)
     var readState by remember(job.id, job.outputUri) { mutableStateOf<Boolean?>(null) }
     var externalError by remember(job.id) { mutableStateOf(false) }
@@ -243,7 +244,7 @@ fun CompletedOutputViewer(job: ConversionJobEntity, onDismiss: () -> Unit) {
                                 }
                                 context.startActivity(Intent.createChooser(
                                     intent,
-                                    context.getString(R.string.queue_external_viewer_title)
+                                    chooserTitle
                                 ))
                                 externalError = false
                             } catch (_: ActivityNotFoundException) {

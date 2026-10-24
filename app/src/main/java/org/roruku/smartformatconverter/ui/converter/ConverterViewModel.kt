@@ -29,6 +29,10 @@ import org.roruku.smartformatconverter.data.storage.StorageManager
 import org.roruku.smartformatconverter.service.MediaConversionService
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoSettingsValidator
+import org.roruku.smartformatconverter.engine.ffmpeg.ImageAdvancedSettings
+import org.roruku.smartformatconverter.engine.ffmpeg.ImageSettingsValidator
+import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
+import org.roruku.smartformatconverter.engine.ffmpeg.AudioSettingsValidator
 
 data class SelectedMediaFile(
     val uri: Uri,
@@ -43,8 +47,12 @@ data class ConverterUiState(
     val targetFormat: String = "mp4",
     val presetName: String = "Custom",
     val videoSettings: VideoAdvancedSettings = VideoAdvancedSettings(),
+    val imageSettings: ImageAdvancedSettings = ImageAdvancedSettings(),
+    val audioSettings: AudioAdvancedSettings = AudioAdvancedSettings(),
     val isEditorOpen: Boolean = false,
     val perFileVideoSettings: Map<String, VideoAdvancedSettings> = emptyMap(),
+    val perFileImageSettings: Map<String, ImageAdvancedSettings> = emptyMap(),
+    val perFileAudioSettings: Map<String, AudioAdvancedSettings> = emptyMap(),
     val isScanning: Boolean = false,
     val isConverting: Boolean = false,
     val message: String? = null,
@@ -70,6 +78,8 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 targetFormat = defaultFormat,
                 selectedFiles = emptyList(),
                 perFileVideoSettings = emptyMap(),
+                perFileImageSettings = emptyMap(),
+                perFileAudioSettings = emptyMap(),
                 isEditorOpen = false,
                 isScanning = false,
                 message = null
@@ -87,13 +97,18 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 selectedFiles = emptyList(),
                 isEditorOpen = false,
                 perFileVideoSettings = emptyMap(),
+                perFileImageSettings = emptyMap(),
+                perFileAudioSettings = emptyMap(),
+                presetName = "Custom",
                 videoSettings = if (tabIndex == 0) {
-                    state.videoSettings.copy(
-                        format = format.lowercase(),
-                        videoCodec = "auto",
-                        audioCodec = "auto"
-                    )
+                    state.videoSettings.copy(format = format.lowercase(), videoCodec = "auto", audioCodec = "auto")
                 } else state.videoSettings,
+                imageSettings = if (tabIndex == 1) {
+                    state.imageSettings.copy(format = format.lowercase(), preset = "Custom")
+                } else state.imageSettings,
+                audioSettings = if (tabIndex == 2) {
+                    state.audioSettings.copy(format = format.lowercase(), preset = "Custom")
+                } else state.audioSettings,
                 message = null
             )
         }
@@ -102,7 +117,9 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
     fun closeEditor() {
         _uiState.update {
             it.copy(isEditorOpen = false, selectedFiles = emptyList(),
-                perFileVideoSettings = emptyMap(), message = null)
+                perFileVideoSettings = emptyMap(),
+                perFileImageSettings = emptyMap(),
+                perFileAudioSettings = emptyMap(), message = null)
         }
     }
 
@@ -118,6 +135,60 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
         _uiState.update { state ->
             state.copy(perFileVideoSettings = state.perFileVideoSettings - uri.toString())
         }
+    }
+
+    /** Per-file settings overrides are independent of the batch defaults. */
+    fun updateImageSettings(value: ImageAdvancedSettings) {
+        _uiState.update { state -> state.copy(
+            presetName = "Custom",
+            imageSettings = value.copy(format = state.targetFormat, preset = "Custom"),
+            perFileImageSettings = emptyMap()
+        ) }
+    }
+
+    fun updateAudioSettings(value: AudioAdvancedSettings) {
+        _uiState.update { state -> state.copy(
+            presetName = "Custom",
+            audioSettings = value.copy(format = state.targetFormat, preset = "Custom"),
+            perFileAudioSettings = emptyMap()
+        ) }
+    }
+
+    fun updateImagePreset(name: String) {
+        _uiState.update { state -> state.copy(
+            presetName = name,
+            imageSettings = state.imageSettings.applyPreset(name),
+            perFileImageSettings = emptyMap()
+        ) }
+    }
+
+    fun updateAudioPreset(name: String) {
+        _uiState.update { state -> state.copy(
+            presetName = name,
+            audioSettings = state.audioSettings.applyPreset(name),
+            perFileAudioSettings = emptyMap()
+        ) }
+    }
+
+    fun updateImageSettingsForFile(uri: Uri, settings: ImageAdvancedSettings) {
+        _uiState.update { state -> state.copy(
+            perFileImageSettings = state.perFileImageSettings +
+                (uri.toString() to settings.copy(format = state.targetFormat))
+        ) }
+    }
+
+    fun updateAudioSettingsForFile(uri: Uri, settings: AudioAdvancedSettings) {
+        _uiState.update { state -> state.copy(
+            perFileAudioSettings = state.perFileAudioSettings +
+                (uri.toString() to settings.copy(format = state.targetFormat))
+        ) }
+    }
+
+    fun clearMediaSettingsOverride(uri: Uri) {
+        _uiState.update { state -> state.copy(
+            perFileImageSettings = state.perFileImageSettings - uri.toString(),
+            perFileAudioSettings = state.perFileAudioSettings - uri.toString()
+        ) }
     }
 
     fun addSelectedUris(uris: List<Uri>) {
@@ -243,13 +314,16 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
         _uiState.update { current ->
             current.copy(
                 selectedFiles = current.selectedFiles.filter { it.uri != file.uri },
-                perFileVideoSettings = current.perFileVideoSettings - file.uri.toString()
+                perFileVideoSettings = current.perFileVideoSettings - file.uri.toString(),
+                perFileImageSettings = current.perFileImageSettings - file.uri.toString(),
+                perFileAudioSettings = current.perFileAudioSettings - file.uri.toString()
             )
         }
     }
 
     fun clearSelectedFiles() {
-        _uiState.update { it.copy(selectedFiles = emptyList(), perFileVideoSettings = emptyMap()) }
+        _uiState.update { it.copy(selectedFiles = emptyList(), perFileVideoSettings = emptyMap(),
+            perFileImageSettings = emptyMap(), perFileAudioSettings = emptyMap()) }
     }
 
     fun updatePreset(preset: String) {
@@ -294,6 +368,34 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
             }
         } else emptyMap()
 
+        val imageSnapshots = if (mediaType == MediaType.IMAGE) {
+            state.selectedFiles.associate { file ->
+                val value = (state.perFileImageSettings[file.uri.toString()]
+                    ?: state.imageSettings).copy(format = state.targetFormat)
+                file.uri.toString() to value
+            }
+        } else emptyMap()
+        val audioSnapshots = if (mediaType == MediaType.AUDIO) {
+            state.selectedFiles.associate { file ->
+                val value = (state.perFileAudioSettings[file.uri.toString()]
+                    ?: state.audioSettings).copy(format = state.targetFormat)
+                file.uri.toString() to value
+            }
+        } else emptyMap()
+
+        imageSnapshots.values.forEach { config ->
+            ImageSettingsValidator.validate(config)?.let { error ->
+                _uiState.update { it.copy(message = error) }
+                return
+            }
+        }
+        audioSnapshots.values.forEach { config ->
+            AudioSettingsValidator.validate(config)?.let { error ->
+                _uiState.update { it.copy(message = error) }
+                return
+            }
+        }
+
         for (config in videoSnapshots.values) {
             val error = VideoSettingsValidator.validate(config)
             if (error != null) {
@@ -324,7 +426,12 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                         presetName = state.presetName,
                         fileSize = file.details.fileSize,
                         relativeFolderPath = file.relativeFolderPath,
-                        customParamsJson = videoSnapshots[file.uri.toString()]?.toJson(),
+                        customParamsJson = when (mediaType) {
+                            MediaType.VIDEO -> videoSnapshots[file.uri.toString()]?.toJson()
+                            MediaType.IMAGE -> imageSnapshots[file.uri.toString()]?.toJson()
+                            MediaType.AUDIO -> audioSnapshots[file.uri.toString()]?.toJson()
+                            MediaType.DOWNLOAD -> null
+                        },
                     )
                 }
                 repository.addJobs(jobs)
@@ -333,6 +440,8 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                     it.copy(
                         selectedFiles = emptyList(),
                         perFileVideoSettings = emptyMap(),
+                perFileImageSettings = emptyMap(),
+                perFileAudioSettings = emptyMap(),
                         isEditorOpen = false,
                         message = quantityFor(R.plurals.vm_jobs_queued, jobs.size, jobs.size)
                     )

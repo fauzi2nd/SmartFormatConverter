@@ -159,7 +159,8 @@ class MediaConversionService : Service() {
             0, null, true
         )
         ServiceCompat.startForeground(
-            this, NOTIFICATION_ID, initial, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            this, NOTIFICATION_ID, initial,
+            if (Build.VERSION.SDK_INT >= 29) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0
         )
         foregroundStarted = true
     }
@@ -167,7 +168,9 @@ class MediaConversionService : Service() {
     private fun setForegroundType(mediaType: MediaType) {
         val type = if (Build.VERSION.SDK_INT >= 35 && mediaType != MediaType.DOWNLOAD) {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING
-        } else ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+        } else if (Build.VERSION.SDK_INT >= 29) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+        } else 0
         ServiceCompat.startForeground(
             this, NOTIFICATION_ID,
             buildProgressNotification(
@@ -179,7 +182,7 @@ class MediaConversionService : Service() {
     }
 
     private fun showProgress(job: ConversionJobEntity, all: List<ConversionJobEntity>) {
-        if (!foregroundStarted || !isRunning) return
+        if (!foregroundStarted || !isRunning || !canPostNotifications()) return
         val now = SystemClock.elapsedRealtime()
         val percent = (job.progress * 100).toInt().coerceIn(0, 99)
         if (job.id == lastNotifiedJob && percent == lastNotifiedPercent && now - lastNotificationAt < 1500L) return
@@ -219,6 +222,10 @@ class MediaConversionService : Service() {
             builder.addAction(
                 android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.cancel),
                 serviceAction(ACTION_CANCEL, jobId, false)
+            )
+            builder.addAction(
+                android.R.drawable.ic_menu_view, getString(R.string.notification_action_queue),
+                queuePendingIntent()
             )
         }
         return builder.build()
@@ -262,7 +269,13 @@ class MediaConversionService : Service() {
 
     private fun createNotificationChannels() {
         notificationManager.createNotificationChannel(
-            NotificationChannel(CHANNEL_PROGRESS, getString(R.string.conversion_notification_channel), NotificationManager.IMPORTANCE_LOW)
+            NotificationChannel(
+                CHANNEL_PROGRESS,
+                getString(R.string.conversion_notification_channel),
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = getString(R.string.conversion_notification_channel_description)
+            }
         )
         notificationManager.createNotificationChannel(
             NotificationChannel(CHANNEL_RESULTS, getString(R.string.notification_channel_results), NotificationManager.IMPORTANCE_DEFAULT)
@@ -287,7 +300,7 @@ class MediaConversionService : Service() {
         }
         val requestCode = jobId.hashCode() xor actionName.hashCode()
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        return if (foreground && Build.VERSION.SDK_INT >= 26) {
+        return if (foreground) {
             PendingIntent.getForegroundService(this, requestCode, intent, flags)
         } else PendingIntent.getService(this, requestCode, intent, flags)
     }

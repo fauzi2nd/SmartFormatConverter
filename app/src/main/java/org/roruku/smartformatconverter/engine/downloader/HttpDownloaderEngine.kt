@@ -71,8 +71,8 @@ object HttpDownloaderEngine {
         value?.substringAfterLast('/', "")?.toLongOrNull()?.takeIf { it > 0L }
 
     private fun parseContentRangeStart(value: String?): Long? =
-        value?.substringAfter("bytes ", "", ignoreCase = true)
-            ?.substringBefore('-')?.trim()?.toLongOrNull()
+        value?.let { Regex("""bytes\\s+(\\d+)-""", RegexOption.IGNORE_CASE)
+            .find(it)?.groupValues?.get(1)?.toLongOrNull() }
 
     /** HEAD first; fall back to a one-byte ranged GET for HEAD-hostile CDNs. */
     suspend fun extractMediaInfo(
@@ -181,7 +181,8 @@ object HttpDownloaderEngine {
         if (DirectMediaPolicy.mimeTypeForExtension(format) == "application/octet-stream") {
             return@withContext Result.failure(InvalidMediaException("Unsupported output format: $format"))
         }
-        if (!tempOutputFile.parentFile.isDirectory && !tempOutputFile.parentFile.mkdirs()) {
+        val cacheDir = requireNotNull(tempOutputFile.parentFile)
+        if (!cacheDir.isDirectory && !cacheDir.mkdirs()) {
             return@withContext Result.failure(IOException("Cannot create download cache directory"))
         }
 

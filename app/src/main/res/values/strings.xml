@@ -36,8 +36,6 @@
     <string name="converter_folder_tab">Folder</string>
     <string name="image_settings">Image Settings</string>
     <string name="audio_settings">Audio Settings</string>
-    <string name="image_settings_desc">JPEG: quality 100 and subsampling 4:4:4; PNG/WebP use current engine configuration.</string>
-    <string name="audio_settings_desc">Codec follows selected format; default audio configuration from engine.</string>
     <string name="close">Close</string>
     <string name="category_video">Video</string>
     <string name="category_image">Image</string>
@@ -239,7 +237,6 @@
     <string name="action_retry">Retry</string>
     <string name="action_delete">Delete</string>
     <string name="value_unknown">Unknown</string>
-    <string name="value_not_available">N/A</string>
     <string name="downloader_source_author">Source: %1$s</string>
     <string name="downloader_choose_format">Select Format &amp; Quality:</string>
     <string name="downloader_format_summary">%1$s (%2$s)</string>
@@ -330,8 +327,6 @@
     <string name="setting_custom_validation">Please correct settings before applying.</string>
     <string name="setting_audio_source_rate">Source sample rate (Opus output is fixed at 48 kHz).</string>
     <string name="queue_measuring">Measuring…</string>
-    <string name="queue_copying">Saving output…</string>
-    <string name="queue_ready">Preparing…</string>
     <string name="setting_all_media_note">Saved separately for each queued file. Existing source files are never overwritten.</string>
     <string name="setting_webp_lossless_unsupported">Lossless WebP requires Android 11 (API 30) or newer.</string>
 </resources>

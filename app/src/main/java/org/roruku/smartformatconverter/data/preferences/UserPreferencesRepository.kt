@@ -35,6 +35,8 @@ data class UserSettings(
     val maxConcurrentJobs: Int = 2,
     val themeMode: ThemeMode = ThemeMode.DARK,
     val autoClearCompleted: Boolean = false,
+    val notifyCompleted: Boolean = true,
+    val notifyFailed: Boolean = true,
 )
 
 class UserPreferencesRepository(private val context: Context) {
@@ -48,6 +50,8 @@ class UserPreferencesRepository(private val context: Context) {
         val MAX_CONCURRENT_JOBS = intPreferencesKey("max_concurrent_jobs")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val AUTO_CLEAR_COMPLETED = booleanPreferencesKey("auto_clear_completed")
+        val NOTIFY_COMPLETED = booleanPreferencesKey("notify_completed")
+        val NOTIFY_FAILED = booleanPreferencesKey("notify_failed")
     }
 
     val userSettingsFlow: Flow<UserSettings> = context.dataStore.data.map { preferences ->
@@ -78,6 +82,8 @@ class UserPreferencesRepository(private val context: Context) {
             maxConcurrentJobs = maxJobs,
             themeMode = try { ThemeMode.valueOf(themeModeStr) } catch (_: Exception) { ThemeMode.DARK },
             autoClearCompleted = autoClear,
+            notifyCompleted = preferences[PreferencesKeys.NOTIFY_COMPLETED] ?: true,
+            notifyFailed = preferences[PreferencesKeys.NOTIFY_FAILED] ?: true,
         )
     }
 
@@ -125,6 +131,14 @@ class UserPreferencesRepository(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.THEME_MODE] = themeMode.name
         }
+    }
+
+    suspend fun updateNotifyCompleted(value: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.NOTIFY_COMPLETED] = value }
+    }
+
+    suspend fun updateNotifyFailed(value: Boolean) {
+        context.dataStore.edit { it[PreferencesKeys.NOTIFY_FAILED] = value }
     }
 
     suspend fun updateAutoClearCompleted(autoClear: Boolean) {

@@ -144,6 +144,8 @@ fun SettingsDefaultStatePreview() {
             onUpdatePreserveMetadata = {},
             onUpdateHardwareAcceleration = {},
             onClearCache = {},
+            onUpdateNotifyCompleted = {},
+            onUpdateNotifyFailed = {},
             onShowSnackbar = {}
         )
     }
@@ -168,6 +170,8 @@ fun SettingsCustomFilenamePreview() {
             onUpdatePreserveMetadata = {},
             onUpdateHardwareAcceleration = {},
             onClearCache = {},
+            onUpdateNotifyCompleted = {},
+            onUpdateNotifyFailed = {},
             onShowSnackbar = {}
         )
     }

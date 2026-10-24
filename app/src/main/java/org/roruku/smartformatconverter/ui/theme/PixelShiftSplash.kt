@@ -25,7 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.graphicsLayer
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -151,7 +151,7 @@ fun PixelShiftSplash() {
                 style = TextStyle(
                     fontSize = 31.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.4).sp,
+                    letterSpacing = (-0.4f).sp,
                     color = PixelText
                 ),
                 textAlign = TextAlign.Center
@@ -162,7 +162,7 @@ fun PixelShiftSplash() {
                     brush = Brush.horizontalGradient(listOf(PixelCyan, PixelBlue, PixelViolet)),
                     fontSize = 31.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.4).sp
+                    letterSpacing = (-0.4f).sp
                 ),
                 textAlign = TextAlign.Center
             )

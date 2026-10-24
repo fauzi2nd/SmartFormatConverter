@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import org.roruku.smartformatconverter.data.db.ConversionJobEntity
 import org.roruku.smartformatconverter.data.db.JobStatus
 import org.roruku.smartformatconverter.data.repository.ConversionRepository
+import org.roruku.smartformatconverter.service.MediaConversionService
 
 enum class QueueFilterTab {
     ALL,
@@ -59,7 +60,12 @@ class QueueViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun retryJob(jobId: String) {
-        viewModelScope.launch { repository.retryJob(jobId) }
+        viewModelScope.launch {
+            repository.retryJob(jobId)
+            // The foreground service may have stopped after the last failure.
+            // Re-queueing in Room alone does not restart conversion/download.
+            MediaConversionService.startService(getApplication())
+        }
     }
 
     fun deleteJob(job: ConversionJobEntity) {

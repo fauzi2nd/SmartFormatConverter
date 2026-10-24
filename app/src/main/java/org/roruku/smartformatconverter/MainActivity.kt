@@ -4,7 +4,16 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.Alignment
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ListAlt
@@ -16,7 +25,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,6 +50,8 @@ import org.roruku.smartformatconverter.ui.home.HomeScreen
 import org.roruku.smartformatconverter.ui.queue.QueueScreen
 import org.roruku.smartformatconverter.ui.settings.SettingsScreen
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
+import org.roruku.smartformatconverter.ui.theme.PixelShiftSplash
+import org.roruku.smartformatconverter.ui.components.TopToastHost
 
 sealed class BottomNavItem(val route: String, val titleResId: Int, val icon: ImageVector) {
     object Home : BottomNavItem("home", R.string.nav_home, Icons.Default.Home)
@@ -57,25 +67,32 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SmartFormatConverterTheme {
-                MainAppScreen()
+                MainAppScreen(showBrandedIntro = savedInstanceState == null)
             }
         }
     }
 }
 
 @Composable
-fun MainAppScreen() {
+fun MainAppScreen(showBrandedIntro: Boolean = false) {
     val navController = rememberNavController()
     val snackBarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var editorVisible by remember { mutableStateOf(false) }
+    var brandVisible by rememberSaveable { mutableStateOf(showBrandedIntro) }
+    LaunchedEffect(brandVisible) {
+        if (brandVisible) {
+            delay(1100L)
+            brandVisible = false
+        }
+    }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(snackBarHostState) },
         bottomBar = {
             if (!editorVisible) {
                 AppBottomNavigationBar(currentRoute = currentRoute) { item ->
@@ -146,6 +163,18 @@ fun MainAppScreen() {
                 )
             }
         }
+    }
+    TopToastHost(
+        hostState = snackBarHostState,
+        modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding()
+    )
+    AnimatedVisibility(
+        visible = brandVisible,
+        exit = fadeOut(animationSpec = tween(250)),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        PixelShiftSplash()
+    }
     }
 }
 

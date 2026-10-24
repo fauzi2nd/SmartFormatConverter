@@ -1,5 +1,6 @@
 package org.roruku.smartformatconverter.ui.converter
 
+import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -116,10 +117,17 @@ fun ImageAdvancedSettingsControl(
                     ) { draft = draft.copy(preserveMetadata = it) }
                 }
                 "webp" -> {
+                    val supportsLosslessWebp = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
                     MediaSwitch(
                         stringResource(R.string.setting_lossless_webp),
-                        draft.webpLossless
+                        draft.webpLossless,
+                        enabled = supportsLosslessWebp
                     ) { draft = draft.copy(webpLossless = it) }
+                    if (!supportsLosslessWebp) {
+                        Text(stringResource(R.string.setting_webp_lossless_unsupported),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
                     if (!draft.webpLossless) {
                         Text(stringResource(R.string.setting_webp_quality, draft.webpQuality))
                         Slider(
@@ -161,8 +169,13 @@ fun ImageAdvancedSettingsControl(
             )
             val invalidEntry = (widthText.isNotBlank() && proposed.width == null) ||
                 (heightText.isNotBlank() && proposed.height == null)
-            val validation = if (invalidEntry) stringResource(R.string.setting_custom_validation)
-                else ImageSettingsValidator.validate(proposed)
+            val validation = when {
+                invalidEntry -> stringResource(R.string.setting_custom_validation)
+                proposed.format == "webp" && proposed.webpLossless &&
+                    Build.VERSION.SDK_INT < Build.VERSION_CODES.R ->
+                    stringResource(R.string.setting_webp_lossless_unsupported)
+                else -> ImageSettingsValidator.validate(proposed)
+            }
             if (validation != null) Text(validation, color = MaterialTheme.colorScheme.error)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()) {
@@ -294,7 +307,12 @@ fun AudioAdvancedSettingsControl(
 }
 
 @Composable
-private fun MediaSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun MediaSwitch(
+    label: String,
+    checked: Boolean,
+    enabled: Boolean = true,
+    onChange: (Boolean) -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -302,7 +320,7 @@ private fun MediaSwitch(label: String, checked: Boolean, onChange: (Boolean) -> 
     ) {
         Text(label, modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyMedium)
-        Switch(checked = checked, onCheckedChange = onChange)
+        Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
     }
 }
 
@@ -344,6 +362,14 @@ fun ImageAdvancedPreview() {
 fun PngAdvancedPreview() {
     SmartFormatConverterTheme {
         ImageAdvancedSettingsControl(ImageAdvancedSettings(format = "png"), onApply = {}, previewExpanded = true)
+    }
+}
+
+@Preview(name = "Image Advanced — WebP", showBackground = true, widthDp = 393, heightDp = 850)
+@Composable
+fun WebpAdvancedPreview() {
+    SmartFormatConverterTheme {
+        ImageAdvancedSettingsControl(ImageAdvancedSettings(format = "webp"), onApply = {}, previewExpanded = true)
     }
 }
 

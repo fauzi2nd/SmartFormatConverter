@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.PauseCircle
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -64,6 +66,8 @@ fun QueueScreen(
             onClearCompleted = {},
             onSetFilter = {},
             onCancelJob = {},
+            onPauseJob = {},
+            onResumeJob = {},
             onRetryJob = {},
             onDeleteJob = {},
         )
@@ -75,6 +79,8 @@ fun QueueScreen(
             onClearCompleted = { viewModel.clearCompleted() },
             onSetFilter = { viewModel.setFilter(it) },
             onCancelJob = { viewModel.cancelJob(it) },
+            onPauseJob = { viewModel.pauseJob(it) },
+            onResumeJob = { viewModel.resumeJob(it) },
             onRetryJob = { viewModel.retryJob(it) },
             onDeleteJob = { viewModel.deleteJob(it) },
         )
@@ -87,6 +93,8 @@ fun QueueScreenContent(
     onClearCompleted: () -> Unit,
     onSetFilter: (QueueFilterTab) -> Unit,
     onCancelJob: (String) -> Unit,
+    onPauseJob: (String) -> Unit,
+    onResumeJob: (String) -> Unit,
     onRetryJob: (String) -> Unit,
     onDeleteJob: (ConversionJobEntity) -> Unit,
     modifier: Modifier = Modifier,
@@ -177,6 +185,8 @@ fun QueueScreenContent(
                     JobCardItem(
                         job = job,
                         onCancel = { onCancelJob(job.id) },
+                        onPause = { onPauseJob(job.id) },
+                        onResume = { onResumeJob(job.id) },
                         onRetry = { onRetryJob(job.id) },
                         onDelete = { onDeleteJob(job) },
                         onOpenResult = { selectedOutput = job },
@@ -195,6 +205,8 @@ fun QueueScreenContent(
 fun JobCardItem(
     job: ConversionJobEntity,
     onCancel: () -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
     onRetry: () -> Unit,
     onDelete: () -> Unit,
     onOpenResult: () -> Unit = {},
@@ -248,6 +260,17 @@ fun JobCardItem(
 
                 when (job.status) {
                     JobStatus.RUNNING, JobStatus.PREPARING, JobStatus.PENDING -> {
+                        IconButton(onClick = onPause) {
+                            Icon(imageVector = Icons.Default.PauseCircle, contentDescription = stringResource(R.string.action_pause))
+                        }
+                        IconButton(onClick = onCancel) {
+                            Icon(imageVector = Icons.Default.Cancel, contentDescription = stringResource(R.string.cancel))
+                        }
+                    }
+                    JobStatus.PAUSED -> {
+                        IconButton(onClick = onResume) {
+                            Icon(imageVector = Icons.Default.PlayCircle, contentDescription = stringResource(R.string.action_resume))
+                        }
                         IconButton(onClick = onCancel) {
                             Icon(imageVector = Icons.Default.Cancel, contentDescription = stringResource(R.string.cancel))
                         }
@@ -301,6 +324,14 @@ fun JobCardItem(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                }
+                JobStatus.PAUSED -> {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = stringResource(R.string.pause_resume_hint),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 JobStatus.COMPLETED -> {
                     if (job.outputFileSize > 0) {
@@ -373,6 +404,8 @@ fun QueueScreenPreview() {
             onClearCompleted = {},
             onSetFilter = {},
             onCancelJob = {},
+            onPauseJob = {},
+            onResumeJob = {},
             onRetryJob = {},
             onDeleteJob = {}
         )

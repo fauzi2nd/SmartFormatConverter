@@ -16,6 +16,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import org.roruku.smartformatconverter.data.storage.StorageManager
 
 data class ImageConversionConfig(
     val outputFormat: ImageOutputFormat,
@@ -58,9 +59,9 @@ object ImageConverterEngine {
             val options = BitmapFactory.Options().apply {
                 inJustDecodeBounds = true
             }
-            context.contentResolver.openInputStream(inputUri)?.use { stream ->
+            StorageManager.openReadableInputStream(context, inputUri).use { stream ->
                 BitmapFactory.decodeStream(stream, null, options)
-            } ?: return@withContext Result.failure(IllegalArgumentException("Cannot open input URI"))
+            }
 
             val originalWidth = options.outWidth
             val originalHeight = options.outHeight
@@ -75,9 +76,9 @@ object ImageConverterEngine {
             val decodeOptions = BitmapFactory.Options().apply {
                 inPreferredConfig = Bitmap.Config.ARGB_8888
             }
-            var bitmap: Bitmap? = context.contentResolver.openInputStream(inputUri)?.use { stream ->
+            var bitmap: Bitmap? = StorageManager.openReadableInputStream(context, inputUri).use { stream ->
                 BitmapFactory.decodeStream(stream, null, decodeOptions)
-            } ?: return@withContext Result.failure(IllegalStateException("Failed to decode image bitmap"))
+            } ?: return@withContext Result.failure(IllegalStateException("Image decoder could not decode this file; it may be corrupt or unsupported"))
 
             coroutineContext.ensureActive()
             onProgress(0.5f)
@@ -253,7 +254,7 @@ object ImageConverterEngine {
 
     private fun getExifTransform(context: Context, uri: Uri): ExifTransform {
         try {
-            context.contentResolver.openInputStream(uri)?.use { stream ->
+            StorageManager.openReadableInputStream(context, uri).use { stream ->
                 val exif = ExifInterface(stream)
                 val orientation = exif.getAttributeInt(
                     ExifInterface.TAG_ORIENTATION,
@@ -278,7 +279,7 @@ object ImageConverterEngine {
 
     private fun copyExifMetadata(context: Context, inputUri: Uri, outputFile: File) {
         try {
-            context.contentResolver.openInputStream(inputUri)?.use { inputStream ->
+            StorageManager.openReadableInputStream(context, inputUri).use { inputStream ->
                 val sourceExif = ExifInterface(inputStream)
                 val destExif = ExifInterface(outputFile.absolutePath)
 

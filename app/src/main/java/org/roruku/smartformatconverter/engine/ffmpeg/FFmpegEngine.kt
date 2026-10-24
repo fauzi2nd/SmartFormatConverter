@@ -13,7 +13,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.roruku.smartformatconverter.data.storage.StorageManager
 import java.io.File
-import java.util.Locale
 import kotlin.coroutines.resume
 
 enum class VideoOutputFormat(val extension: String, val mimeType: String) {
@@ -232,6 +231,7 @@ object FFmpegEngine {
         inputUri: Uri,
         tempOutputFile: File,
         config: AudioConversionConfig,
+        advancedSettings: AudioAdvancedSettings? = null,
         onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
         try {
@@ -246,24 +246,29 @@ object FFmpegEngine {
 
                 coroutineContext.ensureActive()
 
-                val cmdList = mutableListOf("ffmpeg", "-y", "-i", tempInputFile.absolutePath, "-vn")
-
-                if (config.copyStream || config.audioCodec == AudioCodec.COPY) {
-                    cmdList.addAll(listOf("-c:a", "copy"))
+                val cmdList = if (advancedSettings != null) {
+                    AudioCommandBuilder.build(
+                        inputPath = tempInputFile.absolutePath,
+                        outputPath = tempOutputFile.absolutePath,
+                        s = advancedSettings
+                    )
                 } else {
-                    cmdList.addAll(listOf("-c:a", config.audioCodec.ffmpegName))
-                    if (config.audioCodec != AudioCodec.PCM_S16LE && config.audioCodec != AudioCodec.FLAC) {
-                        cmdList.addAll(listOf("-b:a", "${config.bitrateKbps}k"))
-                    }
-                    if (config.sampleRate != null) {
-                        cmdList.addAll(listOf("-ar", config.sampleRate.toString()))
-                    }
-                    if (config.channels != null) {
-                        cmdList.addAll(listOf("-ac", config.channels.toString()))
+                    // Jobs created before Advanced Audio Settings keep their legacy arguments.
+                    mutableListOf("ffmpeg", "-y", "-i", tempInputFile.absolutePath, "-vn").apply {
+                        if (config.copyStream || config.audioCodec == AudioCodec.COPY) {
+                            addAll(listOf("-c:a", "copy"))
+                        } else {
+                            addAll(listOf("-c:a", config.audioCodec.ffmpegName))
+                            if (config.audioCodec != AudioCodec.PCM_S16LE &&
+                                config.audioCodec != AudioCodec.FLAC) {
+                                addAll(listOf("-b:a", "${config.bitrateKbps}k"))
+                            }
+                            config.sampleRate?.let { addAll(listOf("-ar", it.toString())) }
+                            config.channels?.let { addAll(listOf("-ac", it.toString())) }
+                        }
+                        add(tempOutputFile.absolutePath)
                     }
                 }
-
-                cmdList.add(tempOutputFile.absolutePath)
 
                 val ffmpegCmdArray = cmdList.toTypedArray()
                 Log.d(TAG, "Executing FFmpeg Audio command: ${cmdList.joinToString(" ")}")
@@ -291,7 +296,6 @@ object FFmpegEngine {
         commandArray: Array<String>,
         onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
     ): Boolean = suspendCancellableCoroutine { continuation ->
-        val startTime = System.currentTimeMillis()
         val subscriber = object : RxFFmpegSubscriber() {
             override fun onFinish() {
                 if (continuation.isActive) {
@@ -300,22 +304,10 @@ object FFmpegEngine {
             }
 
             override fun onProgress(progress: Int, progressTime: Long) {
-                val pct = (progress.toFloat() / 100f).coerceIn(0f, 0.99f)
-                val elapsedSec = (System.currentTimeMillis() - startTime) / 1000.0
-                val speedStr = if (elapsedSec > 0.3 && pct > 0.01f) {
-                    val rate = (pct / elapsedSec) * 15.0
-                    String.format(Locale.US, "%.1fx", rate.coerceIn(0.5, 99.9))
-                } else {
-                    "1.0x"
-                }
-                val etaStr = if (elapsedSec > 0.3 && pct > 0.01f) {
-                    val totalEstSec = elapsedSec / pct
-                    val remSec = (totalEstSec - elapsedSec).coerceAtLeast(0.0).toLong()
-                    String.format(Locale.US, "%02d:%02d", remSec / 60, remSec % 60)
-                } else {
-                    "--:--"
-                }
-                onProgress(pct, speedStr, etaStr)
+                // RxFFmpeg's callbacks report task progress, not a reliable
+                // wall-clock media speed. The repository estimates speed/ETA
+                // consistently using monotonic elapsed time.
+                onProgress((progress / 100f).coerceIn(0f, 0.99f), null, null)
             }
 
             override fun onCancel() {

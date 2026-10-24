@@ -7,6 +7,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Matrix
 import android.net.Uri
+import android.util.Log
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
@@ -26,6 +27,7 @@ data class ImageConversionConfig(
     val customWidth: Int? = null,
     val customHeight: Int? = null,
     val maintainAspectRatio: Boolean = true,
+    val preventUpscale: Boolean = true,
 )
 
 enum class ImageOutputFormat(val extension: String, val mimeType: String) {
@@ -40,6 +42,7 @@ data class ExifTransform(
 )
 
 object ImageConverterEngine {
+    private const val TAG = "ImageConverterEngine"
 
     suspend fun convertImage(
         context: Context,
@@ -90,7 +93,7 @@ object ImageConverterEngine {
             if (config.customWidth != null || config.customHeight != null) {
                 val targetW = config.customWidth ?: originalWidth
                 val targetH = config.customHeight ?: originalHeight
-                bitmap = resizeBitmap(bitmap!!, targetW, targetH, config.maintainAspectRatio)
+                bitmap = resizeBitmap(bitmap!!, targetW, targetH, config.maintainAspectRatio, config.preventUpscale)
             }
 
             val finalBitmap: Bitmap = if (config.outputFormat == ImageOutputFormat.JPEG && bitmap!!.hasAlpha()) {
@@ -104,32 +107,50 @@ object ImageConverterEngine {
 
             when (config.outputFormat) {
                 ImageOutputFormat.JPEG -> {
-                    if (!JpegNativeEncoder.isNative444Available()) {
-                        return@withContext Result.failure(IllegalStateException("Native libjpeg 4:4:4 encoder unavailable"))
-                    }
-
-                    val nativeSuccess = JpegNativeEncoder.encodeJpeg444(
-                        bitmap = finalBitmap,
-                        outputPath = outputFile.absolutePath,
-                        quality = config.jpegQuality,
-                        subsampling = config.chromaSubsampling,
-                        whiteBackgroundForAlpha = true
-                    )
-
-                    if (!nativeSuccess || !outputFile.exists() || outputFile.length() == 0L || !validateJpegFile(outputFile)) {
-                        if (outputFile.exists()) {
-                            outputFile.delete()
+                    // Some Android devices/ABIs cannot load our optional TurboJPEG JNI.
+                    // A missing native library must not make ordinary JPEG conversion fail.
+                    // Android Bitmap JPEG fallback may use chroma subsampling other than 4:4:4.
+                    val nativeSuccess = JpegNativeEncoder.isNative444Available() &&
+                        JpegNativeEncoder.encodeJpeg444(
+                            bitmap = finalBitmap,
+                            outputPath = outputFile.absolutePath,
+                            quality = config.jpegQuality,
+                            subsampling = config.chromaSubsampling,
+                            whiteBackgroundForAlpha = true
+                        )
+                    if (!nativeSuccess || !validateJpegFile(outputFile)) {
+                        Log.w(TAG, "Native JPEG encoding unavailable or invalid; using Android JPEG fallback (subsampling not guaranteed)")
+                        outputFile.delete()
+                        val compressed = FileOutputStream(outputFile).use { stream ->
+                            finalBitmap.compress(
+                                Bitmap.CompressFormat.JPEG,
+                                config.jpegQuality.coerceIn(1, 100),
+                                stream
+                            )
                         }
-                        return@withContext Result.failure(IllegalStateException("Native libjpeg encoding failed for ${outputFile.name}"))
+                        if (!compressed || !validateJpegFile(outputFile)) {
+                            outputFile.delete()
+                            return@withContext Result.failure(IllegalStateException(
+                                "JPEG encoding failed (native and Android fallback)"
+                            ))
+                        }
                     }
                 }
                 ImageOutputFormat.PNG -> {
-                    FileOutputStream(outputFile).use { outStream ->
+                    val written = FileOutputStream(outputFile).use { outStream ->
                         finalBitmap.compress(Bitmap.CompressFormat.PNG, 100, outStream)
                     }
+                    if (!written) throw IllegalStateException("PNG encoder rejected the image")
                 }
                 ImageOutputFormat.WEBP -> {
-                    FileOutputStream(outputFile).use { outStream ->
+                    if (config.webpLossless &&
+                        android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R
+                    ) {
+                        throw UnsupportedOperationException(
+                            "Lossless WebP encoding requires Android 11 (API 30) or newer"
+                        )
+                    }
+                    val written = FileOutputStream(outputFile).use { outStream ->
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
                             val format = if (config.webpLossless) {
                                 Bitmap.CompressFormat.WEBP_LOSSLESS
@@ -142,7 +163,11 @@ object ImageConverterEngine {
                             finalBitmap.compress(Bitmap.CompressFormat.WEBP, config.webpQuality.coerceIn(1, 100), outStream)
                         }
                     }
+                    if (!written) throw IllegalStateException("WebP encoder rejected the image")
                 }
+            }
+            if (!outputFile.exists() || outputFile.length() == 0L) {
+                throw IllegalStateException("Image encoder produced an empty file")
             }
 
             if (config.preserveExif && config.outputFormat == ImageOutputFormat.JPEG) {
@@ -166,13 +191,10 @@ object ImageConverterEngine {
     fun validateJpegFile(file: File): Boolean {
         if (!file.exists() || file.length() < 100L) return false
         return try {
-            val options = BitmapFactory.Options().apply {
-                inSampleSize = 1
-            }
-            val decodedBitmap = BitmapFactory.decodeFile(file.absolutePath, options)
-            val isValid = decodedBitmap != null && decodedBitmap.width > 0 && decodedBitmap.height > 0
-            decodedBitmap?.recycle()
-            isValid
+            // A full second decode doubles peak heap use and can crash on large images.
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.absolutePath, bounds)
+            bounds.outWidth > 0 && bounds.outHeight > 0
         } catch (_: Exception) {
             false
         }
@@ -203,18 +225,30 @@ object ImageConverterEngine {
         return transformed
     }
 
-    private fun resizeBitmap(src: Bitmap, targetW: Int, targetH: Int, maintainRatio: Boolean): Bitmap {
+    private fun resizeBitmap(
+        src: Bitmap,
+        targetW: Int,
+        targetH: Int,
+        maintainRatio: Boolean,
+        preventUpscale: Boolean
+    ): Bitmap {
+        require(targetW > 0 && targetH > 0) { "Image dimensions must be positive" }
+        val boundedW = if (preventUpscale) targetW.coerceAtMost(src.width) else targetW
+        val boundedH = if (preventUpscale) targetH.coerceAtMost(src.height) else targetH
         val (finalW, finalH) = if (maintainRatio) {
-            val ratio = src.width.toFloat() / src.height.toFloat()
-            if (targetW / ratio <= targetH) {
-                Pair(targetW, (targetW / ratio).toInt())
-            } else {
-                Pair((targetH * ratio).toInt(), targetH)
-            }
+            val scale = minOf(
+                boundedW.toDouble() / src.width,
+                boundedH.toDouble() / src.height
+            )
+            Pair((src.width * scale).toInt().coerceAtLeast(1),
+                (src.height * scale).toInt().coerceAtLeast(1))
         } else {
-            Pair(targetW, targetH)
+            Pair(boundedW, boundedH)
         }
-        return src.scale(finalW, finalH, true)
+        if (src.width == finalW && src.height == finalH) return src
+        val resized = src.scale(finalW, finalH, true)
+        src.recycle()
+        return resized
     }
 
     private fun getExifTransform(context: Context, uri: Uri): ExifTransform {

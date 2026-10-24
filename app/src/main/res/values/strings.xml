@@ -36,8 +36,6 @@
     <string name="converter_folder_tab">Folder</string>
     <string name="image_settings">Image Settings</string>
     <string name="audio_settings">Audio Settings</string>
-    <string name="image_settings_desc">JPEG: quality 100 and subsampling 4:4:4; PNG/WebP use current engine configuration.</string>
-    <string name="audio_settings_desc">Codec follows selected format; default audio configuration from engine.</string>
     <string name="close">Close</string>
     <string name="category_video">Video</string>
     <string name="category_image">Image</string>
@@ -239,7 +237,6 @@
     <string name="action_retry">Retry</string>
     <string name="action_delete">Delete</string>
     <string name="value_unknown">Unknown</string>
-    <string name="value_not_available">N/A</string>
     <string name="downloader_source_author">Source: %1$s</string>
     <string name="downloader_choose_format">Select Format &amp; Quality:</string>
     <string name="downloader_format_summary">%1$s (%2$s)</string>
@@ -295,4 +292,41 @@
     <string name="conversion_notification_processing">Processing media files…</string>
     <string name="conversion_notification_title">Converting %1$s</string>
     <string name="conversion_notification_progress">%1$d%% complete</string>
+
+    <!-- Format-specific image and audio editing controls -->
+    <string name="advanced_image_title">Advanced Image Settings</string>
+    <string name="advanced_audio_title">Advanced Audio Settings</string>
+    <string name="setting_jpeg_quality">JPEG quality: %1$d</string>
+    <string name="setting_chroma_subsampling">JPEG chroma subsampling</string>
+    <string name="setting_webp_quality">WebP quality: %1$d</string>
+    <string name="setting_lossless_webp">Lossless WebP (file size may increase)</string>
+    <string name="setting_png_lossless">PNG always uses lossless compression.</string>
+    <string name="setting_jpeg_native_note">4:4:4 is preserved when the native encoder is available. On unsupported devices, JPEG falls back to the Android encoder, whose subsampling may differ.</string>
+    <string name="setting_resize">Resize (optional)</string>
+    <string name="setting_image_width">Width (px; blank = original)</string>
+    <string name="setting_image_height">Height (px; blank = original)</string>
+    <string name="setting_maintain_ratio">Maintain aspect ratio</string>
+    <string name="setting_no_upscale">Never upscale images</string>
+    <string name="setting_jpeg_exif">Preserve JPEG EXIF (when available)</string>
+    <string name="setting_audio_bitrate">Audio bitrate: %1$d kbps</string>
+    <string name="setting_lossless_audio">Lossless output: bitrate is determined by the codec.</string>
+    <string name="setting_sample_rate">Sample rate</string>
+    <string name="setting_channels">Channels</string>
+    <string name="setting_volume_percent">Volume: %1$d%%</string>
+    <string name="setting_metadata">Preserve metadata</string>
+    <string name="setting_original">Original / source</string>
+    <string name="setting_mono">Mono</string>
+    <string name="setting_stereo">Stereo</string>
+    <string name="setting_khz32">32 kHz</string>
+    <string name="setting_khz441">44.1 kHz</string>
+    <string name="setting_khz48">48 kHz</string>
+    <string name="setting_khz96">96 kHz</string>
+    <string name="setting_jpeg_chroma_444">4:4:4 — best color detail</string>
+    <string name="setting_jpeg_chroma_422">4:2:2 — balanced</string>
+    <string name="setting_jpeg_chroma_420">4:2:0 — smaller file</string>
+    <string name="setting_custom_validation">Please correct settings before applying.</string>
+    <string name="setting_audio_source_rate">Source sample rate (Opus output is fixed at 48 kHz).</string>
+    <string name="queue_measuring">Measuring…</string>
+    <string name="setting_all_media_note">Saved separately for each queued file. Existing source files are never overwritten.</string>
+    <string name="setting_webp_lossless_unsupported">Lossless WebP requires Android 11 (API 30) or newer.</string>
 </resources>

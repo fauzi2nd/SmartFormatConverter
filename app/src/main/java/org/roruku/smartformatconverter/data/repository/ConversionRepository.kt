@@ -4,13 +4,16 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.core.net.toUri
-import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.withContext
 import org.roruku.smartformatconverter.data.db.AppDatabase
 import org.roruku.smartformatconverter.data.db.ConversionJobDao
@@ -35,6 +38,11 @@ import org.roruku.smartformatconverter.engine.ffmpeg.VideoSettingsValidator
 import org.roruku.smartformatconverter.engine.image.ImageConversionConfig
 import org.roruku.smartformatconverter.engine.image.ImageConverterEngine
 import org.roruku.smartformatconverter.engine.image.ImageOutputFormat
+import org.roruku.smartformatconverter.engine.image.ChromaSubsampling
+import org.roruku.smartformatconverter.engine.ffmpeg.ImageAdvancedSettings
+import org.roruku.smartformatconverter.engine.ffmpeg.ImageSettingsValidator
+import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
+import org.roruku.smartformatconverter.engine.ffmpeg.AudioSettingsValidator
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
@@ -95,13 +103,32 @@ class ConversionRepository(
     }
 
     suspend fun executeJob(job: ConversionJobEntity, scope: CoroutineScope): Result<String> = withContext(Dispatchers.IO) {
-        val jobCoro = scope.coroutineContext[Job]
+        // Track this conversion coroutine, never cancel the whole service supervisor.
+        val jobCoro = currentCoroutineContext()[Job]
         if (jobCoro != null) {
             activeJobCoroutines[job.id] = jobCoro
         }
 
+        val estimator = ProgressEstimator()
+        // One writer protects the database from out-of-order progress callbacks
+        // produced by RxFFmpeg and image encoders.
+        val updates = Channel<Triple<Float, String, String>>(Channel.CONFLATED)
+        val progressWriter = scope.launch(Dispatchers.IO) {
+            for ((fraction, speed, eta) in updates) {
+                dao.updateProgress(job.id, JobStatus.RUNNING, fraction, speed, eta)
+            }
+        }
+        fun emitProgress(progress: Float, reportedSpeed: String? = null, reportedEta: String? = null) {
+            val reading = estimator.measure(progress)
+            updates.trySend(Triple(
+                progress.coerceIn(0f, 0.99f),
+                reportedSpeed?.takeIf { it.isNotBlank() } ?: reading.speed,
+                reportedEta?.takeIf { it.isNotBlank() } ?: reading.eta
+            ))
+        }
+
         try {
-            dao.updateProgress(job.id, JobStatus.RUNNING, 0.05f, "0.0x", "Estimating...")
+            dao.updateProgress(job.id, JobStatus.RUNNING, 0.02f, "Measuring…", "Measuring…")
             val settings = userPrefs.userSettingsFlow.first()
             val outputRootUri = settings.defaultOutputUri
                 ?.takeIf { it.isNotBlank() }
@@ -123,27 +150,39 @@ class ConversionRepository(
                         "png" -> ImageOutputFormat.PNG
                         else -> ImageOutputFormat.WEBP
                     }
+                    val advanced = job.customParamsJson?.takeIf { it.isNotBlank() }
+                        ?.let(ImageAdvancedSettings::fromJson)
+                    if (advanced != null) {
+                        require(advanced.format == job.outputFormat.lowercase()) {
+                            "Queued image format and advanced settings disagree"
+                        }
+                        ImageSettingsValidator.validate(advanced)?.let {
+                            throw IllegalArgumentException(it)
+                        }
+                    }
                     val config = ImageConversionConfig(
                         outputFormat = format,
-                        preserveExif = settings.preserveMetadata
+                        jpegQuality = advanced?.jpegQuality ?: 100,
+                        chromaSubsampling = when (advanced?.jpegSubsampling) {
+                            "422" -> ChromaSubsampling.S422
+                            "420" -> ChromaSubsampling.S420
+                            else -> ChromaSubsampling.S444
+                        },
+                        webpQuality = advanced?.webpQuality ?: 95,
+                        webpLossless = advanced?.webpLossless ?: false,
+                        customWidth = advanced?.width,
+                        customHeight = advanced?.height,
+                        maintainAspectRatio = advanced?.keepAspectRatio ?: true,
+                        preventUpscale = advanced?.preventUpscale ?: true,
+                        preserveExif = advanced?.preserveMetadata ?: settings.preserveMetadata
                     )
-                    val startTime = System.currentTimeMillis()
                     ImageConverterEngine.convertImage(
                         context = context,
                         inputUri = job.inputUri.toUri(),
                         outputFile = tempOutFile,
                         config = config,
-                        onProgress = { pct ->
-                            val elapsedSec = (System.currentTimeMillis() - startTime) / 1000.0
-                            val speedStr = if (elapsedSec > 0.2) String.format(Locale.US, "%.1fx", (pct / elapsedSec * 5.0).coerceIn(0.5, 99.9)) else "1.0x"
-                            val etaStr = if (elapsedSec > 0.2 && pct > 0.01f) {
-                                val totalEstSec = elapsedSec / pct
-                                val remSec = (totalEstSec - elapsedSec).coerceAtLeast(0.0).toLong()
-                                String.format(Locale.US, "%02d:%02d", remSec / 60, remSec % 60)
-                            } else "--:--"
-                            scope.launch(Dispatchers.IO) {
-                                dao.updateProgress(job.id, JobStatus.RUNNING, pct, speedStr, etaStr)
-                            }
+                        onProgress = { fraction ->
+                            emitProgress(0.05f + fraction.coerceIn(0f, 1f) * 0.84f)
                         }
                     )
                 }
@@ -190,10 +229,8 @@ class ConversionRepository(
                         tempOutputFile = tempOutFile,
                         config = config,
                         advancedSettings = advanced,
-                        onProgress = { pct, speed, eta ->
-                            scope.launch(Dispatchers.IO) {
-                                dao.updateProgress(job.id, JobStatus.RUNNING, pct, speed, eta)
-                            }
+                        onProgress = { pct, _, _ ->
+                            emitProgress(0.05f + pct.coerceIn(0f, 1f) * 0.84f)
                         }
                     )
                 }
@@ -222,15 +259,24 @@ class ConversionRepository(
                             else -> 44100
                         }
                     )
+                    val advancedAudio = job.customParamsJson?.takeIf { it.isNotBlank() }
+                        ?.let(AudioAdvancedSettings::fromJson)
+                    if (advancedAudio != null) {
+                        require(advancedAudio.format == job.outputFormat.lowercase()) {
+                            "Queued audio format and advanced settings disagree"
+                        }
+                        AudioSettingsValidator.validate(advancedAudio)?.let {
+                            throw IllegalArgumentException(it)
+                        }
+                    }
                     FFmpegEngine.convertAudio(
                         context = context,
                         inputUri = job.inputUri.toUri(),
                         tempOutputFile = tempOutFile,
                         config = config,
-                        onProgress = { pct, speed, eta ->
-                            scope.launch(Dispatchers.IO) {
-                                dao.updateProgress(job.id, JobStatus.RUNNING, pct, speed, eta)
-                            }
+                        advancedSettings = advancedAudio,
+                        onProgress = { pct, _, _ ->
+                            emitProgress(0.05f + pct.coerceIn(0f, 1f) * 0.84f)
                         }
                     )
                 }
@@ -247,9 +293,8 @@ class ConversionRepository(
                             formatOption = fmt,
                             tempOutputFile = tempOutFile,
                             onProgress = { pct, speed, eta ->
-                                scope.launch(Dispatchers.IO) {
-                                    dao.updateProgress(job.id, JobStatus.RUNNING, pct, speed, eta)
-                                }
+                                emitProgress(0.05f + pct.coerceIn(0f, 1f) * 0.84f,
+                                    reportedSpeed = speed, reportedEta = eta)
                             }
                         )
                     }
@@ -286,7 +331,10 @@ class ConversionRepository(
                 "Could not create $outputDirectory/$outputName. Check folder permissions."
             )
 
-            if (!StorageManager.copyFileToDocumentUri(context, finalFile, destination)) {
+            emitProgress(0.90f)
+            if (!StorageManager.copyFileToDocumentUri(context, finalFile, destination) { copied ->
+                emitProgress(0.90f + 0.09f * copied)
+            }) {
                 // A failed copy must not leave a corrupted destination document.
                 destination.delete()
                 throw IllegalStateException("Failed writing $outputDirectory/$outputName")
@@ -305,6 +353,8 @@ class ConversionRepository(
             dao.markFailed(job.id, e.message ?: "Job failed with exception")
             Result.failure(e)
         } finally {
+            updates.close()
+            withContext(NonCancellable) { progressWriter.join() }
             activeJobCoroutines.remove(job.id)
         }
     }

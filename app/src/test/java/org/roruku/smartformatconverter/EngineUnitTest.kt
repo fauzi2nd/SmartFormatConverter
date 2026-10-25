@@ -12,8 +12,8 @@ import org.roruku.smartformatconverter.data.repository.Media3OutputPolicy
 import org.roruku.smartformatconverter.data.repository.MediaOutputIntegrity
 import org.roruku.smartformatconverter.data.storage.BatchOutputStructure
 import org.roruku.smartformatconverter.data.storage.BatchScanConfig
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.media3.AudioConversionConfig
 import org.roruku.smartformatconverter.engine.media3.AudioOutputFormat
 import org.roruku.smartformatconverter.engine.media3.VideoConversionConfig
@@ -83,7 +83,7 @@ class EngineUnitTest {
 
     @Test
     fun testMedia3VideoPresetsMapToActualBitrate() {
-        val base = org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings()
+        val base = org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings()
         val high = base.applyPreset("High Quality")
         val balanced = base.applyPreset("Balanced")
         val small = base.applyPreset("Small File")

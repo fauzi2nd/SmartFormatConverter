@@ -41,7 +41,7 @@ Media3 Transformer menggunakan AndroidX Media3 Extractor. Tabel berikut menunjuk
 
 ## 3. Format Keluaran & Muxing Container (Output Formats)
 
-Pada arsitektur Pure Kotlin/Java tanpa dependensi C++, penulisan stream container bergantung pada `InAppMp4Muxer` (atau `FrameworkMuxer`) milik AndroidX Media3. 
+Pada arsitektur Pure Kotlin/Java tanpa dependensi C++, penulisan stream MP4 menggunakan `InAppMp4Muxer`; WebM menggunakan `WebmMuxer` melalui adapter `Muxer.Factory`, dipilih berdasarkan `FormatCapabilityRegistry` dan encoder perangkat. 
 
 Untuk memastikan integritas container dan mencegah corrupt / ekstensi file yang tidak cocok dengan format data stream di dalamnya, UI dan engine membatasi format ekspor secara ketat:
 
@@ -52,7 +52,8 @@ Untuk memastikan integritas container dan mencegah corrupt / ekstensi file yang 
 | **JPEG Image (`.jpg`)** | Android SDK `Bitmap.compress` | JPEG | ✅ **Diimplementasikan; uji perangkat diperlukan** | Kualitas 1–100. Subsampling didelegasikan ke engine Skia/libjpeg internal platform (umumnya 4:2:0 default sistem). |
 | **PNG Image (`.png`)** | Android SDK `Bitmap.compress` | PNG Lossless | ✅ **Diimplementasikan; uji perangkat diperlukan** | Kompresi lossless penuh native. |
 | **WebP Image (`.webp`)** | Android SDK `Bitmap.compress` | WebP (Lossy / Lossless) | ✅ **Diimplementasikan; uji perangkat diperlukan** | Lossy pada semua API, lossless pada Android 11+ (API 30+). |
-| **MKV / WebM / AVI / MOV Output** | Tidak disediakan oleh Media3 DefaultMuxer | - | ⛔ **Input Only** | Dikonversi ke MP4 universal agar hasil ekspor valid dan dapat diputar di semua platform. |
+| **WebM Video (`.webm`)** | Media3 `WebmMuxer` + adapter Factory | VP9 / Opus | ⚠️ **Diimplementasikan; hanya jika encoder perangkat tersedia; uji perangkat diperlukan** | Katalog WebM disembunyikan jika encoder VP9 atau Opus tidak ada. |
+| **MKV / AVI / MOV Output** | Belum ada adapter container aktif | - | ⛔ **Input Only** | Menambahkan ekstensi tanpa muxer yang cocok dilarang. |
 | **MP3 Output** | AOSP tidak memiliki encoder MP3 | - | ⛔ **Input Only** | Audio dikonversi ke M4A (AAC) standar. |
 
 ---
@@ -83,9 +84,7 @@ Untuk memastikan integritas container dan mencegah corrupt / ekstensi file yang 
 
 ## 6. Actual Release Boundaries (Audit 2026-10-25)
 
-- **Video export:** MP4 only. **Audio export:** AAC in M4A only. Old queued
-  FFmpeg formats are rejected with actionable errors rather than silently
-  creating files whose extension disagrees with the data.
+- **Video export:** MP4 by default, plus WebM on Android devices exposing VP9 and Opus encoders. **Audio export:** AAC in M4A only. Old queued unsupported formats are rejected; extensions always match the selected muxer.
 - **Legacy remux/stream copy:** not guaranteed by Media3, and rejected in this
   release until validated end-to-end. Do not advertise lossless stream copy.
 - **Audio sample rate, channel forcing, volume and metadata editing:** not
@@ -102,6 +101,14 @@ Untuk memastikan integritas container dan mencegah corrupt / ekstensi file yang 
 - **Image memory:** for explicit downscale without cropping, BitmapFactory
   sample-size reduces decode memory. Original-size exports still require
   sufficient heap and must not be silently resized.
-- **CI vs device validation:** a successful Gradle build and unit test run
-  does not prove all conversions work across Android chipsets. Manual device
-  tests and a signed release AAB are separate launch gates.
+- **CI vs device validation:** Build success and compiled MP4/WebM instrumentation tests do not prove all conversions work across Android chipsets. Actual device smoke runs and signed AAB remain separate launch gates.
+
+## 7. Architecture: P1–P5 Follow-up (2026-10-25)
+
+- **P1:** `FormatCapabilityRegistry` centralizes output extensions, MIME types and codec capabilities. UI, queue, SAF and validators refer to it.
+- **P2:** `WebmMuxerFactory` adapts Media3 1.11's VP9/Opus muxer to Transformer. Export uses platform codecs; WebM UI visibility is gated by both encoders.
+- **P3:** `MediaOutputIntegrity` checks MP4/EBML signatures, track codec combinations, duration (where available), and sample presence. It is not a full decode.
+- **P4:** Added JVM format/codec/snapshot tests and device MP4/WebM smoke tests. CI compilation is distinct from execution on a physical device.
+- **P5:** Removed unused FFmpeg execution and shell command builders. Active conversion models now live in `engine.media3`; versioned settings retain backward compatibility for rejecting unsupported queued requests.
+
+Refs: https://developer.android.com/media/media3/transformer/supported-formats and https://developer.android.com/reference/androidx/media3/muxer/WebmMuxer

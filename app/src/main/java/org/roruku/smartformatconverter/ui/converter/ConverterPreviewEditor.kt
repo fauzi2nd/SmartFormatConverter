@@ -110,9 +110,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.Locale
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.ImageAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.ImageAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
 import org.roruku.smartformatconverter.data.storage.OutputPathPolicy
 import org.roruku.smartformatconverter.data.storage.MediaDetails
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme

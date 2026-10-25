@@ -41,20 +41,32 @@ Media3 Transformer menggunakan AndroidX Media3 Extractor. Tabel berikut menunjuk
 
 ## 3. Format Keluaran & Muxing Container (Output Formats)
 
-Pada arsitektur Pure Kotlin/Java tanpa dependensi C++, penulisan stream MP4 menggunakan `InAppMp4Muxer`; WebM menggunakan `WebmMuxer` melalui adapter `Muxer.Factory`, dipilih berdasarkan `FormatCapabilityRegistry` dan encoder perangkat. 
+Media3/Android platform dipakai hanya untuk format yang punya writer nyata.
+UI memakai capability registry + deteksi encoder. Status **diimplementasikan**
+bukan jaminan kompatibel pada semua chipset; uji perangkat dibutuhkan.
 
-Untuk memastikan integritas container dan mencegah corrupt / ekstensi file yang tidak cocok dengan format data stream di dalamnya, UI dan engine membatasi format ekspor secara ketat:
+| Output | Muxer/encoder | Status | Batasan |
+| --- | --- | --- | --- |
+| MP4 H.264/H.265 | Media3 MP4 Transformer | Ada | Codec input/output bergantung perangkat |
+| WebM VP9/Opus | Media3 WebmMuxer | Bersyarat | Encoder VP9 dan Opus |
+| MP4 Remux | Android MediaExtractor/MediaMuxer | Ada | Satu video AVC/HEVC + maksimal satu AAC; menolak subtitle/track tambahan |
+| Smart Auto MP4 | Preflight remux, fallback transcode | Ada | Preset berlaku jika pengguna tidak mengubah codec/resolusi/audio |
+| M4A (AAC) | Media3 MP4 muxer | Ada | AAC encoder diperlukan |
+| Raw AAC (.aac) | Media3 AacMuxer ADTS | Ada | AAC encoder diperlukan |
+| OGG/Opus (.ogg) | Media3 OggMuxer | Bersyarat | Android 10+ dan encoder Opus |
+| WAV (.wav) | Android decoder + PCM16 RIFF | Ada | Mono/stereo, batas RIFF 4 GiB |
+| FLAC (.flac) | Android MediaCodec FLAC encoder | Bersyarat | 8–48 kHz mono/stereo; harus mengeluarkan stream FLAC utuh |
+| JPEG/PNG/WebP | Bitmap.compress | Ada | JPEG subsampling dipilih Android |
+| HEIC (.heic) | AndroidX HeifWriter | Bersyarat | Android 10+ dengan encoder perangkat |
+| AVIF (.avif) | AndroidX AvifWriter | Bersyarat | Android 14+ dengan encoder perangkat |
+| GIF (.gif) | Square GifEncoder Java | Ada | **Satu frame diam**; animasi tidak dipertahankan, 2048×2048 maks |
+| MKV Output | Belum ada muxer matang | Tidak aktif | Multitrack/subtitle tidak boleh hilang diam-diam |
+| MP3 Output | Belum ada encoder terverifikasi | Tidak aktif | Perlu audit library/codec eksternal |
+| AVI/MOV Output | Belum ada muxer aktif | Tidak aktif | Masih input-only |
 
-| Format Output | Container Muxer | Codec | Status | Catatan Integritas |
-| :--- | :--- | :--- | :--- | :--- |
-| **MP4 Video (`.mp4`)** | Media3 `InAppMp4Muxer` | H.264 / AVC, H.265 / HEVC | ✅ **Diimplementasikan; uji perangkat diperlukan** | Format video umum untuk Android & iOS. Fast-start dan metadata perlu diuji pada output aktual. |
-| **M4A Audio (`.m4a`)** | Media3 `InAppMp4Muxer` | AAC (`audio/mp4a-latm`) | ✅ **Diimplementasikan; uji perangkat diperlukan** | Kontainer MP4 berisi stream audio AAC standar industri dengan ekstensi `.m4a`. |
-| **JPEG Image (`.jpg`)** | Android SDK `Bitmap.compress` | JPEG | ✅ **Diimplementasikan; uji perangkat diperlukan** | Kualitas 1–100. Subsampling didelegasikan ke engine Skia/libjpeg internal platform (umumnya 4:2:0 default sistem). |
-| **PNG Image (`.png`)** | Android SDK `Bitmap.compress` | PNG Lossless | ✅ **Diimplementasikan; uji perangkat diperlukan** | Kompresi lossless penuh native. |
-| **WebP Image (`.webp`)** | Android SDK `Bitmap.compress` | WebP (Lossy / Lossless) | ✅ **Diimplementasikan; uji perangkat diperlukan** | Lossy pada semua API, lossless pada Android 11+ (API 30+). |
-| **WebM Video (`.webm`)** | Media3 `WebmMuxer` + adapter Factory | VP9 / Opus | ⚠️ **Diimplementasikan; hanya jika encoder perangkat tersedia; uji perangkat diperlukan** | Katalog WebM disembunyikan jika encoder VP9 atau Opus tidak ada. |
-| **MKV / AVI / MOV Output** | Belum ada adapter container aktif | - | ⛔ **Input Only** | Menambahkan ekstensi tanpa muxer yang cocok dilarang. |
-| **MP3 Output** | AOSP tidak memiliki encoder MP3 | - | ⛔ **Input Only** | Audio dikonversi ke M4A (AAC) standar. |
+**Catatan:** keberhasilan Gradle CI hanya membuktikan kompilasi/unit test
+sesuai pipeline. Pelaksanaan instrumented tests di perangkat adalah
+release gate terpisah. Detail: [P6–P10 Implementation](P6_P10_IMPLEMENTATION.md).
 
 ---
 
@@ -84,9 +96,7 @@ Untuk memastikan integritas container dan mencegah corrupt / ekstensi file yang 
 
 ## 6. Actual Release Boundaries (Audit 2026-10-25)
 
-- **Video export:** MP4 by default, plus WebM on Android devices exposing VP9 and Opus encoders. **Audio export:** AAC in M4A only. Old queued unsupported formats are rejected; extensions always match the selected muxer.
-- **Legacy remux/stream copy:** not guaranteed by Media3, and rejected in this
-  release until validated end-to-end. Do not advertise lossless stream copy.
+- **Video export:** MP4/WebM; MP4 remux dan Smart Auto tersedia dengan batasan codec/track; MKV belum didukung sebagai output.
 - **Audio sample rate, channel forcing, volume and metadata editing:** not
   exposed in the current UI because they are not implemented in the active
   Media3 transform path.

@@ -165,6 +165,7 @@ class ConversionRepository(
             ))
         }
 
+        var tempOutputFile: File? = null
         try {
             dao.updateProgress(job.id, JobStatus.RUNNING, 0.02f, "Measuring…", "Measuring…", generation)
             val settings = userPrefs.userSettingsFlow.first()
@@ -198,6 +199,7 @@ class ConversionRepository(
                     context, "out_${job.id}", effectiveExtension
                 )
             }
+            tempOutputFile = tempOutFile
 
             val conversionResult = when (job.mediaType) {
                 MediaType.IMAGE -> {
@@ -414,6 +416,9 @@ class ConversionRepository(
             }
 
             val finalFile = conversionResult.getOrThrow()
+            MediaOutputIntegrity.validate(finalFile, job.mediaType)?.let { reason ->
+                throw IllegalStateException(reason)
+            }
             val outputSize = finalFile.length()
 
             // Always save below <selected-parent>/Converter/.
@@ -501,6 +506,11 @@ class ConversionRepository(
             }
             Result.failure(e)
         } finally {
+            // Non-download output is a per-attempt temporary file. Retain
+            // validated direct-download cache to support HTTP Range Resume.
+            if (job.mediaType != MediaType.DOWNLOAD) {
+                tempOutputFile?.delete()
+            }
             updates.close()
             withContext(NonCancellable) { progressWriter.join() }
             if (generation > 0L) {

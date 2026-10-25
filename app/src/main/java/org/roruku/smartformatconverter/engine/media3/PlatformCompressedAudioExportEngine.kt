@@ -190,7 +190,7 @@ internal object PlatformCompressedAudioExportEngine {
                                         "Audio output sample arrived before muxer track format"
                                     }
                                     val sampleInfo = MediaCodec.BufferInfo()
-                                    sampleInfo.set(0, info.size, info.presentationTimeUs,
+                                    sampleInfo.set(info.offset, info.size, info.presentationTimeUs,
                                         info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM.inv())
                                     muxer?.writeSampleData(track, data, sampleInfo)
                                 }

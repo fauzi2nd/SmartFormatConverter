@@ -140,7 +140,7 @@ object ImageConverterEngine {
                 workingBitmap = bitmap
             }
 
-            val finalBitmap: Bitmap = if (config.outputFormat in setOf(ImageOutputFormat.JPEG, ImageOutputFormat.HEIC, ImageOutputFormat.GIF) && bitmap!!.hasAlpha()) {
+            val finalBitmap: Bitmap = if (config.outputFormat in setOf(ImageOutputFormat.JPEG, ImageOutputFormat.HEIC) && bitmap!!.hasAlpha()) {
                 compositeOverWhiteBackground(bitmap)
             } else {
                 bitmap!!

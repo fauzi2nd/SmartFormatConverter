@@ -1,19 +1,35 @@
-# Smart Format Converter — Known Issues & Technical Risks
+# Smart Format Converter — Active Technical Risks
 
-## Technical Risks & Mitigation Strategies
+Updated 2026-10-25. The active conversion engine is AndroidX Media3,
+not RxFFmpeg. This list records genuine release limitations.
 
-1. **Storage Access Framework (SAF) Performance & File Scoped Access**
-   - *Risk*: `content://` URIs do not allow direct file path access (`/storage/emulated/0/...`) for standard C/C++ file I/O in FFmpeg without File Descriptor (FD) access or local staging.
-   - *Mitigation*: Pipe via Android File Descriptors (`ParcelFileDescriptor.detachFd()`) or temporary input/output cache files (`ContentResolver.openInputStream` / `openOutputStream`) when interacting with native engines.
+1. **Codec availability differs by device.** WebM export uses the Media3
+   WebmMuxer and requires VP9 video and Opus audio encoders. The format is
+   hidden when either encoder is unavailable. MP4 H.264/H.265 encoding and
+   source decoding also vary by chipset. Do not promise universal support.
 
-2. **Large File Memory Allocation**
-   - *Risk*: OutOfMemory (OOM) errors when processing high-resolution images or high-bitrate video streams in memory.
-   - *Mitigation*: Use streaming I/O, C++ RAII bounds/overflow checks (`width * height * 4`), downsampled bounds decoding for previews, and delegate heavy media processing strictly to native memory buffers.
+2. **Output integrity is structural, not full playback certification.**
+   Export checks container magic, expected codec/track types, durations when
+   available and non-empty media samples. Long-form playback, seeking,
+   A/V synchronization and retained audio need device-side verification.
 
-3. **Background Process Termination on Android 12+ / 14+**
-   - *Risk*: Long-running video conversions or batch downloads killed by OS power management or foreground service restrictions.
-   - *Mitigation*: Configured Foreground Service with `foregroundServiceType="dataSync"`, maintained explicit ongoing notifications with foreground service start mechanisms, and handle task interruption/resume states.
+3. **Interrupted foreground operations.** Conversion and direct downloads
+   may be stopped by Android foreground-service restrictions or OS process
+   management. Pause/cancel and queue recovery need device regression tests.
 
-4. **Full On-Device yt-dlp Python/JS Runtime Limitation**
-   - *Risk*: On-device Python/JS runtime is not bundled due to APK size and security constraints.
-   - *Mitigation*: Full Python/JS yt-dlp extraction is marked `NOT_IMPLEMENTED`. Direct HTTP stream downloading is implemented and verified via `HttpDownloaderEngine`.
+4. **Large media and storage.** Bitmap exports can exhaust app heap on very
+   large images. SAF copy can fail due to permission or space exhaustion.
+   Temporary outputs must be deleted on failure. Do not silently rescale
+   original-quality exports.
+
+5. **Legacy configurations and queues.** FFmpeg-era output requests and
+   unsupported CRF, subtitle, routing or remux settings are rejected with
+   actionable errors, rather than creating mismatched file extensions.
+
+6. **Build versus device validation.** CI assembles APK/AAB and compiles
+   Android instrumented tests. Real device smoke tests, production signing
+   and Google Play review remain separate release gates.
+
+7. **YouTube/yt-dlp.** Python/JS runtime extraction is not bundled.
+   Direct HTTP/HTTPS downloader can only handle URLs and streams supported
+   by its own direct-download policy.

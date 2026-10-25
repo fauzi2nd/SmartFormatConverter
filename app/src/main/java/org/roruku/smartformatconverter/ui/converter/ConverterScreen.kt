@@ -77,12 +77,18 @@ private fun catalogFormats(): List<List<ConverterFormat>> = listOf(
     FormatCapabilityRegistry.formats(MediaType.IMAGE).map {
         ConverterFormat(1, it.extension, when (it.extension) {
             "png" -> R.string.format_desc_lossless
-            "webp" -> R.string.format_desc_compact
+            "webp", "avif", "heic" -> R.string.format_desc_compact
+            "gif" -> R.string.format_desc_legacy
             else -> R.string.format_desc_photo
         })
     },
     FormatCapabilityRegistry.formats(MediaType.AUDIO).map {
-        ConverterFormat(2, it.extension, R.string.format_desc_aac_audio)
+        ConverterFormat(2, it.extension, when (it.extension) {
+            "wav" -> R.string.format_desc_pcm
+            "ogg" -> R.string.format_desc_efficient
+            "aac" -> R.string.format_desc_streaming
+            else -> R.string.format_desc_aac_audio
+        })
     }
 )
 
@@ -104,9 +110,12 @@ fun ConverterScreen(
     val context = LocalContext.current
     val formats = remember(context) {
         catalogFormats().mapIndexed { tab, entries ->
-            if (tab == 0) entries.filter {
-                Media3DeviceCapabilities.canExport(MediaType.VIDEO, it.extension)
-            } else entries
+            val type = when (tab) {
+                0 -> MediaType.VIDEO
+                1 -> MediaType.IMAGE
+                else -> MediaType.AUDIO
+            }
+            entries.filter { Media3DeviceCapabilities.canExport(type, it.extension) }
         }
     }
     var selected by remember { mutableStateOf<ConverterFormat?>(null) }

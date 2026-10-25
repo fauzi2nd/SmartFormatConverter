@@ -36,6 +36,7 @@ import org.roruku.smartformatconverter.engine.downloader.DirectDownloadSnapshot
 import org.roruku.smartformatconverter.engine.downloader.DirectMediaPolicy
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioConversionConfig
 import org.roruku.smartformatconverter.engine.media3.Media3TransformerEngine
+import org.roruku.smartformatconverter.engine.media3.Media3DeviceCapabilities
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoConversionConfig
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoSettingsValidator
@@ -181,15 +182,13 @@ class ConversionRepository(
                 throw IllegalArgumentException(it)
             }
 
-            val effectiveExtension = when (job.mediaType) {
-                MediaType.VIDEO -> "mp4"
-                MediaType.AUDIO -> "m4a"
-                MediaType.IMAGE -> when (job.outputFormat.lowercase()) {
-                    "png" -> "png"
-                    "webp" -> "webp"
-                    else -> "jpg"
-                }
-                MediaType.DOWNLOAD -> job.outputFormat.lowercase()
+            val capability = FormatCapabilityRegistry.find(job.mediaType, job.outputFormat)
+            if (job.mediaType != MediaType.DOWNLOAD) {
+                requireNotNull(capability) { "Unsupported output capability: " + job.outputFormat }
+            }
+            val effectiveExtension = capability?.extension ?: job.outputFormat.lowercase()
+            Media3DeviceCapabilities.unsupportedReason(job.mediaType, effectiveExtension)?.let {
+                throw IllegalArgumentException(it)
             }
 
             val tempOutFile = if (job.mediaType == MediaType.DOWNLOAD) {
@@ -248,7 +247,7 @@ class ConversionRepository(
                 MediaType.VIDEO -> {
                     val format = VideoOutputFormat.entries.firstOrNull {
                         it.extension.equals(job.outputFormat, ignoreCase = true)
-                    } ?: VideoOutputFormat.MP4
+                    } ?: throw IllegalArgumentException("Unknown video output format: " + job.outputFormat)
                     val preset = VideoPreset.entries.firstOrNull {
                         it.displayName.equals(job.presetName, ignoreCase = true)
                     } ?: VideoPreset.BALANCED
@@ -301,7 +300,7 @@ class ConversionRepository(
                 MediaType.AUDIO -> {
                     val format = AudioOutputFormat.entries.firstOrNull {
                         it.extension.equals(job.outputFormat, ignoreCase = true)
-                    } ?: AudioOutputFormat.MP3
+                    } ?: throw IllegalArgumentException("Unknown audio output format: " + job.outputFormat)
                     val codec = when (format) {
                         AudioOutputFormat.MP3 -> AudioCodec.MP3
                         AudioOutputFormat.AAC, AudioOutputFormat.M4A -> AudioCodec.AAC
@@ -407,7 +406,7 @@ class ConversionRepository(
             }
 
             val finalFile = conversionResult.getOrThrow()
-            MediaOutputIntegrity.validate(finalFile, job.mediaType)?.let { reason ->
+            MediaOutputIntegrity.validate(finalFile, job.mediaType, effectiveExtension)?.let { reason ->
                 throw IllegalStateException(reason)
             }
             val outputSize = finalFile.length()
@@ -424,7 +423,7 @@ class ConversionRepository(
             )
             val mimeType = if (job.mediaType == MediaType.DOWNLOAD) {
                 DirectMediaPolicy.mimeTypeForExtension(job.outputFormat)
-            } else StorageManager.getMimeType(context, Uri.fromFile(finalFile))
+            } else capability?.mimeType ?: StorageManager.getMimeType(context, Uri.fromFile(finalFile))
             var destination: DocumentFile? = null
             var copySuccess = false
             try {

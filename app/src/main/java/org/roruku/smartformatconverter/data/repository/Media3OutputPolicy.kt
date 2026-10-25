@@ -12,8 +12,15 @@ import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 internal object Media3OutputPolicy {
     /** Settings that exist in old queue snapshots but are not executed by Media3. */
     fun unsupportedVideoSettings(s: VideoAdvancedSettings): String? = when {
-        s.isRemux || s.videoCodec == "copy" || s.audioCodec == "copy" ->
-            "Stream copy/remux is not supported. Choose a conversion preset."
+        s.isRemux && s.format != "mp4" ->
+            "Stream-copy remux is currently supported only for MP4 output."
+        s.isRemux && (s.width != null || s.height != null || s.fps != null ||
+            s.videoCodec != "auto" || s.audioCodec != "auto" ||
+            s.audioStream != "first" || s.subtitleMode != "auto" ||
+            !s.preserveMetadata || s.volumePercent != 100) ->
+            "Remux cannot resize, edit audio/video, or preserve extra tracks. Use Transcode instead."
+        s.videoCodec == "copy" || s.audioCodec == "copy" ->
+            "Choose Original Quality / Remux for MP4 stream copy; codec copy flags are not supported."
         (s.format == "webm" && s.videoCodec !in setOf("auto", "vp9")) ||
             (s.format == "mp4" && s.videoCodec !in setOf("auto", "h264", "h265", "hevc")) ->
             "Select VP9 for WebM or H.264/H.265 for MP4."

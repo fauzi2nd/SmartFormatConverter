@@ -46,8 +46,10 @@ class VideoV3Test {
         val legacy = VideoAdvancedSettings(fps = "60", rateControl = "cbr")
         assertNull(VideoSettingsValidator.validate(legacy))
         assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(legacy))
-        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+        assertNull(Media3OutputPolicy.unsupportedVideoSettings(
             VideoAdvancedSettings().applyPreset("Original Quality / Remux")))
+        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+            VideoAdvancedSettings(format = "webm").applyPreset("Original Quality / Remux")))
         assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
             VideoAdvancedSettings(audioStream = "all")))
         assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(

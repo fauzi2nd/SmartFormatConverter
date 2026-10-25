@@ -29,12 +29,12 @@ import org.roruku.smartformatconverter.data.storage.MediaDetails
 import org.roruku.smartformatconverter.data.storage.MediaSelectionPolicy
 import org.roruku.smartformatconverter.data.storage.StorageManager
 import org.roruku.smartformatconverter.service.MediaConversionService
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoSettingsValidator
-import org.roruku.smartformatconverter.engine.ffmpeg.ImageAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.ImageSettingsValidator
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioSettingsValidator
+import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.VideoSettingsValidator
+import org.roruku.smartformatconverter.engine.media.ImageAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.ImageSettingsValidator
+import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.AudioSettingsValidator
 
 data class SelectedMediaFile(
     val uri: Uri,

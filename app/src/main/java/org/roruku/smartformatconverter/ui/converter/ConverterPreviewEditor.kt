@@ -1012,8 +1012,10 @@ fun ConverterPreviewEditor(
                 if (state.selectedTab == 0) {
                     item {
                         Text(stringResource(R.string.preset), fontWeight = FontWeight.SemiBold)
-                        // Stream-copy/remux is not implemented by the current Media3 engine.
-                        val presets = listOf("High Quality", "Balanced", "Small File", "Custom")
+                        // MP4 supports strict stream copy when source codecs and tracks match.
+                        val presets = if (state.targetFormat == "mp4") {
+                            listOf("Original Quality / Remux", "High Quality", "Balanced", "Small File", "Custom")
+                        } else listOf("High Quality", "Balanced", "Small File", "Custom")
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(presets.size) { i ->
                                 val choice = presets[i]

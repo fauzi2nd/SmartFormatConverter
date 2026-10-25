@@ -7,15 +7,25 @@ or additional application-owned JNI/native binary has been introduced.
 
 | Phase | Output | Implementation | Condition |
 | --- | --- | --- | --- |
-| P6 | AAC (.aac) | Media3 AacMuxer, ADTS bitstream | AAC encoder available |
-| P6 | OGG (.ogg) | Media3 OggMuxer, Opus codec | Android 10+ with Opus encoder |
+| P6 | AAC (.aac) | Android MediaCodec ADTS; Media3 AacMuxer fallback | AAC encoder available |
+| P6 | OGG (.ogg) | Android OGG muxer; Media3 OggMuxer fallback | Android 10+ with Opus encoder; verify playback on device |
 | P6 | WAV (.wav) | Audio MediaExtractor / MediaCodec decode to PCM16, RIFF writer | Source audio decodable; mono/stereo |
 | P7 | FLAC (.flac) | Android MediaCodec FLAC encoder from validated PCM16 stage | FLAC encoder available, 8–48 kHz mono/stereo; vendor must return complete fLaC stream |
 | P9 | MP4 Stream Copy | MediaExtractor + MediaMuxer; no re-encode | Exactly one AVC/HEVC video and up to one AAC audio track, without extra tracks |
 | P9 | Smart Auto | Remux preflight, otherwise Media3 transcode | MP4 output; no requested resolution/codec/audio modifications |
 | P10 | HEIC (.heic) | AndroidX HeifWriter, bitmap input | Android 10+, device HEIC/HEVC encoder |
 | P10 | AVIF (.avif) | AndroidX AvifWriter, bitmap input | Android 14+, device AV1 encoder |
-| P10 | GIF (.gif) | Square Java GIF89a encoder | Still frame only, <= 2048×2048, 256 colors; transparency is white |
+| P10 | GIF (.gif) | Kotlin row-streamed GIF89a RGB332 writer | Single still frame; 1–65535 px each axis; 256 colours, white transparency; large bitmap decode still limited by heap |
+
+Changes after the original implementation audit:
+- 2026-10-26: remove the GIF 2048×2048 hard stop and use a row-streamed
+  256-colour encoder that preserves dimensions (within GIF's 16-bit limits).
+- 2026-10-26: FLAC validation now reads native STREAMINFO and frame sync, to
+  avoid false negatives from OEM MediaExtractor MIME reporting.
+- 2026-10-26: compressed audio tries Media3 as a fallback after a platform
+  AAC/M4A/OGG export failure. Media3 errors show codec/muxer stage and code.
+- Device conversion failures reported by users are NOT considered resolved
+  until reproducible instrumented tests succeed on the affected devices.
 
 Every exported file is verified before publication to SAF. The check validates
 container header, track type / codec and extractable sample presence where
@@ -65,10 +75,10 @@ conversion, and clearly show that limitation in the Advanced Settings UI.
 - AndroidX HeifWriter: AndroidX Apache-2.0, library minSdk 28;
   app minSdk 26 retained via documented manifest override, writer only called
   on API 29+ (HEIC) and API 34+ (AVIF). Test app launch on API 26 explicitly.
-- Square GifEncoder 0.10.1: Apache-2.0; static GIF encoder without transparency.
+- GIF export now uses first-party Kotlin code and no external GIF encoder; the indexed RGB332 palette is lossy.
 
 Documentation:
 - https://developer.android.com/media/media3/transformer/supported-formats
 - https://developer.android.com/media/platform/supported-formats
 - https://developer.android.com/reference/androidx/heifwriter/AvifWriter
-- https://github.com/square/gifencoder
+- https://www.w3.org/Graphics/GIF/spec-gif89a.txt

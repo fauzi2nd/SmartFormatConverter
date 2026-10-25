@@ -5,6 +5,8 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.transformer.Composition
@@ -30,7 +32,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.roruku.smartformatconverter.data.db.MediaType
 import org.roruku.smartformatconverter.data.repository.MediaOutputIntegrity
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.media3.Media3DeviceCapabilities
 import org.roruku.smartformatconverter.engine.media3.Media3TransformerEngine
 import org.roruku.smartformatconverter.engine.media3.VideoConversionConfig
@@ -41,6 +43,7 @@ import org.roruku.smartformatconverter.engine.media3.VideoOutputFormat
  * exercise the shipping conversion engine. CI compiles these tests; actual
  * execution needs an emulator/device with appropriate MediaCodec encoders.
  */
+@OptIn(UnstableApi::class)
 @RunWith(AndroidJUnit4::class)
 class Media3VideoSmokeInstrumentedTest {
     @Test

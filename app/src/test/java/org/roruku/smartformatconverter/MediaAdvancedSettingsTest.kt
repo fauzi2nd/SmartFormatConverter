@@ -13,6 +13,8 @@ import org.roruku.smartformatconverter.engine.ffmpeg.ImageAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.ImageSettingsValidator
 import org.roruku.smartformatconverter.engine.image.ImageConverterEngine
 import org.roruku.smartformatconverter.data.repository.ProgressEstimator
+import org.roruku.smartformatconverter.data.repository.ActiveConversionJobs
+import kotlinx.coroutines.Job
 
 class MediaAdvancedSettingsTest {
     private fun hasOption(args: List<String>, option: String, value: String) =
@@ -196,5 +198,83 @@ class MediaAdvancedSettingsTest {
         clock = 4_000_000_000L
         val nearDone = estimator.measure(0.75f)
         assertEquals("00:02", nearDone.eta)
+    }
+
+    @Test
+    fun activeConversionJobsEnforcesGenerationAndSingleActiveWorker() {
+        ActiveConversionJobs.cancelAll()
+        val job1 = Job()
+        val gen1 = ActiveConversionJobs.beginExecution("job-xyz", job1)
+        assertTrue(ActiveConversionJobs.isCurrent("job-xyz", gen1))
+        assertTrue(ActiveConversionJobs.isJobActive("job-xyz"))
+
+        // Starting a new attempt cancels the old job and bumps generation
+        val job2 = Job()
+        val gen2 = ActiveConversionJobs.beginExecution("job-xyz", job2)
+        assertTrue(job1.isCancelled)
+        assertFalse(ActiveConversionJobs.isCurrent("job-xyz", gen1))
+        assertTrue(ActiveConversionJobs.isCurrent("job-xyz", gen2))
+        assertEquals(gen1 + 1L, gen2)
+
+        // Cancel / Pause immediately invalidates current generation
+        ActiveConversionJobs.cancel("job-xyz")
+        assertTrue(job2.isCancelled)
+        assertFalse(ActiveConversionJobs.isCurrent("job-xyz", gen2))
+        assertFalse(ActiveConversionJobs.isJobActive("job-xyz"))
+    }
+
+    @Test
+    fun activeConversionJobsRapidPauseResumeCycleIsIdempotentAndSafe() {
+        ActiveConversionJobs.cancelAll()
+        val initialJob = Job()
+        val g1 = ActiveConversionJobs.beginExecution("job-rapid", initialJob)
+
+        // Fast pause
+        ActiveConversionJobs.cancel("job-rapid")
+        assertTrue(initialJob.isCancelled)
+        assertFalse(ActiveConversionJobs.isCurrent("job-rapid", g1))
+
+        // Fast resume
+        val resumedJob = Job()
+        val g2 = ActiveConversionJobs.beginExecution("job-rapid", resumedJob)
+        assertTrue(g2 > g1)
+        assertTrue(ActiveConversionJobs.isCurrent("job-rapid", g2))
+
+        // Fast pause again
+        ActiveConversionJobs.cancel("job-rapid")
+        assertTrue(resumedJob.isCancelled)
+        assertFalse(ActiveConversionJobs.isCurrent("job-rapid", g2))
+        assertFalse(ActiveConversionJobs.isJobActive("job-rapid"))
+    }
+
+    @Test
+    fun calculateResizePlanHandlesOddAndTinyDimensionsSafely() {
+        val planTinyNoUpscale = ImageConverterEngine.calculateResizePlan(
+            srcW = 10,
+            srcH = 10,
+            targetW = 1080,
+            targetH = 1080,
+            maintainRatio = true,
+            preventUpscale = true,
+            cropToExactRatio = true
+        )
+        assertEquals(10, planTinyNoUpscale.outputW)
+        assertEquals(10, planTinyNoUpscale.outputH)
+
+        val planOdd = ImageConverterEngine.calculateResizePlan(
+            srcW = 501,
+            srcH = 333,
+            targetW = 1080,
+            targetH = 1080,
+            maintainRatio = true,
+            preventUpscale = true,
+            cropToExactRatio = true
+        )
+        assertEquals(333, planOdd.cropW)
+        assertEquals(333, planOdd.cropH)
+        assertEquals(333, planOdd.outputW)
+        assertEquals(333, planOdd.outputH)
+        assertEquals((501 - 333) / 2, planOdd.cropX)
+        assertEquals(0, planOdd.cropY)
     }
 }

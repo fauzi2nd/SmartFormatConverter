@@ -22,6 +22,7 @@ class ActiveConversionJobsTest {
         val finished = Job()
         val retry = Job()
         ActiveConversionJobs.register("retry-test", finished)
+        finished.complete()
         ActiveConversionJobs.register("retry-test", retry)
         ActiveConversionJobs.unregister("retry-test", finished)
         ActiveConversionJobs.cancel("retry-test")

@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.core.net.toUri
+import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -126,11 +127,11 @@ class ConversionRepository(
     }
 
     suspend fun executeJob(job: ConversionJobEntity, scope: CoroutineScope): Result<String> = withContext(Dispatchers.IO) {
-        // Track this conversion coroutine, never cancel the whole service supervisor.
+        // Track this conversion coroutine with a monotonic generation token.
         val jobCoro = currentCoroutineContext()[Job]
-        if (jobCoro != null) {
-            ActiveConversionJobs.register(job.id, jobCoro)
-        }
+        val generation = if (jobCoro != null) {
+            ActiveConversionJobs.beginExecution(job.id, jobCoro)
+        } else 0L
 
         val estimator = ProgressEstimator()
         // One writer protects the database from out-of-order progress callbacks
@@ -138,10 +139,15 @@ class ConversionRepository(
         val updates = Channel<Triple<Float, String, String>>(Channel.CONFLATED)
         val progressWriter = scope.launch(Dispatchers.IO) {
             for ((fraction, speed, eta) in updates) {
-                dao.updateProgress(job.id, JobStatus.RUNNING, fraction, speed, eta)
+                if (generation == 0L || ActiveConversionJobs.isCurrent(job.id, generation)) {
+                    dao.updateProgress(job.id, JobStatus.RUNNING, fraction, speed, eta)
+                }
             }
         }
         fun emitProgress(progress: Float, reportedSpeed: String? = null, reportedEta: String? = null) {
+            if (generation > 0L && !ActiveConversionJobs.isCurrent(job.id, generation)) {
+                return
+            }
             val reading = estimator.measure(progress)
             updates.trySend(Triple(
                 progress.coerceIn(0f, 0.99f),
@@ -383,23 +389,46 @@ class ConversionRepository(
             val mimeType = if (job.mediaType == MediaType.DOWNLOAD) {
                 DirectMediaPolicy.mimeTypeForExtension(job.outputFormat)
             } else StorageManager.getMimeType(context, Uri.fromFile(finalFile))
-            val destination = StorageManager.createDestinationDocumentFile(
-                context = context,
-                treeUri = outputRootUri,
-                relativeSubfolder = outputDirectory,
-                fileName = outputName,
-                mimeType = mimeType
-            ) ?: throw IllegalStateException(
-                "Could not create $outputDirectory/$outputName. Check folder permissions."
-            )
+            var destination: DocumentFile? = null
+            var copySuccess = false
+            try {
+                destination = StorageManager.createDestinationDocumentFile(
+                    context = context,
+                    treeUri = outputRootUri,
+                    relativeSubfolder = outputDirectory,
+                    fileName = outputName,
+                    mimeType = mimeType
+                ) ?: throw IllegalStateException(
+                    "Could not create $outputDirectory/$outputName. Check folder permissions."
+                )
 
-            emitProgress(0.90f)
-            if (!StorageManager.copyFileToDocumentUri(context, finalFile, destination) { copied ->
-                emitProgress(0.90f + 0.09f * copied)
-            }) {
-                // A failed copy must not leave a corrupted destination document.
-                destination.delete()
-                throw IllegalStateException("Failed writing $outputDirectory/$outputName")
+                emitProgress(0.90f)
+                val ok = StorageManager.copyFileToDocumentUri(context, finalFile, destination) { copied ->
+                    emitProgress(0.90f + 0.09f * copied)
+                }
+                if (!ok) {
+                    throw IllegalStateException("Failed writing $outputDirectory/$outputName")
+                }
+                copySuccess = true
+            } finally {
+                if (!copySuccess && destination != null) {
+                    withContext(NonCancellable) {
+                        try {
+                            destination.delete()
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed deleting partial destination document: ${destination.uri}", e)
+                        }
+                    }
+                }
+            }
+
+            if (generation > 0L && !ActiveConversionJobs.isCurrent(job.id, generation)) {
+                withContext(NonCancellable) {
+                    try {
+                        destination.delete()
+                    } catch (_: Exception) {}
+                }
+                throw CancellationException("Job was cancelled or superseded before completion")
             }
 
             val outputUri = destination.uri.toString()
@@ -416,12 +445,16 @@ class ConversionRepository(
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "Error executing job ${job.id}", e)
-            dao.markFailed(job.id, e.message ?: "Job failed with exception")
+            if (generation == 0L || ActiveConversionJobs.isCurrent(job.id, generation)) {
+                dao.markFailed(job.id, e.message ?: "Job failed with exception")
+            }
             Result.failure(e)
         } finally {
             updates.close()
             withContext(NonCancellable) { progressWriter.join() }
-            ActiveConversionJobs.unregister(job.id, jobCoro)
+            if (generation > 0L) {
+                ActiveConversionJobs.unregister(job.id, generation, jobCoro)
+            }
         }
     }
 }

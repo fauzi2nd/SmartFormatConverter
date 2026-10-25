@@ -117,6 +117,7 @@ class MediaConversionService : Service() {
                         if (!serviceScope.isActive || !isRunning) break
                         val current = dao.getJobById(snapshot.id) ?: continue
                         if (current.status !in setOf(JobStatus.PENDING, JobStatus.PREPARING, JobStatus.RUNNING)) continue
+                        if (ActiveConversionJobs.isJobActive(current.id)) continue
                         currentJobId = current.id
                         lastNotificationAt = 0L
                         lastNotifiedPercent = -1

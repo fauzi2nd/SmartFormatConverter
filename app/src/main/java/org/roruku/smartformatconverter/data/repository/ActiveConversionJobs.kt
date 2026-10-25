@@ -4,30 +4,56 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Job
 
 /**
- * ConversionRepository is instantiated by both QueueViewModel and the
- * foreground service. A process-wide registry lets Queue cancel the *actual*
- * active task instead of a different repository instance's empty local map.
- *
- * Every item gets a child Job of the service SupervisorJob, so cancelling
- * one download cannot cancel the entire queue processing loop.
+ * Process-wide registry tracking active jobs with monotonic execution-generation
+ * tokens to protect against concurrency, races from fast Pause -> Resume,
+ * and callbacks from stale execution attempts.
  */
 internal object ActiveConversionJobs {
     private val jobs = ConcurrentHashMap<String, Job>()
+    private val generations = ConcurrentHashMap<String, Long>()
+    private val lock = Any()
 
-    fun register(jobId: String, job: Job) {
+    fun beginExecution(jobId: String, job: Job): Long = synchronized(lock) {
+        val old = jobs[jobId]
+        if (old != null && old.isActive) {
+            old.cancel()
+        }
+        val gen = (generations[jobId] ?: 0L) + 1L
+        generations[jobId] = gen
         jobs[jobId] = job
+        gen
     }
 
-    fun cancel(jobId: String) {
-        jobs[jobId]?.cancel()
+    fun isCurrent(jobId: String, generation: Long): Boolean = synchronized(lock) {
+        generations[jobId] == generation && jobs[jobId]?.isActive == true
     }
 
-    fun unregister(jobId: String, job: Job?) {
+    fun cancel(jobId: String): Job? = synchronized(lock) {
+        generations[jobId] = (generations[jobId] ?: 0L) + 1L
+        val old = jobs.remove(jobId)
+        old?.cancel()
+        old
+    }
+
+    fun register(jobId: String, job: Job): Long = beginExecution(jobId, job)
+
+    fun unregister(jobId: String, job: Job?) = synchronized(lock) {
         if (job != null) jobs.remove(jobId, job)
     }
 
-    fun cancelAll() {
+    fun unregister(jobId: String, generation: Long, job: Job?) = synchronized(lock) {
+        if (generations[jobId] == generation) {
+            if (job != null) jobs.remove(jobId, job)
+        }
+    }
+
+    fun cancelAll() = synchronized(lock) {
+        generations.clear()
         jobs.values.forEach { it.cancel() }
         jobs.clear()
+    }
+
+    fun isJobActive(jobId: String): Boolean = synchronized(lock) {
+        jobs[jobId]?.isActive == true
     }
 }

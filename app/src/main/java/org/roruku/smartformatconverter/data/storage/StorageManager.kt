@@ -15,6 +15,11 @@ import java.io.FileNotFoundException
 import java.io.IOException
 import android.os.ParcelFileDescriptor
 import java.io.OutputStream
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 
 data class MediaDetails(
     val fileName: String,
@@ -251,22 +256,24 @@ object StorageManager {
         }
     }
 
-    fun copyFileToDocumentUri(
+    suspend fun copyFileToDocumentUri(
         context: Context,
         sourceFile: File,
         destDocumentFile: DocumentFile,
         onProgress: ((Float) -> Unit)? = null
-    ): Boolean {
-        if (!sourceFile.isFile || sourceFile.length() <= 0L) return false
-        return try {
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (!sourceFile.isFile || sourceFile.length() <= 0L) return@withContext false
+        var success = false
+        try {
             val total = sourceFile.length().coerceAtLeast(1L)
             val output = context.contentResolver.openOutputStream(destDocumentFile.uri, "w")
-                ?: return false
+                ?: return@withContext false
             output.use { destination ->
                 sourceFile.inputStream().use { input ->
                     val buffer = ByteArray(64 * 1024)
                     var written = 0L
                     while (true) {
+                        currentCoroutineContext().ensureActive()
                         val count = input.read(buffer)
                         if (count < 0) break
                         destination.write(buffer, 0, count)
@@ -276,10 +283,23 @@ object StorageManager {
                     destination.flush()
                 }
             }
+            currentCoroutineContext().ensureActive()
+            success = true
             true
+        } catch (e: CancellationException) {
+            Log.i(TAG, "copyFileToDocumentUri cancelled for ${destDocumentFile.uri}")
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Failed copying file ${sourceFile.absolutePath} to document ${destDocumentFile.uri}", e)
             false
+        } finally {
+            if (!success) {
+                try {
+                    destDocumentFile.delete()
+                } catch (delEx: Exception) {
+                    Log.w(TAG, "Failed deleting partial destination document ${destDocumentFile.uri}", delEx)
+                }
+            }
         }
     }
 

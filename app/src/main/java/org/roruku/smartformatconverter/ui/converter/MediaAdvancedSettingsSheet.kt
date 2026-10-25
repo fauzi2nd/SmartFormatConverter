@@ -267,7 +267,11 @@ fun ImageAdvancedSettingsControl(
                             draft = draft.copy(cropToExactRatio = it)
                         }
                     }
-                    MediaSwitch(stringResource(R.string.setting_no_upscale), draft.preventUpscale) {
+                    MediaSwitch(
+                        label = stringResource(R.string.setting_no_upscale),
+                        checked = draft.preventUpscale,
+                        subtitle = stringResource(R.string.setting_no_upscale_subtitle)
+                    ) {
                         draft = draft.copy(preventUpscale = it)
                     }
                 }
@@ -420,6 +424,7 @@ private fun MediaSwitch(
     label: String,
     checked: Boolean,
     enabled: Boolean = true,
+    subtitle: String? = null,
     onChange: (Boolean) -> Unit
 ) {
     Row(
@@ -427,8 +432,16 @@ private fun MediaSwitch(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
         Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
     }
 }

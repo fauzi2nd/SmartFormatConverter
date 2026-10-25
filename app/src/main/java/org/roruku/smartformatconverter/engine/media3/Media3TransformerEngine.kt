@@ -10,6 +10,7 @@ import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.muxer.Muxer
 import androidx.media3.effect.Presentation
 import androidx.media3.transformer.AudioEncoderSettings
 import androidx.media3.transformer.Composition
@@ -120,21 +121,36 @@ object Media3TransformerEngine {
         advancedSettings: AudioAdvancedSettings? = null,
         onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
     ): Result<File> = withContext(Dispatchers.Main) {
+        Media3DeviceCapabilities.unsupportedReason(MediaType.AUDIO, config.outputFormat.extension)?.let {
+            return@withContext Result.failure(IllegalStateException(it))
+        }
+        if (config.outputFormat == AudioOutputFormat.WAV) {
+            return@withContext PcmWavExportEngine.export(context, inputUri, tempOutputFile, onProgress)
+        }
         val mediaItem = MediaItem.fromUri(inputUri)
         val editedMediaItem = EditedMediaItem.Builder(mediaItem)
             .setRemoveVideo(true)
             .build()
 
         val audioBitrate = (advancedSettings?.bitrateKbps ?: config.bitrateKbps).takeIf { it > 0 }
-
+        val audioMime = when (config.outputFormat) {
+            AudioOutputFormat.OGG -> MimeTypes.AUDIO_OPUS
+            else -> MimeTypes.AUDIO_AAC
+        }
+        val muxerFactory: Muxer.Factory? = when (config.outputFormat) {
+            AudioOutputFormat.AAC -> AdtsAacMuxerFactory()
+            AudioOutputFormat.OGG -> OggOpusMuxerFactory()
+            else -> null
+        }
         executeTransformation(
             context = context,
             editedMediaItem = editedMediaItem,
             outputFile = tempOutputFile,
             videoMimeType = null,
-            audioMimeType = MimeTypes.AUDIO_AAC,
+            audioMimeType = audioMime,
             videoBitrateKbps = null,
             audioBitrateKbps = audioBitrate,
+            muxerFactory = muxerFactory,
             onProgress = onProgress
         )
     }
@@ -148,6 +164,7 @@ object Media3TransformerEngine {
         videoBitrateKbps: Int?,
         audioBitrateKbps: Int?,
         webmOutput: Boolean = false,
+        muxerFactory: Muxer.Factory? = null,
         onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
     ): Result<File> = suspendCancellableCoroutine { continuation ->
         val encoderFactoryBuilder = DefaultEncoderFactory.Builder(context)
@@ -172,6 +189,7 @@ object Media3TransformerEngine {
         val transformerBuilder = Transformer.Builder(context)
             .setEncoderFactory(encoderFactoryBuilder.build())
         if (webmOutput) transformerBuilder.setMuxerFactory(WebmMuxerFactory())
+        if (muxerFactory != null) transformerBuilder.setMuxerFactory(muxerFactory)
 
         if (videoMimeType != null) {
             transformerBuilder.setVideoMimeType(videoMimeType)

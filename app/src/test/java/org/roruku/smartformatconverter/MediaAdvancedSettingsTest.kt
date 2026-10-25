@@ -6,10 +6,10 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioSettingsValidator
-import org.roruku.smartformatconverter.engine.ffmpeg.ImageAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.ImageSettingsValidator
+import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.AudioSettingsValidator
+import org.roruku.smartformatconverter.engine.media.ImageAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.ImageSettingsValidator
 import org.roruku.smartformatconverter.engine.image.ImageConverterEngine
 import org.roruku.smartformatconverter.data.repository.ProgressEstimator
 import org.roruku.smartformatconverter.data.repository.ActiveConversionJobs

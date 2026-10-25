@@ -387,4 +387,10 @@
     <string name="queue_external_viewer_unavailable">No installed app can open this format.</string>
     <string name="downloader_insecure_http">HTTP is unencrypted. Prefer HTTPS for privacy and file integrity.</string>
     <string name="queue_share_output">Share file</string>
+    <string name="settings_about_title">About &amp; Privacy</string>
+    <string name="settings_about_desc">Smart Format Converter v1.0\n100% On-device processing. No trackers, no ads, and zero personal data collection.</string>
+    <string name="settings_privacy_policy_button">Privacy Policy</string>
+    <string name="privacy_policy_title">Privacy Policy</string>
+    <string name="privacy_policy_content">Smart Format Converter is committed to your privacy.\n\n• Zero Data Collection: We do not collect, store, or transmit your personal data, files, or usage analytics.\n• 100% On-Device: All media conversions and resizing run locally on your device hardware.\n• Safe Storage Access: The app only reads and writes files in folders you explicitly select through Android\'s Storage Access Framework.\n• Network Use: Internet access is used strictly when you choose to download a file from a URL in the Downloader tab.\n\nSource code is publicly auditable on GitHub.</string>
+    <string name="btn_close">Close</string>
 </resources>

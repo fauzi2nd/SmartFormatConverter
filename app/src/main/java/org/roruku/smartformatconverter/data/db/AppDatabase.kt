@@ -31,7 +31,6 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "smart_format_converter.db"
                 ).addMigrations(MIGRATION_1_2)
-                 .fallbackToDestructiveMigration(true)
                  .build()
                 INSTANCE = instance
                 instance

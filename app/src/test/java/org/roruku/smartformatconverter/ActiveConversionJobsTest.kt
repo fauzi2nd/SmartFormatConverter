@@ -30,4 +30,19 @@ class ActiveConversionJobsTest {
         assertTrue(retry.isCancelled)
         ActiveConversionJobs.unregister("retry-test", retry)
     }
+
+    @Test
+    fun cancelAllNeverReusesGenerationTokens() {
+        val job1 = Job()
+        val gen1 = ActiveConversionJobs.beginExecution("reuse-test", job1)
+        ActiveConversionJobs.cancelAll()
+        assertTrue(job1.isCancelled)
+        assertFalse(ActiveConversionJobs.isCurrent("reuse-test", gen1))
+
+        val job2 = Job()
+        val gen2 = ActiveConversionJobs.beginExecution("reuse-test", job2)
+        assertTrue(gen2 > gen1)
+        assertTrue(ActiveConversionJobs.isCurrent("reuse-test", gen2))
+        assertFalse(ActiveConversionJobs.isCurrent("reuse-test", gen1))
+    }
 }

@@ -1,6 +1,7 @@
 package org.roruku.smartformatconverter.data.repository
 
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.Job
 
 /**
@@ -11,6 +12,7 @@ import kotlinx.coroutines.Job
 internal object ActiveConversionJobs {
     private val jobs = ConcurrentHashMap<String, Job>()
     private val generations = ConcurrentHashMap<String, Long>()
+    private val globalSequence = AtomicLong(0L)
     private val lock = Any()
 
     fun beginExecution(jobId: String, job: Job): Long = synchronized(lock) {
@@ -18,7 +20,7 @@ internal object ActiveConversionJobs {
         if (old != null && old.isActive) {
             old.cancel()
         }
-        val gen = (generations[jobId] ?: 0L) + 1L
+        val gen = globalSequence.incrementAndGet()
         generations[jobId] = gen
         jobs[jobId] = job
         gen
@@ -29,7 +31,7 @@ internal object ActiveConversionJobs {
     }
 
     fun cancel(jobId: String): Job? = synchronized(lock) {
-        generations[jobId] = (generations[jobId] ?: 0L) + 1L
+        generations[jobId] = globalSequence.incrementAndGet()
         val old = jobs.remove(jobId)
         old?.cancel()
         old
@@ -48,9 +50,12 @@ internal object ActiveConversionJobs {
     }
 
     fun cancelAll() = synchronized(lock) {
-        generations.clear()
         jobs.values.forEach { it.cancel() }
         jobs.clear()
+        // Never reset sequence backwards; invalidate all active tokens by advancing.
+        for (key in generations.keys) {
+            generations[key] = globalSequence.incrementAndGet()
+        }
     }
 
     fun isJobActive(jobId: String): Boolean = synchronized(lock) {

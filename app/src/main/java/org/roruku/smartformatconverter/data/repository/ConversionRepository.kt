@@ -432,11 +432,21 @@ class ConversionRepository(
             }
 
             val outputUri = destination.uri.toString()
-            dao.markCompleted(
+            val rowsUpdated = dao.markCompleted(
                 jobId = job.id,
                 outputUri = outputUri,
                 outputFileSize = outputSize
             )
+            if (rowsUpdated <= 0) {
+                withContext(NonCancellable) {
+                    try {
+                        destination.delete()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed deleting unconfirmed destination document: ${destination.uri}", e)
+                    }
+                }
+                throw CancellationException("Job completion was rejected because state changed to PAUSED/CANCELLED")
+            }
             finalFile.delete()
             Result.success(outputUri)
         } catch (e: CancellationException) {

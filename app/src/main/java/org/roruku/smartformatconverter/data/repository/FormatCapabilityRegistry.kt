@@ -20,9 +20,15 @@ internal object FormatCapabilityRegistry {
         OutputCapability(MediaType.VIDEO, "mp4", "video/mp4", "video/avc", "audio/mp4a-latm"),
         OutputCapability(MediaType.VIDEO, "webm", "video/webm", "video/x-vnd.on2.vp9", "audio/opus"),
         OutputCapability(MediaType.AUDIO, "m4a", "audio/mp4", audioMime = "audio/mp4a-latm"),
+        OutputCapability(MediaType.AUDIO, "aac", "audio/aac", audioMime = "audio/mp4a-latm"),
+        OutputCapability(MediaType.AUDIO, "ogg", "audio/ogg", audioMime = "audio/opus"),
+        OutputCapability(MediaType.AUDIO, "wav", "audio/wav", audioMime = "audio/raw"),
         OutputCapability(MediaType.IMAGE, "jpg", "image/jpeg"),
         OutputCapability(MediaType.IMAGE, "png", "image/png"),
-        OutputCapability(MediaType.IMAGE, "webp", "image/webp")
+        OutputCapability(MediaType.IMAGE, "webp", "image/webp"),
+        OutputCapability(MediaType.IMAGE, "heic", "image/heic"),
+        OutputCapability(MediaType.IMAGE, "avif", "image/avif"),
+        OutputCapability(MediaType.IMAGE, "gif", "image/gif")
     )
 
     fun formats(type: MediaType): List<OutputCapability> = supported.filter { it.type == type }

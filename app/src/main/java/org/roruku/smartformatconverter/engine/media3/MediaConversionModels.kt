@@ -13,7 +13,8 @@ enum class AudioOutputFormat(val extension: String, val mimeType: String) {
     M4A("m4a", "audio/mp4"),
     AAC("aac", "audio/aac"),
     OGG("ogg", "audio/ogg"),
-    WAV("wav", "audio/wav")
+    WAV("wav", "audio/wav"),
+    FLAC("flac", "audio/flac")
 }
 
 enum class VideoPreset(val displayName: String, val targetBitrateKbps: Int) {

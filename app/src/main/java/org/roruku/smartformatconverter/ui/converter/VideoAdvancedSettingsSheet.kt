@@ -285,7 +285,7 @@ fun VideoAdvancedSettingsControl(
                         } else {
                             val validationError = VideoSettingsValidator.validate(draft)
                             if (validationError == null) {
-                                onApply(draft)
+                                onApply(draft.copy(preserveMetadata = true, fastStart = true))
                                 open = false
                             } else formError = validationError
                         }

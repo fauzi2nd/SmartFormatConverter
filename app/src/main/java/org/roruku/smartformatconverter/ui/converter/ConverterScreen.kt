@@ -480,7 +480,7 @@ fun ConverterMediaPickerPreview() {
 fun ConverterAudioPickerPreview() {
     SmartFormatConverterTheme {
         ConverterCatalogContent(
-            selected = ConverterFormat(2, "flac", R.string.format_desc_lossless),
+            selected = ConverterFormat(2, "m4a", R.string.format_desc_aac_audio),
             isScanning = false,
             onSelect = {},
             onFilesSelected = {},

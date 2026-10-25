@@ -175,20 +175,9 @@ class ConversionRepository(
                     "Select a parent output folder in Settings before converting."
                 )
 
-            // Fail closed on legacy queued formats rather than silently writing MP4/AAC
-            // bytes under an unrelated name. Old jobs can be re-queued using the
-            // formats supported by the current Media3 muxer.
-            when (job.mediaType) {
-                MediaType.VIDEO -> require(job.outputFormat.equals("mp4", true)) {
-                    "Video output ${job.outputFormat} is unavailable after the Media3 migration. Re-queue as MP4."
-                }
-                MediaType.AUDIO -> require(job.outputFormat.equals("m4a", true)) {
-                    "Audio output ${job.outputFormat} is unavailable after the Media3 migration. Re-queue as M4A."
-                }
-                MediaType.IMAGE -> require(job.outputFormat.lowercase() in setOf("jpg", "jpeg", "png", "webp")) {
-                    "Unsupported image output: ${job.outputFormat}"
-                }
-                MediaType.DOWNLOAD -> Unit
+            // Validate persisted jobs as well as newly queued files.
+            Media3OutputPolicy.rejectionReason(job.mediaType, job.outputFormat)?.let {
+                throw IllegalArgumentException(it)
             }
 
             val effectiveExtension = when (job.mediaType) {

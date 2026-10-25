@@ -34,6 +34,7 @@ import org.roruku.smartformatconverter.engine.ffmpeg.FFmpegEngine
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoConversionConfig
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoOutputFormat
+import org.roruku.smartformatconverter.data.db.MediaType
 import java.io.File
 import kotlin.coroutines.resume
 
@@ -49,6 +50,9 @@ object Media3TransformerEngine {
         advancedSettings: VideoAdvancedSettings? = null,
         onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
     ): Result<File> = withContext(Dispatchers.Main) {
+        Media3DeviceCapabilities.unsupportedReason(MediaType.VIDEO, config.outputFormat.extension)?.let {
+            return@withContext Result.failure(IllegalStateException(it))
+        }
         val mediaItem = MediaItem.fromUri(inputUri)
         val editedItemBuilder = EditedMediaItem.Builder(mediaItem)
 
@@ -108,6 +112,7 @@ object Media3TransformerEngine {
             audioMimeType = audioMime,
             videoBitrateKbps = videoBitrate,
             audioBitrateKbps = audioBitrate,
+            webmOutput = config.outputFormat == VideoOutputFormat.WEBM,
             onProgress = onProgress
         )
     }
@@ -147,6 +152,7 @@ object Media3TransformerEngine {
         audioMimeType: String?,
         videoBitrateKbps: Int?,
         audioBitrateKbps: Int?,
+        webmOutput: Boolean = false,
         onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
     ): Result<File> = suspendCancellableCoroutine { continuation ->
         val encoderFactoryBuilder = DefaultEncoderFactory.Builder(context)
@@ -170,6 +176,7 @@ object Media3TransformerEngine {
 
         val transformerBuilder = Transformer.Builder(context)
             .setEncoderFactory(encoderFactoryBuilder.build())
+        if (webmOutput) transformerBuilder.setMuxerFactory(WebmMuxerFactory())
 
         if (videoMimeType != null) {
             transformerBuilder.setVideoMimeType(videoMimeType)

@@ -127,6 +127,9 @@ object Media3TransformerEngine {
         if (config.outputFormat == AudioOutputFormat.WAV) {
             return@withContext PcmWavExportEngine.export(context, inputUri, tempOutputFile, onProgress)
         }
+        if (config.outputFormat == AudioOutputFormat.FLAC) {
+            return@withContext PlatformFlacExportEngine.export(context, inputUri, tempOutputFile, onProgress)
+        }
         val mediaItem = MediaItem.fromUri(inputUri)
         val editedMediaItem = EditedMediaItem.Builder(mediaItem)
             .setRemoveVideo(true)

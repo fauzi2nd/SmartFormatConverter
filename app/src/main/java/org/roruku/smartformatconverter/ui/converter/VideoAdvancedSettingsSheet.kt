@@ -191,7 +191,10 @@ fun VideoAdvancedSettingsControl(
                     onChange = { draft = draft.copy(preventUpscale = it) }
                 )
 
-                val videoChoices = listOf(
+                val videoChoices = if (draft.format == "webm") listOf(
+                    "auto" to stringResource(R.string.advanced_vp9),
+                    "vp9" to stringResource(R.string.advanced_vp9)
+                ) else listOf(
                     "auto" to stringResource(R.string.video_option_auto_h264),
                     "h264" to stringResource(R.string.video_option_h264_avc),
                     "h265" to stringResource(R.string.video_option_h265_hevc)
@@ -220,7 +223,11 @@ fun VideoAdvancedSettingsControl(
             SectionHeader(stringResource(R.string.media_audio))
 
             if (!remux) {
-                val audioChoices = listOf(
+                val audioChoices = if (draft.format == "webm") listOf(
+                    "auto" to stringResource(R.string.advanced_opus),
+                    "opus" to stringResource(R.string.advanced_opus),
+                    "none" to stringResource(R.string.audio_option_none)
+                ) else listOf(
                     "auto" to stringResource(R.string.audio_option_auto_aac),
                     "aac" to stringResource(R.string.advanced_aac),
                     "none" to stringResource(R.string.audio_option_none)

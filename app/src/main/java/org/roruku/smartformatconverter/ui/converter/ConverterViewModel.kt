@@ -70,7 +70,7 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
         val defaultFormat = when (tabIndex) {
             0 -> "mp4"
             1 -> "jpg"
-            else -> "mp3"
+            else -> "m4a"
         }
         _uiState.update {
             it.copy(

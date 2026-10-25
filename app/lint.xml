@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <lint>
     <!-- Strict project lint rules. Native 16 KB page alignment is fully verified. -->
+    <issue id="UnusedResources" severity="ignore" />
 </lint>

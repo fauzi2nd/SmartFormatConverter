@@ -64,7 +64,23 @@ File output akan tersedia di:
 
 ---
 
-## 4. Verifikasi Kualitas Rilis (Quality Gates)
+## 4. Memverifikasi Tanda Tangan AAB (Signature Verification)
+
+Sebelum mengunggah bundle ke Google Play Console, Anda dapat memverifikasi bahwa file `.aab` telah ditandatangani dengan benar oleh upload keystore Anda menggunakan `jarsigner`:
+
+```powershell
+jarsigner -verify -verbose -certs app\build\outputs\bundle\release\app-release.aab
+```
+
+Hasil verifikasi yang valid akan menampilkan:
+- `jar verified.` pada akhir output.
+- Sertifikat X.509 yang sesuai dengan nama/alias upload key Anda.
+
+Jika output menampilkan `jar is unsigned.`, pastikan parameter `KEYSTORE_FILE`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, dan `KEY_PASSWORD` telah diisi di `local.properties` atau environment variables, lalu jalankan ulang `.\gradlew bundleRelease`.
+
+---
+
+## 5. Verifikasi Kualitas Rilis (Quality Gates)
 
 Pastikan semua pengujian lulus sebelum mengunggah bundle ke Play Console:
 
@@ -77,7 +93,7 @@ Semua pemeriksaan di atas telah diintegrasikan secara otomatis ke dalam **GitHub
 
 ---
 
-## 5. Unggah ke Google Play Console
+## 6. Unggah ke Google Play Console
 
 1. Buka [Google Play Console](https://play.google.com/console).
 2. Pilih aplikasi **Smart Format Converter**.

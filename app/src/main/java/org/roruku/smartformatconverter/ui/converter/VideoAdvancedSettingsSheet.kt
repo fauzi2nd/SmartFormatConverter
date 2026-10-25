@@ -26,7 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,7 +43,6 @@ import org.roruku.smartformatconverter.R
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoSettingsValidator
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
-import kotlin.math.roundToInt
 
 /**
  * Keeps the main converter usable on narrow screens; the advanced controls
@@ -62,8 +60,6 @@ fun VideoAdvancedSettingsControl(
     var resolutionChoice by remember { mutableStateOf("source") }
     var customWidth by remember { mutableStateOf("1920") }
     var customHeight by remember { mutableStateOf("1080") }
-    var fpsChoice by remember { mutableStateOf("source") }
-    var customFps by remember { mutableStateOf("29.97") }
     var videoBitrateInput by remember { mutableStateOf("8000") }
     var audioBitrateInput by remember { mutableStateOf("192") }
     var formError by remember { mutableStateOf<String?>(null) }
@@ -78,10 +74,6 @@ fun VideoAdvancedSettingsControl(
                 } ?: "custom"
             customWidth = (settings.width ?: 1920).toString()
             customHeight = (settings.height ?: 1080).toString()
-            fpsChoice = settings.fps?.takeIf {
-                it in setOf("23.976", "24", "25", "29.97", "30", "50", "59.94", "60")
-            } ?: if (settings.fps == null) "source" else "custom"
-            customFps = settings.fps ?: "29.97"
             videoBitrateInput = settings.videoBitrateKbps.toString()
             audioBitrateInput = settings.audioBitrateKbps.toString()
             formError = null
@@ -98,11 +90,10 @@ fun VideoAdvancedSettingsControl(
             R.string.advanced_summary,
             if (settings.width == null) stringResource(R.string.source_value)
                 else "${settings.width}×${settings.height}",
-            settings.fps ?: stringResource(R.string.source_value),
+            stringResource(R.string.source_value),
             settings.videoCodec.uppercase(),
-            settings.rateControl.uppercase(),
-            if (settings.rateControl == "crf") stringResource(R.string.advanced_rate_crf, settings.crf)
-                else stringResource(R.string.advanced_rate_kbps, settings.videoBitrateKbps)
+            "VBR",
+            stringResource(R.string.advanced_rate_kbps, settings.videoBitrateKbps)
         ),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         style = MaterialTheme.typography.bodySmall
@@ -200,195 +191,48 @@ fun VideoAdvancedSettingsControl(
                     onChange = { draft = draft.copy(preventUpscale = it) }
                 )
 
-                ChoiceField(
-                    label = stringResource(R.string.video_setting_frame_rate),
-                    value = fpsChoice,
-                    options = listOf(
-                        "source" to stringResource(R.string.source_original),
-                        "23.976" to stringResource(R.string.fps_23976),
-                        "24" to stringResource(R.string.fps_24),
-                        "25" to stringResource(R.string.fps_25),
-                        "29.97" to stringResource(R.string.fps_2997),
-                        "30" to stringResource(R.string.fps_30),
-                        "50" to stringResource(R.string.fps_50),
-                        "59.94" to stringResource(R.string.fps_5994),
-                        "60" to stringResource(R.string.fps_60),
-                        "custom" to stringResource(R.string.preset_custom)
-                    ),
-                    onChange = {
-                        fpsChoice = it
-                        draft = draft.copy(fps = when (it) {
-                            "source" -> null
-                            "custom" -> customFps
-                            else -> it
-                        })
-                    }
+                val videoChoices = listOf(
+                    "auto" to stringResource(R.string.video_option_auto_h264),
+                    "h264" to stringResource(R.string.video_option_h264_avc),
+                    "h265" to stringResource(R.string.video_option_h265_hevc)
                 )
-                if (fpsChoice == "custom") {
-                    OutlinedTextField(
-                        value = customFps,
-                        onValueChange = {
-                            customFps = it
-                            draft = draft.copy(fps = it)
-                        },
-                        label = { Text(stringResource(R.string.custom_fps)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                val videoChoices = when (draft.format) {
-                    "webm" -> listOf(
-                        "auto" to stringResource(R.string.video_option_auto_vp9), "vp9" to stringResource(R.string.advanced_vp9), "av1" to stringResource(R.string.advanced_av1)
-                    )
-                    "avi" -> listOf(
-                        "auto" to stringResource(R.string.video_option_auto_h264), "h264" to stringResource(R.string.video_option_h264_avc),
-                        "copy" to stringResource(R.string.video_option_copy)
-                    )
-                    "mp4", "mov" -> listOf(
-                        "auto" to stringResource(R.string.video_option_auto_h264), "h264" to stringResource(R.string.video_option_h264_avc),
-                        "h265" to stringResource(R.string.video_option_h265_hevc), "av1" to stringResource(R.string.advanced_av1),
-                        "copy" to stringResource(R.string.video_option_copy)
-                    )
-                    else -> listOf(
-                        "auto" to stringResource(R.string.video_option_auto_h264), "h264" to stringResource(R.string.video_option_h264_avc),
-                        "h265" to stringResource(R.string.video_option_h265_hevc), "vp9" to stringResource(R.string.advanced_vp9),
-                        "av1" to stringResource(R.string.advanced_av1), "copy" to stringResource(R.string.video_option_copy)
-                    )
-                }
                 ChoiceField(stringResource(R.string.video_setting_video_codec), draft.videoCodec, videoChoices) {
                     draft = draft.copy(videoCodec = it)
                 }
-                ChoiceField(
-                    stringResource(R.string.video_setting_video_encoder),
-                    draft.encoder,
-                    listOf(
-                        "auto" to stringResource(R.string.video_option_auto_software),
-                        "software" to stringResource(R.string.video_option_software_cpu),
-                        "hardware" to stringResource(R.string.video_option_hardware_experimental)
-                    )
-                ) {
-                    draft = draft.copy(
-                        encoder = it,
-                        rateControl = if (it == "hardware" && draft.rateControl == "crf") {
-                            "vbr"
-                        } else draft.rateControl
-                    )
-                }
 
-                ChoiceField(
-                    stringResource(R.string.video_setting_rate_control),
-                    draft.rateControl,
-                    listOf(
-                        "crf" to stringResource(R.string.video_option_crf_constant),
-                        "vbr" to stringResource(R.string.video_option_vbr_target),
-                        "cbr" to stringResource(R.string.video_option_cbr_target_peak)
-                    )
-                ) { draft = draft.copy(rateControl = it) }
-
-                if (draft.rateControl == "crf") {
-                    Text(stringResource(R.string.crf_label, draft.crf), fontWeight = FontWeight.SemiBold)
-                    Slider(
-                        value = draft.crf.toFloat(),
-                        onValueChange = { draft = draft.copy(crf = it.roundToInt()) },
-                        valueRange = 0f..51f,
-                        steps = 50
-                    )
-                    Text(
-                        stringResource(R.string.advanced_crf_explanation),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                } else {
-                    OutlinedTextField(
-                        value = videoBitrateInput,
-                        onValueChange = {
-                            videoBitrateInput = it
-                            draft = draft.copy(videoBitrateKbps = it.toIntOrNull() ?: 0)
-                        },
-                        label = { Text(stringResource(R.string.video_bitrate_kbps)) },
-                        supportingText = { Text(stringResource(R.string.video_bitrate_supporting)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                ChoiceField(
-                    stringResource(R.string.video_setting_pixel_format),
-                    draft.pixelFormat,
-                    listOf(
-                        "auto" to stringResource(R.string.advanced_auto),
-                        "yuv420p" to stringResource(R.string.video_option_yuv420p),
-                        "yuv420p10le" to stringResource(R.string.video_option_yuv420p10le),
-                        "yuv422p" to stringResource(R.string.video_option_yuv422p),
-                        "yuv444p" to stringResource(R.string.video_option_yuv444p)
-                    )
-                ) { draft = draft.copy(pixelFormat = it) }
-
-                if (draft.encoder == "hardware") {
-                    Text(
-                        stringResource(R.string.advanced_hardware_explanation),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
+                OutlinedTextField(
+                    value = videoBitrateInput,
+                    onValueChange = {
+                        videoBitrateInput = it
+                        draft = draft.copy(
+                            videoBitrateKbps = it.toIntOrNull() ?: 0,
+                            rateControl = "vbr"
+                        )
+                    },
+                    label = { Text(stringResource(R.string.video_bitrate_kbps)) },
+                    supportingText = { Text(stringResource(R.string.video_bitrate_supporting)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
             HorizontalDivider()
             SectionHeader(stringResource(R.string.media_audio))
 
             if (!remux) {
-                val audioChoices = when (draft.format) {
-                    "webm" -> listOf(
-                        "auto" to stringResource(R.string.audio_option_auto_opus), "opus" to stringResource(R.string.advanced_opus),
-                        "vorbis" to stringResource(R.string.format_desc_vorbis), "copy" to stringResource(R.string.audio_option_copy),
-                        "none" to stringResource(R.string.audio_option_none)
-                    )
-                    "avi" -> listOf(
-                        "auto" to stringResource(R.string.audio_option_auto_mp3), "mp3" to stringResource(R.string.advanced_mp3),
-                        "pcm" to stringResource(R.string.format_desc_pcm), "copy" to stringResource(R.string.audio_option_copy),
-                        "none" to stringResource(R.string.audio_option_none)
-                    )
-                    "mp4", "mov" -> listOf(
-                        "auto" to stringResource(R.string.audio_option_auto_aac), "aac" to stringResource(R.string.advanced_aac),
-                        "mp3" to stringResource(R.string.advanced_mp3), "copy" to stringResource(R.string.audio_option_copy),
-                        "none" to stringResource(R.string.audio_option_none)
-                    )
-                    else -> listOf(
-                        "auto" to stringResource(R.string.audio_option_auto_aac), "aac" to stringResource(R.string.advanced_aac),
-                        "mp3" to stringResource(R.string.advanced_mp3), "opus" to stringResource(R.string.advanced_opus), "vorbis" to stringResource(R.string.format_desc_vorbis),
-                        "flac" to stringResource(R.string.advanced_flac), "pcm" to stringResource(R.string.format_desc_pcm),
-                        "copy" to stringResource(R.string.audio_option_copy), "none" to stringResource(R.string.audio_option_none)
-                    )
-                }
+                val audioChoices = listOf(
+                    "auto" to stringResource(R.string.audio_option_auto_aac),
+                    "aac" to stringResource(R.string.advanced_aac),
+                    "none" to stringResource(R.string.audio_option_none)
+                )
                 ChoiceField(stringResource(R.string.video_setting_audio_codec), draft.audioCodec, audioChoices) {
                     draft = when (it) {
-                        "copy" -> draft.copy(
-                            audioCodec = "copy",
-                            volumePercent = 100,
-                            sampleRate = null,
-                            channels = null
-                        )
                         "none" -> draft.copy(audioCodec = "none", audioStream = "none")
-                        else -> draft.copy(
-                            audioCodec = it,
-                            audioStream = if (draft.audioStream == "none") "first" else draft.audioStream,
-                            sampleRate = if (it == "opus" && draft.sampleRate != null) 48000 else draft.sampleRate
-                        )
+                        else -> draft.copy(audioCodec = it, audioStream = "first")
                     }
                     formError = null
                 }
                 if (draft.audioCodec != "none") {
-                    ChoiceField(
-                        stringResource(R.string.video_setting_audio_stream),
-                        draft.audioStream,
-                        listOf(
-                            "first" to stringResource(R.string.audio_option_first),
-                            "second" to stringResource(R.string.audio_option_second),
-                            "all" to stringResource(R.string.audio_option_all),
-                            "none" to stringResource(R.string.audio_option_none)
-                        )
-                    ) { draft = draft.copy(audioStream = it) }
-                }
-                if (draft.audioCodec != "none" && draft.audioCodec != "copy") {
                     OutlinedTextField(
                         value = audioBitrateInput,
                         onValueChange = {
@@ -399,36 +243,6 @@ fun VideoAdvancedSettingsControl(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Text(stringResource(R.string.volume_label, draft.volumePercent), fontWeight = FontWeight.SemiBold)
-                    Slider(
-                        value = draft.volumePercent.toFloat(),
-                        onValueChange = { draft = draft.copy(volumePercent = it.roundToInt()) },
-                        valueRange = 0f..200f
-                    )
-                    if (draft.volumePercent > 100) Text(
-                        stringResource(R.string.advanced_volume_warning),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    ChoiceField(
-                        stringResource(R.string.video_setting_sample_rate),
-                        draft.sampleRate?.toString() ?: "source",
-                        listOf(
-                            "source" to stringResource(R.string.source_original),
-                            "32000" to stringResource(R.string.audio_rate_32k), "44100" to stringResource(R.string.audio_rate_44k),
-                            "48000" to stringResource(R.string.audio_rate_48k), "96000" to stringResource(R.string.audio_rate_96k)
-                        )
-                    ) {
-                        draft = draft.copy(sampleRate = it.toIntOrNull())
-                    }
-                    ChoiceField(
-                        stringResource(R.string.video_setting_audio_channels),
-                        draft.channels?.toString() ?: "source",
-                        listOf(
-                            "source" to stringResource(R.string.source_original),
-                            "1" to stringResource(R.string.audio_option_mono), "2" to stringResource(R.string.audio_option_stereo), "6" to stringResource(R.string.advanced_5_1)
-                        )
-                    ) { draft = draft.copy(channels = it.toIntOrNull()) }
                 }
             } else {
                 Text(stringResource(R.string.audio_unchanged_remux))
@@ -436,26 +250,16 @@ fun VideoAdvancedSettingsControl(
 
             HorizontalDivider()
             SectionHeader(stringResource(R.string.video_setting_other))
-            ChoiceField(
-                stringResource(R.string.video_setting_subtitle),
-                draft.subtitleMode,
-                listOf(
-                    "auto" to stringResource(R.string.subtitle_option_auto),
-                    "none" to stringResource(R.string.subtitle_option_none),
-                    "copy" to stringResource(R.string.subtitle_option_copy)
-                )
-            ) { draft = draft.copy(subtitleMode = it) }
 
             ToggleOption(
                 stringResource(R.string.video_setting_keep_metadata),
                 draft.preserveMetadata
             ) { draft = draft.copy(preserveMetadata = it) }
-            if (draft.format == "mp4") {
-                ToggleOption(
-                    stringResource(R.string.video_setting_mp4_fast_start),
-                    draft.fastStart
-                ) { draft = draft.copy(fastStart = it) }
-            }
+
+            ToggleOption(
+                stringResource(R.string.video_setting_mp4_fast_start),
+                draft.fastStart
+            ) { draft = draft.copy(fastStart = it) }
 
             val validation = VideoSettingsValidator.validate(draft)
             val error = formError ?: validation

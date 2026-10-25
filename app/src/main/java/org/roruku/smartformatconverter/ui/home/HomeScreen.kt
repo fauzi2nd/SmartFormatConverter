@@ -136,12 +136,12 @@ fun HomeScreenContent(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     FormatShortcut(
-                        format = "MP3",
-                        description = stringResource(R.string.home_mp3_desc),
+                        format = "M4A",
+                        description = stringResource(R.string.home_m4a_desc),
                         icon = Icons.Default.AudioFile,
                         accent = PixelViolet,
                         modifier = Modifier.weight(1f),
-                        onClick = { onNavigateToFormat(2, "mp3") }
+                        onClick = { onNavigateToFormat(2, "m4a") }
                     )
                     FormatShortcut(
                         format = stringResource(R.string.media_download),

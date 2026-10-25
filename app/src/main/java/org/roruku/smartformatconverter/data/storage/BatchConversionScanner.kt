@@ -15,7 +15,7 @@ enum class BatchOutputStructure {
 data class BatchScanConfig(
     val targetVideoFormat: String = "mp4",
     val targetImageFormat: String = "jpg",
-    val targetAudioFormat: String = "mp3",
+    val targetAudioFormat: String = "m4a",
     val outputStructure: BatchOutputStructure = BatchOutputStructure.MIRRORED,
     val presetName: String = "Balanced",
 )

@@ -84,7 +84,7 @@ object ImageSettingsValidator {
 }
 
 data class AudioAdvancedSettings(
-    val format: String = "mp3",
+    val format: String = "m4a",
     val bitrateKbps: Int = 192,
     // null means retain source sample rate, except Opus is always 48 kHz.
     val sampleRate: Int? = null,

@@ -175,11 +175,22 @@ class ConversionRepository(
                     "Select a parent output folder in Settings before converting."
                 )
 
+            val effectiveExtension = when (job.mediaType) {
+                MediaType.VIDEO -> "mp4"
+                MediaType.AUDIO -> "m4a"
+                MediaType.IMAGE -> when (job.outputFormat.lowercase()) {
+                    "png" -> "png"
+                    "webp" -> "webp"
+                    else -> "jpg"
+                }
+                MediaType.DOWNLOAD -> job.outputFormat.lowercase()
+            }
+
             val tempOutFile = if (job.mediaType == MediaType.DOWNLOAD) {
                 StorageManager.downloadCacheFile(context, job.id, job.outputFormat)
             } else {
                 StorageManager.createTempFileInCache(
-                    context, "out_${job.id}", job.outputFormat.lowercase()
+                    context, "out_${job.id}", effectiveExtension
                 )
             }
 
@@ -389,7 +400,7 @@ class ConversionRepository(
             val outputDirectory = OutputPathPolicy.outputDirectory(job.relativeFolderPath)
             val outputName = OutputPathPolicy.outputFileName(
                 originalName = job.fileName,
-                extension = job.outputFormat,
+                extension = effectiveExtension,
                 format = settings.filenameFormat,
                 customPrefix = settings.customPrefix
             )

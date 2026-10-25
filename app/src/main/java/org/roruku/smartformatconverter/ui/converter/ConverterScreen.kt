@@ -69,10 +69,6 @@ data class ConverterFormat(
 private val formats = listOf(
     listOf(
         ConverterFormat(0, "mp4", R.string.format_desc_universal),
-        ConverterFormat(0, "mkv", R.string.format_desc_multitrack),
-        ConverterFormat(0, "webm", R.string.format_desc_web),
-        ConverterFormat(0, "mov", R.string.format_desc_editing),
-        ConverterFormat(0, "avi", R.string.format_desc_legacy),
     ),
     listOf(
         ConverterFormat(1, "jpg", R.string.format_desc_photo),
@@ -80,13 +76,7 @@ private val formats = listOf(
         ConverterFormat(1, "webp", R.string.format_desc_compact),
     ),
     listOf(
-        ConverterFormat(2, "mp3", R.string.format_desc_universal),
-        ConverterFormat(2, "aac", R.string.format_desc_streaming),
         ConverterFormat(2, "m4a", R.string.format_desc_aac_audio),
-        ConverterFormat(2, "wav", R.string.format_desc_pcm),
-        ConverterFormat(2, "flac", R.string.format_desc_lossless),
-        ConverterFormat(2, "ogg", R.string.format_desc_vorbis),
-        ConverterFormat(2, "opus", R.string.format_desc_efficient),
     )
 )
 

@@ -116,7 +116,7 @@ class EngineUnitTest {
         val config = BatchScanConfig()
         assertEquals("mp4", config.targetVideoFormat)
         assertEquals("jpg", config.targetImageFormat)
-        assertEquals("mp3", config.targetAudioFormat)
+        assertEquals("m4a", config.targetAudioFormat)
         assertEquals(BatchOutputStructure.MIRRORED, config.outputStructure)
     }
 }

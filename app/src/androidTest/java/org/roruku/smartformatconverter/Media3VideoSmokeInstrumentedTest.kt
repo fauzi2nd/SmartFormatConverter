@@ -35,6 +35,7 @@ import org.roruku.smartformatconverter.data.repository.MediaOutputIntegrity
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.media3.Media3DeviceCapabilities
 import org.roruku.smartformatconverter.engine.media3.Media3TransformerEngine
+import org.roruku.smartformatconverter.engine.media3.Mp4RemuxEngine
 import org.roruku.smartformatconverter.engine.media3.VideoConversionConfig
 import org.roruku.smartformatconverter.engine.media3.VideoOutputFormat
 
@@ -115,6 +116,19 @@ class Media3VideoSmokeInstrumentedTest {
             }
             assertTrue(result.exceptionOrNull()?.toString().orEmpty(), result.isSuccess)
             assertNull(MediaOutputIntegrity.validate(output, MediaType.VIDEO, format.extension))
+            if (format == VideoOutputFormat.MP4) {
+                val copied = File(ctx.cacheDir, "remux_copy_$id.mp4")
+                try {
+                    assertTrue(Mp4RemuxEngine.canRemux(ctx, Uri.fromFile(output)))
+                    val result = withTimeout(120_000L) {
+                        Mp4RemuxEngine.remux(ctx, Uri.fromFile(output), copied) { _, _, _ -> }
+                    }
+                    assertTrue(result.exceptionOrNull()?.toString().orEmpty(), result.isSuccess)
+                    assertNull(MediaOutputIntegrity.validate(copied, MediaType.VIDEO, "mp4"))
+                } finally {
+                    copied.delete()
+                }
+            }
         } finally {
             if (!bitmap.isRecycled) bitmap.recycle()
             image.delete()

@@ -7,6 +7,7 @@ import org.junit.Test
 import org.roruku.smartformatconverter.data.db.Converters
 import org.roruku.smartformatconverter.data.db.JobStatus
 import org.roruku.smartformatconverter.data.db.MediaType
+import org.roruku.smartformatconverter.data.repository.Media3OutputPolicy
 import org.roruku.smartformatconverter.data.storage.BatchOutputStructure
 import org.roruku.smartformatconverter.data.storage.BatchScanConfig
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioCodec
@@ -23,6 +24,40 @@ import org.roruku.smartformatconverter.engine.image.ImageOutputFormat
 import java.io.File
 
 class EngineUnitTest {
+
+
+    @Test
+    fun testMedia3OutputPolicyRejectsLegacyContainers() {
+        assertEquals(null, Media3OutputPolicy.rejectionReason(MediaType.VIDEO, "mp4"))
+        assertEquals(null, Media3OutputPolicy.rejectionReason(MediaType.AUDIO, "M4A"))
+        assertEquals(null, Media3OutputPolicy.rejectionReason(MediaType.IMAGE, "jpeg"))
+        assertEquals(null, Media3OutputPolicy.rejectionReason(MediaType.DOWNLOAD, "mkv"))
+        assertNotNull(Media3OutputPolicy.rejectionReason(MediaType.VIDEO, "mkv"))
+        assertNotNull(Media3OutputPolicy.rejectionReason(MediaType.AUDIO, "mp3"))
+        assertNotNull(Media3OutputPolicy.rejectionReason(MediaType.AUDIO, "flac"))
+        assertNotNull(Media3OutputPolicy.rejectionReason(MediaType.IMAGE, "tiff"))
+    }
+
+    @Test
+    fun testDownsampleDoesNotChangeOriginalSizeExport() {
+        val original = ImageConversionConfig(outputFormat = ImageOutputFormat.JPEG)
+        assertEquals(1, ImageConverterEngine.calculateDecodeSampleSize(12000, 8000, original))
+        val resized = original.copy(customWidth = 1000, customHeight = 1000)
+        assertEquals(4, ImageConverterEngine.calculateDecodeSampleSize(12000, 8000, resized))
+        val cropping = resized.copy(cropToExactRatio = true)
+        assertEquals(1, ImageConverterEngine.calculateDecodeSampleSize(12000, 8000, cropping))
+    }
+
+    @Test
+    fun testMedia3VideoPresetsMapToActualBitrate() {
+        val base = org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings()
+        val high = base.applyPreset("High Quality")
+        val balanced = base.applyPreset("Balanced")
+        val small = base.applyPreset("Small File")
+        assertEquals(12000, high.videoBitrateKbps)
+        assertEquals(6000, balanced.videoBitrateKbps)
+        assertEquals(2500, small.videoBitrateKbps)
+    }
 
     @Test
     fun testRoomConverters() {

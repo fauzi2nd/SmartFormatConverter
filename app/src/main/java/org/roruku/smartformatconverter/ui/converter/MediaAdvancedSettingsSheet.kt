@@ -211,7 +211,7 @@ fun ImageAdvancedSettingsControl(
                                 style = MaterialTheme.typography.bodySmall)
                         }
                         "gif" -> Text(
-                            "Still-frame GIF only: 2048×2048 maximum, 256 colors, white background for transparency. Animation is not preserved.",
+                            "Still-frame GIF only: source dimensions are preserved (GIF limit: 65535 px per axis), 256 colors, white background for transparency. Very large files may exceed device memory. Animation is not preserved.",
                             style = MaterialTheme.typography.bodySmall
                         )
                         else -> Text(stringResource(R.string.setting_png_lossless),

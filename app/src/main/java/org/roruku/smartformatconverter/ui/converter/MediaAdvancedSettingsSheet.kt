@@ -95,6 +95,8 @@ fun ImageAdvancedSettingsControl(
             "jpg", "jpeg" -> stringResource(R.string.setting_jpeg_quality, settings.jpegQuality)
             "webp" -> if (settings.webpLossless) stringResource(R.string.setting_lossless_webp)
                       else stringResource(R.string.setting_webp_quality, settings.webpQuality)
+            "heic", "avif" -> "Image quality: " + settings.jpegQuality + "%"
+            "gif" -> "GIF: one still frame (256 colors; transparent pixels become white)"
             else -> stringResource(R.string.setting_png_lossless)
         }
         Text(
@@ -198,6 +200,20 @@ fun ImageAdvancedSettingsControl(
                                 )
                             }
                         }
+                        "heic", "avif" -> {
+                            Text("Image quality: ${draft.jpegQuality}%", style = MaterialTheme.typography.bodyMedium)
+                            Slider(
+                                value = draft.jpegQuality.toFloat(),
+                                onValueChange = { draft = draft.copy(jpegQuality = it.roundToInt()) },
+                                valueRange = 1f..100f
+                            )
+                            Text("HEIC/AVIF depends on a compatible device encoder. EXIF preservation is not guaranteed.",
+                                style = MaterialTheme.typography.bodySmall)
+                        }
+                        "gif" -> Text(
+                            "Still-frame GIF only: 2048×2048 maximum, 256 colors, white background for transparency. Animation is not preserved.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
                         else -> Text(stringResource(R.string.setting_png_lossless),
                             style = MaterialTheme.typography.bodyMedium)
                     }

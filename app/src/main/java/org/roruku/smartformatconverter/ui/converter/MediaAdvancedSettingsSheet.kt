@@ -1,6 +1,7 @@
 package org.roruku.smartformatconverter.ui.converter
 
 import android.os.Build
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +20,8 @@ import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LinkOff
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -27,6 +30,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -81,85 +85,139 @@ fun ImageAdvancedSettingsControl(
             open = true
         },
         modifier = Modifier.fillMaxWidth()
-    ) { Text(stringResource(R.string.advanced_image_title)) }
-    Text(
-        text = when (settings.format) {
+    ) {
+        Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.advanced_image_title))
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        val qualitySummary = when (settings.format) {
             "jpg", "jpeg" -> stringResource(R.string.setting_jpeg_quality, settings.jpegQuality)
             "webp" -> if (settings.webpLossless) stringResource(R.string.setting_lossless_webp)
                       else stringResource(R.string.setting_webp_quality, settings.webpQuality)
             else -> stringResource(R.string.setting_png_lossless)
-        },
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        style = MaterialTheme.typography.bodySmall
-    )
+        }
+        Text(
+            text = qualitySummary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall
+        )
+        if (settings.width != null || settings.height != null) {
+            val dims = "${settings.width ?: "auto"}×${settings.height ?: "auto"}"
+            val crop = if (settings.cropToExactRatio) " · " + stringResource(R.string.setting_crop_to_exact) else ""
+            val noUpscale = if (settings.preventUpscale) " · " + stringResource(R.string.setting_no_upscale) else ""
+            Text(
+                text = "${stringResource(R.string.setting_resize)}: $dims$crop$noUpscale",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
     if (!open) return
 
     val content: @Composable () -> Unit = {
         Column(
             modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(stringResource(R.string.advanced_image_title),
                 style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(stringResource(R.string.setting_all_media_note),
-                style = MaterialTheme.typography.bodySmall)
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             HorizontalDivider()
-            when (draft.format) {
-                "jpg", "jpeg" -> {
-                    Text(stringResource(R.string.setting_jpeg_quality, draft.jpegQuality))
-                    Slider(
-                        value = draft.jpegQuality.toFloat(),
-                        onValueChange = { draft = draft.copy(jpegQuality = it.roundToInt()) },
-                        valueRange = 1f..100f
-                    )
-                    Text(stringResource(R.string.setting_chroma_subsampling),
-                        style = MaterialTheme.typography.titleSmall)
-                    MediaOptionChooser(
-                        selected = draft.jpegSubsampling,
-                        options = listOf(
-                            "444" to stringResource(R.string.setting_jpeg_chroma_444),
-                            "422" to stringResource(R.string.setting_jpeg_chroma_422),
-                            "420" to stringResource(R.string.setting_jpeg_chroma_420)
-                        ),
-                        onChange = { draft = draft.copy(jpegSubsampling = it) }
-                    )
-                    Text(stringResource(R.string.setting_jpeg_native_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    MediaSwitch(
-                        stringResource(R.string.setting_jpeg_exif),
-                        draft.preserveMetadata
-                    ) { draft = draft.copy(preserveMetadata = it) }
-                }
-                "webp" -> {
-                    val supportsLosslessWebp = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-                    MediaSwitch(
-                        stringResource(R.string.setting_lossless_webp),
-                        draft.webpLossless,
-                        enabled = supportsLosslessWebp
-                    ) { draft = draft.copy(webpLossless = it) }
-                    if (!supportsLosslessWebp) {
-                        Text(stringResource(R.string.setting_webp_lossless_unsupported),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall)
-                    }
-                    if (!draft.webpLossless) {
-                        Text(stringResource(R.string.setting_webp_quality, draft.webpQuality))
-                        Slider(
-                            value = draft.webpQuality.toFloat(),
-                            onValueChange = { draft = draft.copy(webpQuality = it.roundToInt()) },
-                            valueRange = 1f..100f
-                        )
-                    }
-                }
-                else -> Text(stringResource(R.string.setting_png_lossless))
-            }
 
-            HorizontalDivider()
+            // Quality & Compression Card
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            stringResource(R.string.setting_quality_compression),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    when (draft.format) {
+                        "jpg", "jpeg" -> {
+                            Text(stringResource(R.string.setting_jpeg_quality, draft.jpegQuality),
+                                style = MaterialTheme.typography.bodyMedium)
+                            Slider(
+                                value = draft.jpegQuality.toFloat(),
+                                onValueChange = { draft = draft.copy(jpegQuality = it.roundToInt()) },
+                                valueRange = 1f..100f
+                            )
+                            Text(stringResource(R.string.setting_chroma_subsampling),
+                                style = MaterialTheme.typography.titleSmall)
+                            MediaOptionChooser(
+                                selected = draft.jpegSubsampling,
+                                options = listOf(
+                                    "444" to stringResource(R.string.setting_jpeg_chroma_444),
+                                    "422" to stringResource(R.string.setting_jpeg_chroma_422),
+                                    "420" to stringResource(R.string.setting_jpeg_chroma_420)
+                                ),
+                                onChange = { draft = draft.copy(jpegSubsampling = it) }
+                            )
+                            Text(stringResource(R.string.setting_jpeg_native_note),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            MediaSwitch(
+                                stringResource(R.string.setting_jpeg_exif),
+                                draft.preserveMetadata
+                            ) { draft = draft.copy(preserveMetadata = it) }
+                        }
+                        "webp" -> {
+                            val supportsLosslessWebp = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                            MediaSwitch(
+                                stringResource(R.string.setting_lossless_webp),
+                                draft.webpLossless,
+                                enabled = supportsLosslessWebp
+                            ) { draft = draft.copy(webpLossless = it) }
+                            if (!supportsLosslessWebp) {
+                                Text(stringResource(R.string.setting_webp_lossless_unsupported),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
+                            if (!draft.webpLossless) {
+                                Text(stringResource(R.string.setting_webp_quality, draft.webpQuality),
+                                    style = MaterialTheme.typography.bodyMedium)
+                                Slider(
+                                    value = draft.webpQuality.toFloat(),
+                                    onValueChange = { draft = draft.copy(webpQuality = it.roundToInt()) },
+                                    valueRange = 1f..100f
+                                )
+                            }
+                        }
+                        else -> Text(stringResource(R.string.setting_png_lossless),
+                            style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+
+            // Resize & Dimensions Card
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -207,7 +265,20 @@ fun ImageAdvancedSettingsControl(
                                     )
                                 },
                                 label = { Text(stringResource(resId), style = MaterialTheme.typography.labelSmall) },
-                                shape = RoundedCornerShape(8.dp)
+                                shape = RoundedCornerShape(8.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                    labelColor = MaterialTheme.colorScheme.onSurface,
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = isSelected,
+                                    borderColor = MaterialTheme.colorScheme.outlineVariant,
+                                    selectedBorderColor = MaterialTheme.colorScheme.primary,
+                                    borderWidth = if (isSelected) 1.5.dp else 1.dp
+                                )
                             )
                         }
                     }
@@ -324,7 +395,11 @@ fun AudioAdvancedSettingsControl(
     OutlinedButton(
         onClick = { draft = settings; open = true },
         modifier = Modifier.fillMaxWidth()
-    ) { Text(stringResource(R.string.advanced_audio_title)) }
+    ) {
+        Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.advanced_audio_title))
+    }
     Text(
         if (settings.format in AudioSettingsValidator.losslessFormats)
             stringResource(R.string.setting_lossless_audio)
@@ -337,68 +412,139 @@ fun AudioAdvancedSettingsControl(
         Column(
             modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(stringResource(R.string.advanced_audio_title),
                 style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(stringResource(R.string.setting_all_media_note),
-                style = MaterialTheme.typography.bodySmall)
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             HorizontalDivider()
-            if (draft.format in AudioSettingsValidator.losslessFormats) {
-                Text(stringResource(R.string.setting_lossless_audio))
-            } else {
-                Text(stringResource(R.string.setting_audio_bitrate, draft.bitrateKbps))
-                Slider(
-                    value = draft.bitrateKbps.toFloat(),
-                    onValueChange = {
-                        draft = draft.copy(bitrateKbps = (it.roundToInt() / 16 * 16).coerceIn(32, 320))
-                    },
-                    valueRange = 32f..320f
-                )
+
+            // Bitrate & Format Card
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            stringResource(R.string.setting_audio_format_bitrate),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    if (draft.format in AudioSettingsValidator.losslessFormats) {
+                        Text(stringResource(R.string.setting_lossless_audio),
+                            style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        Text(stringResource(R.string.setting_audio_bitrate, draft.bitrateKbps),
+                            style = MaterialTheme.typography.bodyMedium)
+                        Slider(
+                            value = draft.bitrateKbps.toFloat(),
+                            onValueChange = {
+                                draft = draft.copy(bitrateKbps = (it.roundToInt() / 16 * 16).coerceIn(32, 320))
+                            },
+                            valueRange = 32f..320f
+                        )
+                    }
+                    Text(stringResource(R.string.setting_sample_rate),
+                        style = MaterialTheme.typography.titleSmall)
+                    val sampleOptions = if (draft.format == "opus") listOf(
+                        "48000" to stringResource(R.string.setting_khz48)
+                    ) else listOf(
+                        "source" to stringResource(R.string.setting_original),
+                        "32000" to stringResource(R.string.setting_khz32),
+                        "44100" to stringResource(R.string.setting_khz441),
+                        "48000" to stringResource(R.string.setting_khz48),
+                        "96000" to stringResource(R.string.setting_khz96)
+                    )
+                    MediaOptionChooser(
+                        selected = if (draft.format == "opus") "48000"
+                                   else draft.sampleRate?.toString() ?: "source",
+                        options = sampleOptions,
+                        onChange = { draft = draft.copy(sampleRate = it.toIntOrNull()) }
+                    )
+                    if (draft.format == "opus") {
+                        Text(stringResource(R.string.setting_audio_source_rate),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text(stringResource(R.string.setting_channels),
+                        style = MaterialTheme.typography.titleSmall)
+                    MediaOptionChooser(
+                        selected = draft.channels?.toString() ?: "source",
+                        options = listOf(
+                            "source" to stringResource(R.string.setting_original),
+                            "1" to stringResource(R.string.setting_mono),
+                            "2" to stringResource(R.string.setting_stereo)
+                        ),
+                        onChange = { draft = draft.copy(channels = it.toIntOrNull()) }
+                    )
+                }
             }
-            Text(stringResource(R.string.setting_sample_rate))
-            val sampleOptions = if (draft.format == "opus") listOf(
-                "48000" to stringResource(R.string.setting_khz48)
-            ) else listOf(
-                "source" to stringResource(R.string.setting_original),
-                "32000" to stringResource(R.string.setting_khz32),
-                "44100" to stringResource(R.string.setting_khz441),
-                "48000" to stringResource(R.string.setting_khz48),
-                "96000" to stringResource(R.string.setting_khz96)
-            )
-            MediaOptionChooser(
-                selected = if (draft.format == "opus") "48000"
-                           else draft.sampleRate?.toString() ?: "source",
-                options = sampleOptions,
-                onChange = { draft = draft.copy(sampleRate = it.toIntOrNull()) }
-            )
-            if (draft.format == "opus") {
-                Text(stringResource(R.string.setting_audio_source_rate),
-                    style = MaterialTheme.typography.bodySmall)
+
+            // Volume & Metadata Card
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            stringResource(R.string.setting_audio_volume_metadata),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Text(stringResource(R.string.setting_volume_percent, draft.volumePercent),
+                        style = MaterialTheme.typography.bodyMedium)
+                    Slider(
+                        value = draft.volumePercent.toFloat(),
+                        onValueChange = { draft = draft.copy(volumePercent = it.roundToInt()) },
+                        valueRange = 0f..200f
+                    )
+                    if (draft.volumePercent > 100) {
+                        Text(stringResource(R.string.advanced_volume_warning),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    MediaSwitch(stringResource(R.string.setting_metadata), draft.preserveMetadata) {
+                        draft = draft.copy(preserveMetadata = it)
+                    }
+                }
             }
-            Text(stringResource(R.string.setting_channels))
-            MediaOptionChooser(
-                selected = draft.channels?.toString() ?: "source",
-                options = listOf(
-                    "source" to stringResource(R.string.setting_original),
-                    "1" to stringResource(R.string.setting_mono),
-                    "2" to stringResource(R.string.setting_stereo)
-                ),
-                onChange = { draft = draft.copy(channels = it.toIntOrNull()) }
-            )
-            Text(stringResource(R.string.setting_volume_percent, draft.volumePercent))
-            Slider(
-                value = draft.volumePercent.toFloat(),
-                onValueChange = { draft = draft.copy(volumePercent = it.roundToInt()) },
-                valueRange = 0f..200f
-            )
-            if (draft.volumePercent > 100) {
-                Text(stringResource(R.string.advanced_volume_warning),
-                    color = MaterialTheme.colorScheme.error)
-            }
-            MediaSwitch(stringResource(R.string.setting_metadata), draft.preserveMetadata) {
-                draft = draft.copy(preserveMetadata = it)
-            }
+
             val invalid = AudioSettingsValidator.validate(draft)
             if (invalid != null) Text(invalid, color = MaterialTheme.colorScheme.error)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp),

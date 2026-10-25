@@ -6,6 +6,7 @@ import android.content.ClipData
 import android.provider.OpenableColumns
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -250,9 +251,14 @@ fun CompletedOutputViewer(job: ConversionJobEntity, onDismiss: () -> Unit) {
                             modifier = Modifier.padding(24.dp))
                         outputUri == null -> Text(stringResource(R.string.queue_result_unavailable))
                         inspection -> Text(stringResource(R.string.queue_preview_on_device))
-                        kind == CompletedMediaKind.IMAGE -> ZoomableImage(
-                            outputUri, modifier = Modifier.fillMaxSize()
-                        )
+                        kind == CompletedMediaKind.IMAGE -> Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                            modifier = Modifier.padding(16.dp).fillMaxSize()
+                        ) {
+                            ZoomableImage(outputUri, modifier = Modifier.fillMaxSize())
+                        }
                         kind == CompletedMediaKind.VIDEO -> SourcePlayer(outputUri, audio = false, title = resultName)
                         kind == CompletedMediaKind.AUDIO -> SourcePlayer(outputUri, audio = true, title = resultName)
                         else -> Text(stringResource(R.string.queue_preview_unsupported))

@@ -820,6 +820,7 @@ fun ConverterPreviewEditor(
                             Surface(
                                 shape = RoundedCornerShape(18.dp),
                                 color = MaterialTheme.colorScheme.surfaceContainer,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 // One active player only; neighboring pager items
@@ -983,12 +984,17 @@ fun ConverterPreviewEditor(
                     }
                 }
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Description, contentDescription = null)
+                            Icon(Icons.Default.Description, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(stringResource(R.string.output_format), style = MaterialTheme.typography.labelMedium)
@@ -1020,7 +1026,7 @@ fun ConverterPreviewEditor(
                                         onUpdatePreset(choice)
                                     } else {
                                         selectedFile?.let {
-                                            onUpdateVideoFileSettings(
+                                             onUpdateVideoFileSettings(
                                                 it.uri, resolvedVideoSettings.applyPreset(choice))
                                         }
                                     }
@@ -1086,16 +1092,33 @@ fun ConverterPreviewEditor(
                     }
                     }
                     item {
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Column(
                                 Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Text(
-                                    if (state.selectedTab == 1) stringResource(R.string.image_settings)
-                                    else stringResource(R.string.audio_settings),
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (state.selectedTab == 1) Icons.Default.Image else Icons.Default.Audiotrack,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        if (state.selectedTab == 1) stringResource(R.string.image_settings)
+                                        else stringResource(R.string.audio_settings),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                                 if (state.selectedTab == 1) {
                                     ImageAdvancedSettingsControl(
                                         settings = resolvedImageSettings.copy(format = state.targetFormat),
@@ -1141,8 +1164,9 @@ fun ConverterPreviewEditor(
                         selectedFile?.relativeFolderPath
                     )
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(Modifier.padding(14.dp)) {

@@ -314,6 +314,9 @@
     <!-- Format-specific image and audio editing controls -->
     <string name="advanced_image_title">Advanced Image Settings</string>
     <string name="advanced_audio_title">Advanced Audio Settings</string>
+    <string name="setting_quality_compression">Quality &amp; Compression</string>
+    <string name="setting_audio_format_bitrate">Bitrate &amp; Format</string>
+    <string name="setting_audio_volume_metadata">Volume &amp; Metadata</string>
     <string name="setting_jpeg_quality">JPEG quality: %1$d</string>
     <string name="setting_chroma_subsampling">JPEG chroma subsampling</string>
     <string name="setting_webp_quality">WebP quality: %1$d</string>

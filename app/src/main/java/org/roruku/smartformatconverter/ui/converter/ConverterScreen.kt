@@ -269,7 +269,9 @@ fun ConverterCatalogContent(
         AnimatedVisibility(visible = selected != null) {
             selected?.let { format ->
                 Surface(
+                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
                     shadowElevation = 12.dp,
                     tonalElevation = 6.dp,
                     modifier = Modifier.fillMaxWidth()

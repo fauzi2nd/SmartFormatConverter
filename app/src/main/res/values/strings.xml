@@ -323,7 +323,7 @@
     <string name="setting_webp_quality">WebP quality: %1$d</string>
     <string name="setting_lossless_webp">Lossless WebP (file size may increase)</string>
     <string name="setting_png_lossless">PNG always uses lossless compression.</string>
-    <string name="setting_jpeg_native_note">JPEG chroma subsampling is selected by Android's built-in encoder. Specific modes (4:4:4, 4:2:2, 4:2:0) cannot be guaranteed in this release.</string>
+    <string name="setting_jpeg_native_note">JPEG chroma subsampling is selected by the Android built-in encoder. Specific modes (4:4:4, 4:2:2, 4:2:0) cannot be guaranteed in this release.</string>
     <string name="setting_resize">Resize &amp; Dimensions</string>
     <string name="setting_preset_original">Original</string>
     <string name="setting_preset_1080p">1080p FHD</string>

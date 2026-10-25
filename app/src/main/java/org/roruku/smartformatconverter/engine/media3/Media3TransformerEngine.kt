@@ -244,12 +244,18 @@ object Media3TransformerEngine {
         val progressRunnable = object : Runnable {
             override fun run() {
                 if (!isDone && continuation.isActive) {
-                    val progressState = transformer.getProgress(progressHolder)
-                    if (progressState == Transformer.PROGRESS_STATE_AVAILABLE) {
-                        val pct = (progressHolder.progress.coerceIn(0, 99)) / 100f
-                        onProgress(pct, "Processing…", null)
+                    try {
+                        val progressState = transformer.getProgress(progressHolder)
+                        if (progressState == Transformer.PROGRESS_STATE_AVAILABLE) {
+                            val pct = (progressHolder.progress.coerceIn(0, 99)) / 100f
+                            onProgress(pct, "Processing…", null)
+                        }
+                    } catch (error: Exception) {
+                        // Progress is best effort. A transient polling failure must
+                        // not crash the main Looper or interrupt a valid export.
+                        Log.w(TAG, "Media3 progress polling unavailable", error)
                     }
-                    handler.postDelayed(this, 150)
+                    if (!isDone && continuation.isActive) handler.postDelayed(this, 150)
                 }
             }
         }

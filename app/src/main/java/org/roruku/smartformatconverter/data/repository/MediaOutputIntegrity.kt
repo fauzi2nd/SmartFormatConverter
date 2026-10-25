@@ -66,7 +66,7 @@ internal object MediaOutputIntegrity {
                     "m4a", "aac" -> "audio/mp4a-latm"
                     "ogg" -> "audio/opus"
                     "wav" -> "audio/raw"
-                    else -> return false
+                    else -> ""
                 }
                 trackMimes.any { it == required } && trackMimes.none { it.startsWith("video/") }
             }
@@ -126,18 +126,20 @@ internal object MediaOutputIntegrity {
         }
     }
 
-    private fun validateImage(file: File, extension: String): String? =
-        try {
+    private fun validateImage(file: File, extension: String): String? {
+        return try {
             val header = ByteArray(12)
             val n = FileInputStream(file).use { it.read(header) }
             if (!signatureMatches(extension, header.copyOf(n.coerceAtLeast(0)))) {
-                return "Output image signature does not match " + extension.uppercase()
+                "Output image signature does not match " + extension.uppercase()
+            } else {
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(file.absolutePath, bounds)
+                if (bounds.outWidth > 0 && bounds.outHeight > 0) null
+                else "Output image dimensions are invalid"
             }
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeFile(file.absolutePath, bounds)
-            if (bounds.outWidth > 0 && bounds.outHeight > 0) null
-            else "Output image dimensions are invalid"
         } catch (error: Exception) {
             "Output image cannot be decoded: " + (error.message ?: error.javaClass.simpleName)
         }
+    }
 }

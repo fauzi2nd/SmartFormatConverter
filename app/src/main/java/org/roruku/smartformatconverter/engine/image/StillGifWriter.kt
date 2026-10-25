@@ -48,8 +48,14 @@ internal object StillGifWriter {
             row(y, pixels)
             for (argb in pixels) {
                 // GIF has a maximum of 256 colours; convert RGB to RGB332.
-                val paletteIndex = ((argb shr 16 and 0xff) shr 5 shl 5) or
-                    ((argb shr 8 and 0xff) shr 5 shl 2) or ((argb and 0xff) shr 6)
+                // Composite transparent pixels against white in this row.
+                // Do not create a second full-resolution bitmap for large GIFs.
+                val alpha = (argb ushr 24) and 0xff
+                val r = (((argb ushr 16) and 0xff) * alpha + 255 * (255 - alpha) + 127) / 255
+                val g = (((argb ushr 8) and 0xff) * alpha + 255 * (255 - alpha) + 127) / 255
+                val b = ((argb and 0xff) * alpha + 255 * (255 - alpha) + 127) / 255
+                val paletteIndex = ((r shr 5) shl 5) or
+                    ((g shr 5) shl 2) or (b shr 6)
                 codes.emit(paletteIndex)
                 countSinceClear++
                 // The decoder dictionary stays below 512 entries, so all

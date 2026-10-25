@@ -278,14 +278,8 @@ class ConversionRepository(
                         VideoSettingsValidator.validate(advanced)?.let {
                             throw IllegalArgumentException(it)
                         }
-                        // The current Media3 pipeline cannot guarantee stream copy,
-                        // metadata policy, or explicit encoder selection.
-                        require(!advanced.isRemux && advanced.videoCodec != "copy" &&
-                            advanced.audioCodec != "copy") {
-                            "Stream-copy/remux is not available in this Media3 release. Choose a conversion preset."
-                        }
-                        require(advanced.preserveMetadata && advanced.fastStart) {
-                            "Custom metadata/fast-start settings are not yet supported by Media3."
+                        Media3OutputPolicy.unsupportedVideoSettings(advanced)?.let {
+                            throw IllegalArgumentException(it)
                         }
                         if (advanced.encoder == "hardware" && !settings.hardwareAcceleration) {
                             throw IllegalArgumentException(
@@ -336,11 +330,8 @@ class ConversionRepository(
                         AudioSettingsValidator.validate(advancedAudio)?.let {
                             throw IllegalArgumentException(it)
                         }
-                        require(advancedAudio.sampleRate == null &&
-                                advancedAudio.channels == null &&
-                                advancedAudio.volumePercent == 100 &&
-                                advancedAudio.preserveMetadata) {
-                            "Custom sample rate, channels, volume or metadata are not yet supported by Media3."
+                        Media3OutputPolicy.unsupportedAudioSettings(advancedAudio)?.let {
+                            throw IllegalArgumentException(it)
                         }
                     }
                     Media3TransformerEngine.convertAudio(

@@ -564,7 +564,7 @@ fun WebpAdvancedPreview() {
     }
 }
 
-@Preview(name = "Audio Advanced — MP3", showBackground = true, widthDp = 393, heightDp = 850)
+@Preview(name = "Audio Advanced — M4A", showBackground = true, widthDp = 393, heightDp = 850)
 @Composable
 fun AudioAdvancedPreview() {
     SmartFormatConverterTheme {
@@ -572,10 +572,10 @@ fun AudioAdvancedPreview() {
     }
 }
 
-@Preview(name = "Audio Advanced — FLAC", showBackground = true, widthDp = 393, heightDp = 850)
+@Preview(name = "Audio Advanced — M4A High Quality", showBackground = true, widthDp = 393, heightDp = 850)
 @Composable
-fun FlacAdvancedPreview() {
+fun M4aHighQualityPreview() {
     SmartFormatConverterTheme {
-        AudioAdvancedSettingsControl(AudioAdvancedSettings(format = "flac"), onApply = {}, previewExpanded = true)
+        AudioAdvancedSettingsControl(AudioAdvancedSettings(format = "m4a", bitrateKbps = 320), onApply = {}, previewExpanded = true)
     }
 }

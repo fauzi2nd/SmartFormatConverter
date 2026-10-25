@@ -57,10 +57,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import org.roruku.smartformatconverter.R
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioSettingsValidator
-import org.roruku.smartformatconverter.engine.ffmpeg.ImageAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.ImageSettingsValidator
+import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.AudioSettingsValidator
+import org.roruku.smartformatconverter.engine.media.ImageAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.ImageSettingsValidator
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 import kotlin.math.roundToInt
 

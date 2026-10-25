@@ -175,6 +175,22 @@ class ConversionRepository(
                     "Select a parent output folder in Settings before converting."
                 )
 
+            // Fail closed on legacy queued formats rather than silently writing MP4/AAC
+            // bytes under an unrelated name. Old jobs can be re-queued using the
+            // formats supported by the current Media3 muxer.
+            when (job.mediaType) {
+                MediaType.VIDEO -> require(job.outputFormat.equals("mp4", true)) {
+                    "Video output ${job.outputFormat} is unavailable after the Media3 migration. Re-queue as MP4."
+                }
+                MediaType.AUDIO -> require(job.outputFormat.equals("m4a", true)) {
+                    "Audio output ${job.outputFormat} is unavailable after the Media3 migration. Re-queue as M4A."
+                }
+                MediaType.IMAGE -> require(job.outputFormat.lowercase() in setOf("jpg", "jpeg", "png", "webp")) {
+                    "Unsupported image output: ${job.outputFormat}"
+                }
+                MediaType.DOWNLOAD -> Unit
+            }
+
             val effectiveExtension = when (job.mediaType) {
                 MediaType.VIDEO -> "mp4"
                 MediaType.AUDIO -> "m4a"
@@ -257,8 +273,7 @@ class ConversionRepository(
                         },
                         crf = preset.crf
                     )
-                    // New jobs hold an immutable per-job JSON snapshot. Old jobs
-                    // without that field continue down FFmpegEngine's legacy path.
+                    // Old jobs without a snapshot use the supported Media3 MP4 defaults.
                     val advanced = job.customParamsJson
                         ?.takeIf { it.isNotBlank() }
                         ?.let(VideoAdvancedSettings::fromJson)
@@ -268,6 +283,15 @@ class ConversionRepository(
                         }
                         VideoSettingsValidator.validate(advanced)?.let {
                             throw IllegalArgumentException(it)
+                        }
+                        // The current Media3 pipeline cannot guarantee stream copy,
+                        // metadata policy, or explicit encoder selection.
+                        require(!advanced.isRemux && advanced.videoCodec != "copy" &&
+                            advanced.audioCodec != "copy") {
+                            "Stream-copy/remux is not available in this Media3 release. Choose a conversion preset."
+                        }
+                        require(advanced.preserveMetadata && advanced.fastStart) {
+                            "Custom metadata/fast-start settings are not yet supported by Media3."
                         }
                         if (advanced.encoder == "hardware" && !settings.hardwareAcceleration) {
                             throw IllegalArgumentException(
@@ -317,6 +341,12 @@ class ConversionRepository(
                         }
                         AudioSettingsValidator.validate(advancedAudio)?.let {
                             throw IllegalArgumentException(it)
+                        }
+                        require(advancedAudio.sampleRate == null &&
+                                advancedAudio.channels == null &&
+                                advancedAudio.volumePercent == 100 &&
+                                advancedAudio.preserveMetadata) {
+                            "Custom sample rate, channels, volume or metadata are not yet supported by Media3."
                         }
                     }
                     Media3TransformerEngine.convertAudio(

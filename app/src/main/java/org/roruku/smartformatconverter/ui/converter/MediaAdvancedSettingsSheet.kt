@@ -455,7 +455,7 @@ fun AudioAdvancedSettingsControl(
                         )
                     }
                     Text(
-                        "Sample rate and channel layout are managed automatically by Android Media3.",
+                        stringResource(R.string.media3_audio_automatic_note),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -463,7 +463,7 @@ fun AudioAdvancedSettingsControl(
             }
 
             Text(
-                "Custom volume adjustment and metadata control are unavailable in this Media3 version.",
+                stringResource(R.string.media3_audio_unsupported_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

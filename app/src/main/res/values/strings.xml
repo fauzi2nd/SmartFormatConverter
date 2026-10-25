@@ -323,7 +323,7 @@
     <string name="setting_webp_quality">WebP quality: %1$d</string>
     <string name="setting_lossless_webp">Lossless WebP (file size may increase)</string>
     <string name="setting_png_lossless">PNG always uses lossless compression.</string>
-    <string name="setting_jpeg_native_note">The Pure Kotlin Android SDK encoder applies system-optimized 4:2:0 chroma subsampling for high quality and compatibility across all photo viewers.</string>
+    <string name="setting_jpeg_native_note">JPEG chroma subsampling is selected by the Android built-in encoder. Specific modes (4:4:4, 4:2:2, 4:2:0) cannot be guaranteed in this release.</string>
     <string name="setting_resize">Resize &amp; Dimensions</string>
     <string name="setting_preset_original">Original</string>
     <string name="setting_preset_1080p">1080p FHD</string>
@@ -391,4 +391,8 @@
     <string name="privacy_policy_title">Privacy Policy</string>
     <string name="privacy_policy_content">Smart Format Converter is committed to your privacy.\n\n• Zero Data Collection: We do not collect, store, or transmit your personal data, files, or usage analytics.\n• 100% On-Device: All media conversions and resizing run locally on your device hardware.\n• Safe Storage Access: The app only reads and writes files in folders you explicitly select through Android\'s Storage Access Framework.\n• Network Use: Internet access is used strictly when you choose to download a file from a URL in the Downloader tab.\n\nSource code is publicly auditable on GitHub.</string>
     <string name="btn_close">Close</string>
+    <string name="media3_audio_automatic_note">Sample rate and channel layout are managed automatically by Android Media3.</string>
+    <string name="media3_audio_unsupported_note">Custom volume adjustment and metadata control are unavailable in this Media3 version.</string>
+    <string name="media3_video_muxer_note">Metadata handling and MP4 fast-start are controlled automatically by Media3.</string>
+    <string name="media3_hardware_automatic_note">Media3 selects an available encoder and may use a supported fallback. Manual hardware selection is not yet available.</string>
 </resources>

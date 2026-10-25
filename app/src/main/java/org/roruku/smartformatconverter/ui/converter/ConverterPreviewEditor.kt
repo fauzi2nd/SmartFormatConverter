@@ -1012,10 +1012,8 @@ fun ConverterPreviewEditor(
                 if (state.selectedTab == 0) {
                     item {
                         Text(stringResource(R.string.preset), fontWeight = FontWeight.SemiBold)
-                        val presets = listOf(
-                            "Original Quality / Remux", "High Quality",
-                            "Balanced", "Small File", "Custom"
-                        )
+                        // Stream-copy/remux is not implemented by the current Media3 engine.
+                        val presets = listOf("High Quality", "Balanced", "Small File", "Custom")
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(presets.size) { i ->
                                 val choice = presets[i]
@@ -1056,9 +1054,8 @@ fun ConverterPreviewEditor(
                         }
                     }
                 } else {
-                    // PNG, FLAC and WAV are lossless; "small file"/quality presets
-                    // would be misleading because their encoders ignore bitrate/quality.
-                    if (state.targetFormat !in setOf("png", "flac", "wav")) {
+                    // PNG compression is lossless; a quality preset would be misleading.
+                    if (state.targetFormat != "png") {
                     item {
                         Text(stringResource(R.string.preset), fontWeight = FontWeight.SemiBold)
                         val presets = listOf("High Quality", "Balanced", "Small File", "Custom")

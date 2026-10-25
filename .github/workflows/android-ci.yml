@@ -2,10 +2,14 @@ name: Android CI Build & Test
 
 on:
   push:
-    branches: [ "master", "fix/*" ]
+    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
   workflow_dispatch:
+
+# PR code is untrusted; do not expose write-scoped tokens to build jobs.
+permissions:
+  contents: read
 
 concurrency:
   group: android-ci-${{ github.ref }}
@@ -13,8 +17,15 @@ concurrency:
 
 jobs:
   build:
-    name: Build & Test Android App (Self-Hosted Runner)
+    # Do not execute untrusted PR code on a persistent self-hosted runner.
+    # Persistent self-hosted Windows runner executes only trusted master refs.
+    # Untrusted PRs must stay on isolated GitHub-hosted runner infrastructure.
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master')
+    name: Build & Test Android App (Trusted Windows Runner)
     runs-on: self-hosted
+    timeout-minutes: 90
     env:
       ANDROID_HOME: C:\Users\space\AppData\Local\Android\Sdk
 
@@ -24,7 +35,8 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
-          clean: false
+          clean: true
+          persist-credentials: false
 
       - name: Set up JDK 25
         uses: actions/setup-java@v5
@@ -48,6 +60,12 @@ jobs:
 
       - name: Run Unit Tests
         run: gradlew.bat testDebugUnitTest --warning-mode summary --stacktrace
+        shell: cmd
+
+      - name: Compile On-Device Smoke Tests
+        # Device execution is a separate release gate. This verifies that
+        # AndroidJUnit4/Media3 test sources compile on every trusted push.
+        run: gradlew.bat assembleDebugAndroidTest --warning-mode summary --stacktrace
         shell: cmd
 
       - name: Run Android Lint (Debug)
@@ -120,3 +138,33 @@ jobs:
           } else {
             Write-Host 'No lint text report found (failure may be from build or unit tests).'
           }
+
+  pull_request_validation:
+    name: Validate untrusted PR on an ephemeral GitHub-hosted runner
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android API 37
+        run: sdkmanager "platforms;android-37" "platform-tools"
+
+      - name: Build, unit test and lint PR
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug testDebugUnitTest assembleDebugAndroidTest lintDebug --no-daemon --stacktrace

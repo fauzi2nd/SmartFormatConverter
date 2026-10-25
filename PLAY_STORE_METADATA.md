@@ -38,26 +38,35 @@ Google Play requires explicit declarations for each foreground service type decl
 **Smart Format Converter**
 
 ### Short Description (Max 80 characters)
-Fast, private, and offline video, audio, and image converter with zero ads.
+Private video, audio and image conversion with direct file downloads.
 
 ### Full Description
 **Smart Format Converter** is a modern, privacy-first multimedia conversion and downloader tool for Android. Convert your videos, music, and photos with hardware acceleration—100% on your device, without uploading your personal files to any cloud server!
 
 **Key Features:**
-* 🎬 **Video Converter**: Convert video files (.mp4, .mkv, .webm, .mov, .avi) to modern, universally compatible MP4 and WebM formats using hardware-accelerated Media3 encoding.
-* 🎵 **Audio Converter & Extractor**: Convert audio (.m4a, .aac, .flac, .wav, .opus, .mp3) or extract high-quality audio tracks directly from your favorite video clips.
+* 🎬 **Video Converter**: Export MP4 (H.264/H.265 where supported by the device) from compatible input files using AndroidX Media3.
+* 🎵 **Audio Converter & Extractor**: Convert decodable input audio or extract audio from compatible video files into M4A (AAC).
 * 🖼️ **Image Resizer & Converter**: Convert between JPEG, PNG, and WebP. Adjust quality, resolution, center-crop, and maintain aspect ratios with live preview.
-* ⚡ **Hardware Acceleration**: Powered by Android's native GPU/VPU codecs for up to 5x faster conversions and minimal battery consumption.
-* 🔒 **100% Private & Offline**: No cloud uploads, no account required, no tracking, and zero ads. Your files never leave your phone.
+* ⚡ **Android MediaCodec**: Uses device-supported encoders, with performance, power use and fallback behavior varying by chipset.
+* 🔒 **On-Device Conversion**: Local files are converted without cloud processing. Direct file downloads use the network only for the URLs you request.
 * 📁 **Storage Access Framework**: Fully compatible with modern Android scoped storage. Save converted media directly to your chosen folder.
-* 🌐 **Direct Media Downloader**: Download direct media links straight to your device with resume capability.
+* 🌐 **Direct Media Downloader**: Download direct HTTP/HTTPS media links, with byte-range resume when supported by the source server.
 
 ---
 
 ## 4. App Classification & Content Rating
 
 * **App Category**: Tools / Video Players & Editors
-* **Target Audience**: Everyone
+* **Target Audience**: Choose and verify the intended age groups in Play Console before submission; this draft does not establish Families eligibility.
 * **Contains Ads**: No
 * **App Access**: All features are available without special access or credentials.
-* **Privacy Policy URL**: Host `PRIVACY_POLICY.md` on GitHub Pages (e.g., `https://fauzi2nd.github.io/SmartFormatConverter/PRIVACY_POLICY.html` or direct GitHub raw URL: `https://raw.githubusercontent.com/fauzi2nd/SmartFormatConverter/master/PRIVACY_POLICY.md`).
+* **Privacy Policy URL**: Publish and verify a publicly accessible HTTPS privacy-policy webpage before filling this field. A guessed GitHub Pages URL is not evidence that a live policy page exists.
+
+---
+
+## Important Pre-publication Checks
+
+- This text is a **draft**, not a verified certification of Play policy compliance. Review Data Safety against the final manifest, dependencies, actual network activity and retained data.
+- Avoid claims of universally supported input codecs, WebM/MP3 output, 5× speedups or guaranteed battery improvements: these have not been established by device benchmarks.
+- The downloader sends requests to user-chosen hosts; those hosts can observe ordinary network information such as the source IP address. HTTP transport is unencrypted.
+- Include links/screenshots/recordings required by Google Play only after those actual assets exist.

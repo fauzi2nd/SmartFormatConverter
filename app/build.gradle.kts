@@ -1,5 +1,4 @@
 import java.util.Properties
-import org.gradle.api.tasks.testing.Test
 
 plugins {
     alias(libs.plugins.android.application)
@@ -171,8 +170,7 @@ dependencies {
     )
 }
 
-// The JVM unit-test process loads libjpeg's JNI availability probe on JDK 25.
-// Explicitly grant native access rather than emitting JEP 472 warnings.
-tasks.withType<Test>().configureEach {
-    jvmArgs("--enable-native-access=ALL-UNNAMED")
+// Persist current Room schema for future migration tests.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }

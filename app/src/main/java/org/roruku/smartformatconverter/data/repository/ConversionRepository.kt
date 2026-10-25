@@ -165,6 +165,7 @@ class ConversionRepository(
             ))
         }
 
+        var tempOutputFile: File? = null
         try {
             dao.updateProgress(job.id, JobStatus.RUNNING, 0.02f, "Measuring…", "Measuring…", generation)
             val settings = userPrefs.userSettingsFlow.first()
@@ -174,6 +175,11 @@ class ConversionRepository(
                 ?: throw IllegalStateException(
                     "Select a parent output folder in Settings before converting."
                 )
+
+            // Validate persisted jobs as well as newly queued files.
+            Media3OutputPolicy.rejectionReason(job.mediaType, job.outputFormat)?.let {
+                throw IllegalArgumentException(it)
+            }
 
             val effectiveExtension = when (job.mediaType) {
                 MediaType.VIDEO -> "mp4"
@@ -193,6 +199,7 @@ class ConversionRepository(
                     context, "out_${job.id}", effectiveExtension
                 )
             }
+            tempOutputFile = tempOutFile
 
             val conversionResult = when (job.mediaType) {
                 MediaType.IMAGE -> {
@@ -245,6 +252,9 @@ class ConversionRepository(
                     val preset = VideoPreset.entries.firstOrNull {
                         it.displayName.equals(job.presetName, ignoreCase = true)
                     } ?: VideoPreset.BALANCED
+                    require(preset != VideoPreset.REMUX) {
+                        "Remux/stream copy is not guaranteed by this Media3 release. Select a conversion preset."
+                    }
                     val config = VideoConversionConfig(
                         outputFormat = format,
                         preset = preset,
@@ -257,8 +267,7 @@ class ConversionRepository(
                         },
                         crf = preset.crf
                     )
-                    // New jobs hold an immutable per-job JSON snapshot. Old jobs
-                    // without that field continue down FFmpegEngine's legacy path.
+                    // Old jobs without a snapshot use the supported Media3 MP4 defaults.
                     val advanced = job.customParamsJson
                         ?.takeIf { it.isNotBlank() }
                         ?.let(VideoAdvancedSettings::fromJson)
@@ -267,6 +276,9 @@ class ConversionRepository(
                             "Queued video format and advanced settings disagree"
                         }
                         VideoSettingsValidator.validate(advanced)?.let {
+                            throw IllegalArgumentException(it)
+                        }
+                        Media3OutputPolicy.unsupportedVideoSettings(advanced)?.let {
                             throw IllegalArgumentException(it)
                         }
                         if (advanced.encoder == "hardware" && !settings.hardwareAcceleration) {
@@ -316,6 +328,9 @@ class ConversionRepository(
                             "Queued audio format and advanced settings disagree"
                         }
                         AudioSettingsValidator.validate(advancedAudio)?.let {
+                            throw IllegalArgumentException(it)
+                        }
+                        Media3OutputPolicy.unsupportedAudioSettings(advancedAudio)?.let {
                             throw IllegalArgumentException(it)
                         }
                     }
@@ -392,6 +407,9 @@ class ConversionRepository(
             }
 
             val finalFile = conversionResult.getOrThrow()
+            MediaOutputIntegrity.validate(finalFile, job.mediaType)?.let { reason ->
+                throw IllegalStateException(reason)
+            }
             val outputSize = finalFile.length()
 
             // Always save below <selected-parent>/Converter/.
@@ -479,6 +497,11 @@ class ConversionRepository(
             }
             Result.failure(e)
         } finally {
+            // Non-download output is a per-attempt temporary file. Retain
+            // validated direct-download cache to support HTTP Range Resume.
+            if (job.mediaType != MediaType.DOWNLOAD) {
+                tempOutputFile?.delete()
+            }
             updates.close()
             withContext(NonCancellable) { progressWriter.join() }
             if (generation > 0L) {

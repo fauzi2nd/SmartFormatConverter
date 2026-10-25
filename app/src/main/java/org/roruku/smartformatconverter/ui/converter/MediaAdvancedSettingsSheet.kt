@@ -454,87 +454,19 @@ fun AudioAdvancedSettingsControl(
                             valueRange = 32f..320f
                         )
                     }
-                    Text(stringResource(R.string.setting_sample_rate),
-                        style = MaterialTheme.typography.titleSmall)
-                    val sampleOptions = if (draft.format == "opus") listOf(
-                        "48000" to stringResource(R.string.setting_khz48)
-                    ) else listOf(
-                        "source" to stringResource(R.string.setting_original),
-                        "32000" to stringResource(R.string.setting_khz32),
-                        "44100" to stringResource(R.string.setting_khz441),
-                        "48000" to stringResource(R.string.setting_khz48),
-                        "96000" to stringResource(R.string.setting_khz96)
-                    )
-                    MediaOptionChooser(
-                        selected = if (draft.format == "opus") "48000"
-                                   else draft.sampleRate?.toString() ?: "source",
-                        options = sampleOptions,
-                        onChange = { draft = draft.copy(sampleRate = it.toIntOrNull()) }
-                    )
-                    if (draft.format == "opus") {
-                        Text(stringResource(R.string.setting_audio_source_rate),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Text(stringResource(R.string.setting_channels),
-                        style = MaterialTheme.typography.titleSmall)
-                    MediaOptionChooser(
-                        selected = draft.channels?.toString() ?: "source",
-                        options = listOf(
-                            "source" to stringResource(R.string.setting_original),
-                            "1" to stringResource(R.string.setting_mono),
-                            "2" to stringResource(R.string.setting_stereo)
-                        ),
-                        onChange = { draft = draft.copy(channels = it.toIntOrNull()) }
+                    Text(
+                        stringResource(R.string.media3_audio_automatic_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // Volume & Metadata Card
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            stringResource(R.string.setting_audio_volume_metadata),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Text(stringResource(R.string.setting_volume_percent, draft.volumePercent),
-                        style = MaterialTheme.typography.bodyMedium)
-                    Slider(
-                        value = draft.volumePercent.toFloat(),
-                        onValueChange = { draft = draft.copy(volumePercent = it.roundToInt()) },
-                        valueRange = 0f..200f
-                    )
-                    if (draft.volumePercent > 100) {
-                        Text(stringResource(R.string.advanced_volume_warning),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall)
-                    }
-                    MediaSwitch(stringResource(R.string.setting_metadata), draft.preserveMetadata) {
-                        draft = draft.copy(preserveMetadata = it)
-                    }
-                }
-            }
+            Text(
+                stringResource(R.string.media3_audio_unsupported_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             val invalid = AudioSettingsValidator.validate(draft)
             if (invalid != null) Text(invalid, color = MaterialTheme.colorScheme.error)
@@ -544,7 +476,7 @@ fun AudioAdvancedSettingsControl(
                     Text(stringResource(R.string.cancel))
                 }
                 Button(
-                    onClick = { onApply(draft.copy(preset = "Custom")); open = false },
+                    onClick = { onApply(draft.copy(preset = "Custom", sampleRate = null, channels = null, volumePercent = 100, preserveMetadata = true)); open = false },
                     enabled = invalid == null,
                     modifier = Modifier.weight(1f)
                 ) { Text(stringResource(R.string.apply)) }

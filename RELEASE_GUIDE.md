@@ -102,3 +102,27 @@ Semua pemeriksaan di atas telah diintegrasikan secara otomatis ke dalam **GitHub
 5. Unggah file `app/build/outputs/bundle/release/app-release.aab`.
 6. Tinjau dan pastikan **Google Play App Signing** aktif.
 7. Masukkan catatan rilis (Release notes) dan klik **Save** lalu **Review release**.
+
+---
+
+## 7. Pra-rilis: wajib dibuktikan pada perangkat
+
+Sebelum Production, jangan mengandalkan `assembleDebug` saja.
+
+1. Instal versi APK lama dengan data antrean; lakukan upgrade tanpa uninstall.
+   Pastikan `MIGRATION_1_2` menjaga semua pekerjaan dan tidak crash.
+2. Uji input MP4, MKV, MOV, MP3, WAV, dan gambar resolusi besar pada
+   sedikitnya dua chipset Android. Ekspor video hanya MP4, audio hanya M4A.
+3. Uji Pause, Resume, Cancel dengan cepat, aplikasi di-background, notifikasi,
+   kehabisan ruang, izin SAF dicabut, dan penghentian foreground service.
+4. Uji output gagal/terbatal agar tidak meninggalkan file parsial atau
+   mencatat pekerjaan sebagai sukses.
+5. Pastikan bundle produksi **signed** menggunakan `jarsigner -verify`;
+   hasil `bundleRelease` CI tanpa upload key bukan file untuk diunggah.
+6. Jalankan pemeriksaan alignment 16 KB pada APK hasil bundle dan uji
+   instalasinya pada emulator/perangkat 16 KB.
+7. Jalankan closed testing dan verifikasi kualitas audio-video serta
+   penggunaan memori sebelum menaikkan rilis ke Production.
+
+PR publik harus menggunakan runner GitHub-hosted terisolasi. Jangan kembali
+mengaktifkan build pull request tak tepercaya pada self-hosted Windows runner.

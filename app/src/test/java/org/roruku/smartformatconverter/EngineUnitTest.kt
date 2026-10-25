@@ -3,12 +3,17 @@ package org.roruku.smartformatconverter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.roruku.smartformatconverter.data.db.Converters
 import org.roruku.smartformatconverter.data.db.JobStatus
 import org.roruku.smartformatconverter.data.db.MediaType
+import org.roruku.smartformatconverter.data.repository.Media3OutputPolicy
+import org.roruku.smartformatconverter.data.repository.MediaOutputIntegrity
 import org.roruku.smartformatconverter.data.storage.BatchOutputStructure
 import org.roruku.smartformatconverter.data.storage.BatchScanConfig
+import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
+import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioCodec
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioConversionConfig
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioOutputFormat
@@ -23,6 +28,71 @@ import org.roruku.smartformatconverter.engine.image.ImageOutputFormat
 import java.io.File
 
 class EngineUnitTest {
+
+    @Test
+    fun testMedia3AdvancedSettingsCompatibility() {
+        assertNull(Media3OutputPolicy.unsupportedVideoSettings(VideoAdvancedSettings()))
+        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+            VideoAdvancedSettings().applyPreset("Original Quality / Remux")))
+        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+            VideoAdvancedSettings(encoder = "software")))
+        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+            VideoAdvancedSettings(fps = "60")))
+        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+            VideoAdvancedSettings(volumePercent = 150)))
+        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+            VideoAdvancedSettings(subtitleMode = "copy")))
+        assertNull(Media3OutputPolicy.unsupportedAudioSettings(AudioAdvancedSettings()))
+        assertNotNull(Media3OutputPolicy.unsupportedAudioSettings(
+            AudioAdvancedSettings(volumePercent = 150)))
+    }
+
+
+    @Test
+    fun testMediaOutputIntegrityTrackPolicy() {
+        assertEquals(true, MediaOutputIntegrity.containsExpectedTrack(MediaType.VIDEO, listOf("video/avc", "audio/mp4a-latm")))
+        assertEquals(false, MediaOutputIntegrity.containsExpectedTrack(MediaType.VIDEO, listOf("audio/mp4a-latm")))
+        assertEquals(true, MediaOutputIntegrity.containsExpectedTrack(MediaType.AUDIO, listOf("audio/mp4a-latm")))
+        assertEquals(false, MediaOutputIntegrity.containsExpectedTrack(MediaType.AUDIO, listOf("video/avc")))
+        assertEquals(false, MediaOutputIntegrity.containsExpectedTrack(MediaType.VIDEO, emptyList()))
+        assertNotNull(MediaOutputIntegrity.validate(File("unavailable-test-file.mp4"), MediaType.DOWNLOAD))
+        assertNotNull(MediaOutputIntegrity.validate(File("unavailable-test-file.mp4"), MediaType.VIDEO))
+    }
+
+
+
+    @Test
+    fun testMedia3OutputPolicyRejectsLegacyContainers() {
+        assertEquals(null, Media3OutputPolicy.rejectionReason(MediaType.VIDEO, "mp4"))
+        assertEquals(null, Media3OutputPolicy.rejectionReason(MediaType.AUDIO, "M4A"))
+        assertEquals(null, Media3OutputPolicy.rejectionReason(MediaType.IMAGE, "jpeg"))
+        assertEquals(null, Media3OutputPolicy.rejectionReason(MediaType.DOWNLOAD, "mkv"))
+        assertNotNull(Media3OutputPolicy.rejectionReason(MediaType.VIDEO, "mkv"))
+        assertNotNull(Media3OutputPolicy.rejectionReason(MediaType.AUDIO, "mp3"))
+        assertNotNull(Media3OutputPolicy.rejectionReason(MediaType.AUDIO, "flac"))
+        assertNotNull(Media3OutputPolicy.rejectionReason(MediaType.IMAGE, "tiff"))
+    }
+
+    @Test
+    fun testDownsampleDoesNotChangeOriginalSizeExport() {
+        val original = ImageConversionConfig(outputFormat = ImageOutputFormat.JPEG)
+        assertEquals(1, ImageConverterEngine.calculateDecodeSampleSize(12000, 8000, original))
+        val resized = original.copy(customWidth = 1000, customHeight = 1000)
+        assertEquals(4, ImageConverterEngine.calculateDecodeSampleSize(12000, 8000, resized))
+        val cropping = resized.copy(cropToExactRatio = true)
+        assertEquals(1, ImageConverterEngine.calculateDecodeSampleSize(12000, 8000, cropping))
+    }
+
+    @Test
+    fun testMedia3VideoPresetsMapToActualBitrate() {
+        val base = org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings()
+        val high = base.applyPreset("High Quality")
+        val balanced = base.applyPreset("Balanced")
+        val small = base.applyPreset("Small File")
+        assertEquals(12000, high.videoBitrateKbps)
+        assertEquals(6000, balanced.videoBitrateKbps)
+        assertEquals(2500, small.videoBitrateKbps)
+    }
 
     @Test
     fun testRoomConverters() {

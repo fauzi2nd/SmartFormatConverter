@@ -30,6 +30,7 @@ import kotlinx.coroutines.withContext
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioConversionConfig
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioOutputFormat
+import org.roruku.smartformatconverter.engine.ffmpeg.FFmpegEngine
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoConversionConfig
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoOutputFormat
@@ -55,7 +56,21 @@ object Media3TransformerEngine {
         val width = advancedSettings?.width
         val height = advancedSettings?.height
         if (width != null && height != null && width > 0 && height > 0) {
-            effects.add(Presentation.createForWidthAndHeight(width, height, Presentation.LAYOUT_SCALE_TO_FIT))
+            // Do not upscale a smaller source when the user enabled "Prevent upscale".
+            // If the source dimensions cannot be read, fail rather than silently
+            // violating an explicit quality requirement.
+            val canResize = if (advancedSettings?.preventUpscale == true) {
+                val input = FFmpegEngine.probeMedia(context, inputUri)
+                if (input.videoWidth <= 0 || input.videoHeight <= 0) {
+                    return@withContext Result.failure(
+                        IllegalStateException("Cannot determine source resolution for prevent-upscale. Try original resolution.")
+                    )
+                }
+                width <= input.videoWidth && height <= input.videoHeight
+            } else true
+            if (canResize) {
+                effects.add(Presentation.createForWidthAndHeight(width, height, Presentation.LAYOUT_SCALE_TO_FIT))
+            }
         }
 
         if (effects.isNotEmpty()) {
@@ -171,9 +186,13 @@ object Media3TransformerEngine {
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     isDone = true
-                    onProgress(1.0f, "Complete", "00:00")
                     if (continuation.isActive) {
-                        continuation.resume(Result.success(outputFile))
+                        if (outputFile.isFile && outputFile.length() > 0L) {
+                            onProgress(1.0f, "Complete", "00:00")
+                            continuation.resume(Result.success(outputFile))
+                        } else {
+                            continuation.resume(Result.failure(IllegalStateException("Media3 produced an empty output file")))
+                        }
                     }
                 }
 
@@ -184,6 +203,7 @@ object Media3TransformerEngine {
                 ) {
                     isDone = true
                     Log.e(TAG, "Transformation error", exportException)
+                    outputFile.delete()
                     if (continuation.isActive) {
                         continuation.resume(Result.failure(exportException))
                     }
@@ -192,14 +212,17 @@ object Media3TransformerEngine {
             .build()
 
         continuation.invokeOnCancellation {
-            isDone = true
-            try {
-                transformer.cancel()
-            } catch (e: Exception) {
-                Log.w(TAG, "Error cancelling transformer", e)
-            }
-            if (outputFile.exists()) {
-                outputFile.delete()
+            // Cancellation may arrive from the IO worker thread. Media3
+            // Transformer must be controlled on the application/main Looper.
+            handler.post {
+                isDone = true
+                try {
+                    transformer.cancel()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error cancelling transformer", e)
+                } finally {
+                    outputFile.delete()
+                }
             }
         }
 
@@ -210,6 +233,7 @@ object Media3TransformerEngine {
             transformer.start(editedMediaItem, outputFile.absolutePath)
         } catch (e: Exception) {
             isDone = true
+            outputFile.delete()
             if (continuation.isActive) {
                 continuation.resume(Result.failure(e))
             }
@@ -220,12 +244,18 @@ object Media3TransformerEngine {
         val progressRunnable = object : Runnable {
             override fun run() {
                 if (!isDone && continuation.isActive) {
-                    val progressState = transformer.getProgress(progressHolder)
-                    if (progressState == Transformer.PROGRESS_STATE_AVAILABLE) {
-                        val pct = (progressHolder.progress.coerceIn(0, 99)) / 100f
-                        onProgress(pct, "Processing…", null)
+                    try {
+                        val progressState = transformer.getProgress(progressHolder)
+                        if (progressState == Transformer.PROGRESS_STATE_AVAILABLE) {
+                            val pct = (progressHolder.progress.coerceIn(0, 99)) / 100f
+                            onProgress(pct, "Processing…", null)
+                        }
+                    } catch (error: Exception) {
+                        // Progress is best effort. A transient polling failure must
+                        // not crash the main Looper or interrupt a valid export.
+                        Log.w(TAG, "Media3 progress polling unavailable", error)
                     }
-                    handler.postDelayed(this, 150)
+                    if (!isDone && continuation.isActive) handler.postDelayed(this, 150)
                 }
             }
         }

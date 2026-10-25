@@ -47,27 +47,33 @@ class RoomMigrationTest {
                 // 1. Create real v1 conversion_jobs table
                 stmt.execute("""
                     CREATE TABLE conversion_jobs (
-                        id TEXT PRIMARY KEY NOT NULL,
-                        inputUri TEXT NOT NULL,
+                        id TEXT NOT NULL PRIMARY KEY,
                         fileName TEXT NOT NULL,
-                        fileSizeBytes INTEGER NOT NULL,
-                        outputFormat TEXT NOT NULL,
+                        inputUri TEXT NOT NULL,
+                        outputUri TEXT,
                         mediaType TEXT NOT NULL,
+                        inputFormat TEXT NOT NULL,
+                        outputFormat TEXT NOT NULL,
+                        presetName TEXT NOT NULL,
                         status TEXT NOT NULL,
                         progress REAL NOT NULL,
-                        outputPath TEXT,
-                        errorReason TEXT,
+                        speed TEXT,
+                        eta TEXT,
+                        errorMessage TEXT,
+                        fileSize INTEGER NOT NULL,
+                        outputFileSize INTEGER NOT NULL,
                         createdAt INTEGER NOT NULL,
                         completedAt INTEGER,
-                        presetName TEXT,
+                        retryCount INTEGER NOT NULL,
+                        relativeFolderPath TEXT,
                         customParamsJson TEXT
                     )
                 """.trimIndent())
 
                 // 2. Insert test job in v1
                 stmt.execute("""
-                    INSERT INTO conversion_jobs (id, inputUri, fileName, fileSizeBytes, outputFormat, mediaType, status, progress, createdAt)
-                    VALUES ('job-v1', 'content://test', 'test_video.mp4', 2048, 'mp4', 'VIDEO', 'COMPLETED', 1.0, 1000)
+                    INSERT INTO conversion_jobs (id, inputUri, fileName, fileSize, inputFormat, outputFormat, mediaType, presetName, status, progress, createdAt, outputFileSize, retryCount)
+                    VALUES ('job-v1', 'content://test', 'test_video.mp4', 2048, 'video/mp4', 'mp4', 'VIDEO', 'Balanced', 'COMPLETED', 1.0, 1000, 1024, 0)
                 """.trimIndent())
 
                 // 3. Delegate SupportSQLiteDatabase.execSQL to the real SQLite statement
@@ -88,6 +94,13 @@ class RoomMigrationTest {
                 stmt.executeQuery("SELECT executionToken FROM conversion_jobs WHERE id = 'job-v1'").use { rs ->
                     assertTrue("Expected migrated row to exist", rs.next())
                     assertEquals("New column executionToken should default to 0", 0L, rs.getLong("executionToken"))
+                }
+                stmt.executeQuery("SELECT fileName, fileSize, outputFileSize, status FROM conversion_jobs WHERE id = 'job-v1'").use { rs ->
+                    assertTrue(rs.next())
+                    assertEquals("test_video.mp4", rs.getString("fileName"))
+                    assertEquals(2048L, rs.getLong("fileSize"))
+                    assertEquals(1024L, rs.getLong("outputFileSize"))
+                    assertEquals("COMPLETED", rs.getString("status"))
                 }
             }
         }

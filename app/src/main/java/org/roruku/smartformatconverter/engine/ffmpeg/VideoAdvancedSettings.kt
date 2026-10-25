@@ -37,9 +37,11 @@ data class VideoAdvancedSettings(
 
     fun applyPreset(name: String): VideoAdvancedSettings = when (name) {
         "Original Quality / Remux" -> copy(preset = name)
-        "High Quality" -> copy(preset = name, crf = 18, rateControl = "crf")
-        "Balanced" -> copy(preset = name, crf = 23, rateControl = "crf")
-        "Small File" -> copy(preset = name, crf = 28, rateControl = "crf")
+        // Media3 uses encoder target bitrate, not libx264 CRF. Presets must
+        // adjust the setting actually consumed by the runtime.
+        "High Quality" -> copy(preset = name, crf = 18, rateControl = "vbr", videoBitrateKbps = 12000)
+        "Balanced" -> copy(preset = name, crf = 23, rateControl = "vbr", videoBitrateKbps = 6000)
+        "Small File" -> copy(preset = name, crf = 28, rateControl = "vbr", videoBitrateKbps = 2500)
         else -> copy(preset = "Custom")
     }
 

@@ -251,15 +251,11 @@ fun VideoAdvancedSettingsControl(
             HorizontalDivider()
             SectionHeader(stringResource(R.string.video_setting_other))
 
-            ToggleOption(
-                stringResource(R.string.video_setting_keep_metadata),
-                draft.preserveMetadata
-            ) { draft = draft.copy(preserveMetadata = it) }
-
-            ToggleOption(
-                stringResource(R.string.video_setting_mp4_fast_start),
-                draft.fastStart
-            ) { draft = draft.copy(fastStart = it) }
+            Text(
+                stringResource(R.string.media3_video_muxer_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             val validation = VideoSettingsValidator.validate(draft)
             val error = formError ?: validation
@@ -289,7 +285,7 @@ fun VideoAdvancedSettingsControl(
                         } else {
                             val validationError = VideoSettingsValidator.validate(draft)
                             if (validationError == null) {
-                                onApply(draft)
+                                onApply(draft.copy(preserveMetadata = true, fastStart = true))
                                 open = false
                             } else formError = validationError
                         }

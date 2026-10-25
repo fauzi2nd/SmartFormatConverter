@@ -1,72 +1,52 @@
 # Smart Format Converter
 
-A modern, privacy-focused, offline-first Android multimedia conversion and downloading application built with Jetpack Compose and Material 3.
+A privacy-focused Android multimedia converter and direct file downloader, built with Kotlin, Jetpack Compose and AndroidX Media3.
 
----
+## Currently implemented
 
-## Features
+- **Video conversion:** Export MP4 (H.264/H.265, subject to device codec support) from supported local media sources. Configurable target bitrate and resolution; Media3 selects an available encoder.
+- **Audio conversion:** Export AAC audio in an M4A container. Supported input decoding depends on Android/Media3 and the media's codec.
+- **Images:** Convert JPEG, PNG and WebP with quality/resizing options, optional JPEG EXIF preservation, and white-background flattening for transparent JPEG inputs. Chroma subsampling is chosen by Android; JPEG 4:4:4 is **not guaranteed**.
+- **Direct URL downloads:** Download direct HTTP/HTTPS media files, with progress and resumable byte-range transfers when the server supports them. This is not a general streaming-site extractor.
+- **Job queue:** Room-backed batch jobs, SAF output selection, progress notifications, Pause/Resume/Cancel, and cleanup of conversion cache on completion/error.
 
-- **Video Converter:** Transcode and remux video containers (MP4, MKV, MOV, WebM, etc.) with customizable resolution, framerate, and audio tracks.
-- **Image Converter:** High-quality batch image conversion for JPEG, PNG, and WebP with EXIF preservation and native TurboJPEG integration.
-- **Audio Converter:** Fast conversion and audio extraction across standard audio formats (MP3, AAC, FLAC, WAV, OGG).
-- **URL Downloader:** Resumable chunked byte-stream downloader with live speed and ETA calculations.
-- **Persistent Job Queue:** Background foreground-service conversion queue with progress notifications and pause/resume capabilities.
+**Current output limit:** Only MP4 video, M4A audio, JPEG, PNG and WebP are provided. MKV/WebM/AVI/MOV and MP3/FLAC/WAV **export** and lossless video stream-copy/remux are not implemented in the active Media3 pipeline. Input support does not guarantee every platform codec can decode every file.
 
----
+## Implementation
 
-## Tech Stack
+- Kotlin and Jetpack Compose / Material 3.
+- AndroidX Media3 Transformer + MediaCodec, with device-dependent hardware/software selection.
+- Android Bitmap APIs for image encoding; no custom C++ image encoder.
+- Room, DataStore and Storage Access Framework. Android min SDK 26, target/compile SDK 37.
 
-- **UI:** Jetpack Compose, Material 3, Navigation Compose
-- **Language:** Pure Kotlin 2.4.x (100% Kotlin codebase, zero native C++/NDK)
-- **Architecture:** MVVM, Clean Architecture, Unidirectional Data Flow (UDF)
-- **Persistence:** Room Database, DataStore Preferences, Storage Access Framework (SAF)
-- **Engines:**
-  - AndroidX Media3 Transformer & ExoPlayer (Hardware-accelerated media transcoding)
-  - Android SDK Native Graphics (Pure Kotlin image processing)
-  - Coil Image & Video Loader
+## Build
 
----
+Requirements: Android SDK with API 37 and JDK 25 for this repository's Gradle configuration.
 
-## Getting Started
+```bash
+git clone https://github.com/fauzi2nd/SmartFormatConverter.git
+cd SmartFormatConverter
+./gradlew assembleDebug testDebugUnitTest assembleDebugAndroidTest lintDebug
+./gradlew bundleRelease
+```
 
-### Prerequisites
+On Windows, use `gradlew.bat` instead of `./gradlew`. Configure your local Android SDK directory in `local.properties` (never commit it).
 
-- **JDK:** OpenJDK 25 (bundled JetBrains Runtime / Android Studio JBR recommended)
-- **Android SDK:** Compile SDK 37, Min SDK 26
+`assembleDebugAndroidTest` **compiles** the on-device smoke tests; it does not run them. With an attached Android device or configured emulator, run:
 
-### Build Instructions
+```bash
+./gradlew connectedDebugAndroidTest
+```
 
-1. **Clone the repository:**
-   ```bash
-   git clone <repo-url>
-   ```
-
-2. **Configure SDK path in `local.properties`:**
-   ```properties
-   sdk.dir=C\:\\Users\\<YourUser>\\AppData\\Local\\Android\\Sdk
-   ```
-
-3. **Build Debug APK:**
-   ```bash
-   ./gradlew assembleDebug
-   ```
-
-4. **Build Release AAB (Google Play):**
-   ```bash
-   ./gradlew bundleRelease
-   ```
-
----
+The instrumented smoke tests convert a PNG to JPEG and WAV to M4A and inspect the outputs. Device test results and signed AAB verification are required separately before publication. An unsigned `bundleRelease` artifact is **not** ready for Play upload.
 
 ## Documentation
 
-- [Release Pipeline Guide](RELEASE_GUIDE.md)
-- [Feature Compatibility Matrix](FEATURE_COMPATIBILITY_MATRIX.md)
-- [Google Play Store Metadata](PLAY_STORE_METADATA.md)
-- [Privacy Policy](PRIVACY_POLICY.md)
-
----
+- [Release guide](RELEASE_GUIDE.md)
+- [Feature compatibility and limitations](FEATURE_COMPATIBILITY_MATRIX.md)
+- [Draft Play Store listing and declarations](PLAY_STORE_METADATA.md)
+- [Privacy policy](PRIVACY_POLICY.md)
 
 ## License
 
-MIT License. Open source and publicly auditable.
+[MIT](LICENSE). Open source; implementation and third-party dependencies can be independently audited.

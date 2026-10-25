@@ -14,12 +14,10 @@ import org.roruku.smartformatconverter.data.storage.BatchOutputStructure
 import org.roruku.smartformatconverter.data.storage.BatchScanConfig
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioCodec
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioConversionConfig
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioOutputFormat
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoCodec
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoConversionConfig
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoOutputFormat
+import org.roruku.smartformatconverter.engine.media3.AudioConversionConfig
+import org.roruku.smartformatconverter.engine.media3.AudioOutputFormat
+import org.roruku.smartformatconverter.engine.media3.VideoConversionConfig
+import org.roruku.smartformatconverter.engine.media3.VideoOutputFormat
 import org.roruku.smartformatconverter.engine.image.ChromaSubsampling
 import org.roruku.smartformatconverter.engine.image.ExifTransform
 import org.roruku.smartformatconverter.engine.image.ImageConversionConfig
@@ -115,8 +113,8 @@ class EngineUnitTest {
         assertEquals("jpg", ImageOutputFormat.JPEG.extension)
         assertEquals("image/jpeg", ImageOutputFormat.JPEG.mimeType)
 
-        assertEquals("mp3", AudioOutputFormat.MP3.extension)
-        assertEquals("audio/mpeg", AudioOutputFormat.MP3.mimeType)
+        assertEquals("m4a", AudioOutputFormat.M4A.extension)
+        assertEquals("audio/mp4", AudioOutputFormat.M4A.mimeType)
     }
 
     @Test
@@ -153,32 +151,38 @@ class EngineUnitTest {
     }
 
     @Test
-    fun testFFmpegVideoConfig() {
-        val config = VideoConversionConfig(
-            outputFormat = VideoOutputFormat.MP4,
-            videoCodec = VideoCodec.H264,
-            audioCodec = AudioCodec.AAC,
-            crf = 23,
-            resolution = "1280x720"
+    fun testMedia3ConversionModels() {
+        val video = VideoConversionConfig(
+            outputFormat = VideoOutputFormat.WEBM,
+            bitrateKbps = 6000,
+            audioBitrateKbps = 192
         )
-        assertEquals(VideoOutputFormat.MP4, config.outputFormat)
-        assertEquals(VideoCodec.H264, config.videoCodec)
-        assertEquals(AudioCodec.AAC, config.audioCodec)
-        assertEquals(23, config.crf)
-        assertEquals("1280x720", config.resolution)
+        assertEquals(VideoOutputFormat.WEBM, video.outputFormat)
+        assertEquals(6000, video.bitrateKbps)
+        assertEquals(192, video.audioBitrateKbps)
+
+        val audio = AudioConversionConfig(outputFormat = AudioOutputFormat.M4A, bitrateKbps = 256)
+        assertEquals(AudioOutputFormat.M4A, audio.outputFormat)
+        assertEquals(256, audio.bitrateKbps)
     }
 
     @Test
-    fun testFFmpegAudioConfig() {
-        val config = AudioConversionConfig(
-            outputFormat = AudioOutputFormat.MP3,
-            audioCodec = AudioCodec.MP3,
-            bitrateKbps = 192,
-            sampleRate = 44100
-        )
-        assertEquals(AudioOutputFormat.MP3, config.outputFormat)
-        assertEquals(192, config.bitrateKbps)
-        assertEquals(44100, config.sampleRate)
+    fun testMediaOutputSignatureAndCodecChecks() {
+        val mp4 = byteArrayOf(0, 0, 0, 24, 102, 116, 121, 112, 105, 115, 111, 109)
+        val webm = byteArrayOf(0x1a, 0x45, 0xdf.toByte(), 0xa3.toByte())
+        assertEquals(true, MediaOutputIntegrity.signatureMatches("mp4", mp4))
+        assertEquals(true, MediaOutputIntegrity.signatureMatches("m4a", mp4))
+        assertEquals(false, MediaOutputIntegrity.signatureMatches("webm", mp4))
+        assertEquals(true, MediaOutputIntegrity.signatureMatches("webm", webm))
+        assertEquals(false, MediaOutputIntegrity.signatureMatches("mp4", webm))
+        assertEquals(true, MediaOutputIntegrity.codecMatches(
+            MediaType.VIDEO, "webm", listOf("video/x-vnd.on2.vp9", "audio/opus")))
+        assertEquals(false, MediaOutputIntegrity.codecMatches(
+            MediaType.VIDEO, "webm", listOf("video/avc", "audio/mp4a-latm")))
+        assertEquals(true, MediaOutputIntegrity.codecMatches(
+            MediaType.VIDEO, "mp4", listOf("video/hevc", "audio/mp4a-latm")))
+        assertEquals(false, MediaOutputIntegrity.codecMatches(
+            MediaType.AUDIO, "m4a", listOf("audio/opus")))
     }
 
     @Test

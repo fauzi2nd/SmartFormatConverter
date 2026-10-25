@@ -31,6 +31,7 @@ internal object MediaOutputIntegrity {
             "aac" -> header.size >= 2 && header[0] == 0xff.toByte() &&
                 (header[1].toInt() and 0xf0) == 0xf0
             "ogg" -> header.size >= 4 && String(header, 0, 4, Charsets.US_ASCII) == "OggS"
+            "flac" -> header.size >= 4 && String(header, 0, 4, Charsets.US_ASCII) == "fLaC"
             "wav" -> header.size >= 12 &&
                 String(header, 0, 4, Charsets.US_ASCII) == "RIFF" &&
                 String(header, 8, 4, Charsets.US_ASCII) == "WAVE"
@@ -65,6 +66,7 @@ internal object MediaOutputIntegrity {
                 val required = when (extension.lowercase()) {
                     "m4a", "aac" -> "audio/mp4a-latm"
                     "ogg" -> "audio/opus"
+                    "flac" -> "audio/flac"
                     "wav" -> "audio/raw"
                     else -> ""
                 }

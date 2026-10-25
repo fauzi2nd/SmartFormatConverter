@@ -5,8 +5,8 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoSettingsValidator
+import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.VideoSettingsValidator
 import org.roruku.smartformatconverter.data.repository.Media3OutputPolicy
 import org.roruku.smartformatconverter.data.repository.FormatCapabilityRegistry
 import org.roruku.smartformatconverter.data.db.MediaType

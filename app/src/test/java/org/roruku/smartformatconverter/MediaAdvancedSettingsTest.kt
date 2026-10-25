@@ -141,10 +141,10 @@ class MediaAdvancedSettingsTest {
 
     @Test
     fun onlyImplementedAudioOutputIsValid() {
-        for (supported in listOf("m4a", "aac", "ogg", "wav")) {
+        for (supported in listOf("m4a", "aac", "ogg", "wav", "flac")) {
             assertNull(AudioSettingsValidator.validate(AudioAdvancedSettings(format = supported)))
         }
-        for (legacy in listOf("mp3", "flac", "opus")) {
+        for (legacy in listOf("mp3", "opus")) {
             assertNotNull(AudioSettingsValidator.validate(AudioAdvancedSettings(format = legacy)))
         }
         assertTrue("wav" in AudioSettingsValidator.losslessFormats)

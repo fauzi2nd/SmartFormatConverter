@@ -9,7 +9,8 @@ import java.io.RandomAccessFile
  * This is structural validation, NOT a full decode or CRC check.
  */
 internal object FlacStreamVerifier {
-    fun validate(file: File): String? = try {
+    fun validate(file: File): String? {
+        return try {
         if (!file.isFile || file.length() < 46L) {
             "FLAC stream is missing or truncated"
         } else {
@@ -67,7 +68,8 @@ internal object FlacStreamVerifier {
                 }
             }
         }
-    } catch (e: Exception) {
-        "Cannot inspect FLAC stream: " + (e.message ?: e.javaClass.simpleName)
+        } catch (e: Exception) {
+            "Cannot inspect FLAC stream: " + (e.message ?: e.javaClass.simpleName)
+        }
     }
 }

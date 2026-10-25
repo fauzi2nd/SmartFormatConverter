@@ -147,4 +147,28 @@ class DirectDownloaderAndQueueTest {
         org.junit.Assert.assertFalse(isIndeterminate2)
         org.junit.Assert.assertFalse(isIndeterminate3)
     }
+
+    @Test
+    fun jobEntityPreservesAndIncrementsExecutionToken() {
+        val initialJob = ConversionJobEntity(
+            fileName = "clip.mp4",
+            inputUri = "content://media/clip.mp4",
+            mediaType = MediaType.VIDEO,
+            inputFormat = "mp4",
+            outputFormat = "mp4",
+            executionToken = 1L
+        )
+        assertEquals(1L, initialJob.executionToken)
+        val pausedJob = initialJob.copy(
+            status = JobStatus.PAUSED,
+            executionToken = initialJob.executionToken + 1
+        )
+        assertEquals(2L, pausedJob.executionToken)
+        val resumedJob = pausedJob.copy(
+            status = JobStatus.PENDING,
+            executionToken = pausedJob.executionToken + 1
+        )
+        assertEquals(3L, resumedJob.executionToken)
+        org.junit.Assert.assertNotEquals(initialJob.executionToken, resumedJob.executionToken)
+    }
 }

@@ -45,4 +45,47 @@ class ActiveConversionJobsTest {
         assertTrue(ActiveConversionJobs.isCurrent("reuse-test", gen2))
         assertFalse(ActiveConversionJobs.isCurrent("reuse-test", gen1))
     }
+
+    @Test
+    fun pruneRemovesJobAndGenerationFromRegistry() {
+        val job = Job()
+        val gen = ActiveConversionJobs.beginExecution("prune-test", job)
+        assertTrue(ActiveConversionJobs.isCurrent("prune-test", gen))
+        ActiveConversionJobs.prune("prune-test")
+        assertTrue(job.isCancelled)
+        assertFalse(ActiveConversionJobs.isCurrent("prune-test", gen))
+        assertFalse(ActiveConversionJobs.isJobActive("prune-test"))
+    }
+
+    @Test
+    fun clearRemovesAllJobsAndGenerations() {
+        val job1 = Job()
+        val job2 = Job()
+        val gen1 = ActiveConversionJobs.beginExecution("clear-1", job1)
+        val gen2 = ActiveConversionJobs.beginExecution("clear-2", job2)
+        ActiveConversionJobs.clear()
+        assertTrue(job1.isCancelled)
+        assertTrue(job2.isCancelled)
+        assertFalse(ActiveConversionJobs.isCurrent("clear-1", gen1))
+        assertFalse(ActiveConversionJobs.isCurrent("clear-2", gen2))
+    }
+
+    @Test
+    fun fastPauseAndResumeRaceRejectsStaleExecutionToken() {
+        val job1 = Job()
+        val tokenWorker1 = ActiveConversionJobs.beginExecution("race-test", job1)
+        assertTrue(ActiveConversionJobs.isCurrent("race-test", tokenWorker1))
+
+        // User pauses
+        ActiveConversionJobs.cancel("race-test")
+        assertFalse(ActiveConversionJobs.isCurrent("race-test", tokenWorker1))
+
+        // User immediately resumes
+        val job2 = Job()
+        val tokenWorker2 = ActiveConversionJobs.beginExecution("race-test", job2)
+
+        assertTrue(ActiveConversionJobs.isCurrent("race-test", tokenWorker2))
+        assertFalse(ActiveConversionJobs.isCurrent("race-test", tokenWorker1))
+        ActiveConversionJobs.prune("race-test")
+    }
 }

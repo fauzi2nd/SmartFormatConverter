@@ -49,6 +49,11 @@ internal object ActiveConversionJobs {
         }
     }
 
+    fun prune(jobId: String) = synchronized(lock) {
+        jobs.remove(jobId)?.cancel()
+        generations.remove(jobId)
+    }
+
     fun cancelAll() = synchronized(lock) {
         jobs.values.forEach { it.cancel() }
         jobs.clear()
@@ -56,6 +61,12 @@ internal object ActiveConversionJobs {
         for (key in generations.keys) {
             generations[key] = globalSequence.incrementAndGet()
         }
+    }
+
+    fun clear() = synchronized(lock) {
+        jobs.values.forEach { it.cancel() }
+        jobs.clear()
+        generations.clear()
     }
 
     fun isJobActive(jobId: String): Boolean = synchronized(lock) {

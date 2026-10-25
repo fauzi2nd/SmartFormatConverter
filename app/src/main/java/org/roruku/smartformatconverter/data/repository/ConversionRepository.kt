@@ -102,13 +102,14 @@ class ConversionRepository(
             outputUri = null,
             outputFileSize = 0L,
             completedAt = null,
-            retryCount = job.retryCount + 1
+            retryCount = job.retryCount + 1,
+            executionToken = job.executionToken + 1
         )
         dao.updateJob(retriedJob)
     }
 
     suspend fun deleteJob(job: ConversionJobEntity) {
-        ActiveConversionJobs.cancel(job.id)
+        ActiveConversionJobs.prune(job.id)
         dao.deleteJob(job)
         if (job.mediaType == MediaType.DOWNLOAD) {
             StorageManager.downloadCacheFile(context, job.id, job.outputFormat).delete()
@@ -121,6 +122,7 @@ class ConversionRepository(
 
     suspend fun clearAllJobs() {
         ActiveConversionJobs.cancelAll()
+        ActiveConversionJobs.clear()
         dao.clearAllJobs()
         File(context.cacheDir, "temp_conversion").listFiles()
             ?.filter { it.name.startsWith("download_") }?.forEach { it.delete() }
@@ -133,6 +135,13 @@ class ConversionRepository(
             ActiveConversionJobs.beginExecution(job.id, jobCoro)
         } else 0L
 
+        if (generation > 0L) {
+            val bound = dao.bindExecutionToken(job.id, generation)
+            if (bound <= 0) {
+                throw CancellationException("Job state changed before execution began")
+            }
+        }
+
         val estimator = ProgressEstimator()
         // One writer protects the database from out-of-order progress callbacks
         // produced by RxFFmpeg and image encoders.
@@ -140,7 +149,7 @@ class ConversionRepository(
         val progressWriter = scope.launch(Dispatchers.IO) {
             for ((fraction, speed, eta) in updates) {
                 if (generation == 0L || ActiveConversionJobs.isCurrent(job.id, generation)) {
-                    dao.updateProgress(job.id, JobStatus.RUNNING, fraction, speed, eta)
+                    dao.updateProgress(job.id, JobStatus.RUNNING, fraction, speed, eta, generation)
                 }
             }
         }
@@ -157,7 +166,7 @@ class ConversionRepository(
         }
 
         try {
-            dao.updateProgress(job.id, JobStatus.RUNNING, 0.02f, "Measuring…", "Measuring…")
+            dao.updateProgress(job.id, JobStatus.RUNNING, 0.02f, "Measuring…", "Measuring…", generation)
             val settings = userPrefs.userSettingsFlow.first()
             val outputRootUri = settings.defaultOutputUri
                 ?.takeIf { it.isNotBlank() }
@@ -369,7 +378,7 @@ class ConversionRepository(
 
             if (conversionResult.isFailure) {
                 val err = conversionResult.exceptionOrNull()?.message ?: "Unknown conversion error"
-                dao.markFailed(job.id, err)
+                dao.markFailed(job.id, err, executionToken = generation)
                 return@withContext Result.failure(Exception(err))
             }
 
@@ -435,7 +444,8 @@ class ConversionRepository(
             val rowsUpdated = dao.markCompleted(
                 jobId = job.id,
                 outputUri = outputUri,
-                outputFileSize = outputSize
+                outputFileSize = outputSize,
+                executionToken = generation
             )
             if (rowsUpdated <= 0) {
                 withContext(NonCancellable) {
@@ -456,7 +466,7 @@ class ConversionRepository(
         } catch (e: Exception) {
             Log.e(TAG, "Error executing job ${job.id}", e)
             if (generation == 0L || ActiveConversionJobs.isCurrent(job.id, generation)) {
-                dao.markFailed(job.id, e.message ?: "Job failed with exception")
+                dao.markFailed(job.id, e.message ?: "Job failed with exception", executionToken = generation)
             }
             Result.failure(e)
         } finally {

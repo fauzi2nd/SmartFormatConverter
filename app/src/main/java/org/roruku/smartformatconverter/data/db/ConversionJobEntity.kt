@@ -45,4 +45,5 @@ data class ConversionJobEntity(
     val retryCount: Int = 0,
     val relativeFolderPath: String? = null,
     val customParamsJson: String? = null,
+    val executionToken: Long = 0L,
 )

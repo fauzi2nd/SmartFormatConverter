@@ -11,6 +11,7 @@ import android.util.Log
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -68,6 +69,9 @@ object ImageConverterEngine {
         config: ImageConversionConfig,
         onProgress: (Float) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
+        var workingBitmap: Bitmap? = null
+        var encodedBitmap: Bitmap? = null
+        var completed = false
         try {
             coroutineContext.ensureActive()
             onProgress(0.1f)
@@ -102,6 +106,7 @@ object ImageConverterEngine {
             var bitmap: Bitmap? = StorageManager.openReadableInputStream(context, inputUri).use { stream ->
                 BitmapFactory.decodeStream(stream, null, decodeOptions)
             } ?: return@withContext Result.failure(IllegalStateException("Image decoder could not decode this file; it may be corrupt or unsupported"))
+            workingBitmap = bitmap
 
             coroutineContext.ensureActive()
             onProgress(0.5f)
@@ -109,6 +114,7 @@ object ImageConverterEngine {
             val transform = getExifTransform(context, inputUri)
             if (transform.rotationDegrees != 0 || transform.flipHorizontal) {
                 bitmap = transformBitmap(bitmap!!, transform)
+                workingBitmap = bitmap
             }
 
             coroutineContext.ensureActive()
@@ -125,6 +131,7 @@ object ImageConverterEngine {
                     config.preventUpscale,
                     config.cropToExactRatio
                 )
+                workingBitmap = bitmap
             }
 
             val finalBitmap: Bitmap = if (config.outputFormat == ImageOutputFormat.JPEG && bitmap!!.hasAlpha()) {
@@ -133,6 +140,7 @@ object ImageConverterEngine {
                 bitmap!!
             }
 
+            encodedBitmap = finalBitmap
             coroutineContext.ensureActive()
             onProgress(0.85f)
 
@@ -190,17 +198,22 @@ object ImageConverterEngine {
                 copyExifMetadata(context, inputUri, outputFile)
             }
 
-            if (finalBitmap != bitmap) {
-                bitmap.recycle()
-            }
-            finalBitmap.recycle()
-
+            completed = true
             onProgress(1.0f)
             Result.success(outputFile)
+        } catch (e: CancellationException) {
+            // Propagate pause/cancel instead of returning a normal failure result.
+            throw e
         } catch (e: OutOfMemoryError) {
             Result.failure(Exception("Image too large to convert in memory. Out of Memory error.", e))
         } catch (e: Exception) {
             Result.failure(e)
+        } finally {
+            // Compressed output is private until it has been fully encoded.
+            // Interrupted or failed jobs must never leave partial cache files.
+            if (!completed) outputFile.delete()
+            if (encodedBitmap !== workingBitmap) encodedBitmap?.recycle()
+            workingBitmap?.recycle()
         }
     }
 

@@ -30,8 +30,10 @@ class EngineUnitTest {
     @Test
     fun testMedia3AdvancedSettingsCompatibility() {
         assertNull(Media3OutputPolicy.unsupportedVideoSettings(VideoAdvancedSettings()))
-        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+        assertNull(Media3OutputPolicy.unsupportedVideoSettings(
             VideoAdvancedSettings().applyPreset("Original Quality / Remux")))
+        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+            VideoAdvancedSettings(format = "webm").applyPreset("Original Quality / Remux")))
         assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
             VideoAdvancedSettings(encoder = "software")))
         assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(

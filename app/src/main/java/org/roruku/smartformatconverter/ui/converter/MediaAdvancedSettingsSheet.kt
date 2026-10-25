@@ -57,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import org.roruku.smartformatconverter.R
+import org.roruku.smartformatconverter.engine.media.BitrateSelection
 import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.AudioSettingsValidator
 import org.roruku.smartformatconverter.engine.media.ImageAdvancedSettings
@@ -410,7 +411,11 @@ fun AudioAdvancedSettingsControl(
     Text(
         if (settings.format in AudioSettingsValidator.losslessFormats)
             stringResource(R.string.setting_lossless_audio)
-        else stringResource(R.string.setting_audio_bitrate, settings.bitrateKbps),
+        else when (settings.bitrateKbps) {
+            BitrateSelection.AUTO -> stringResource(R.string.bitrate_auto)
+            BitrateSelection.SOURCE -> stringResource(R.string.bitrate_source)
+            else -> stringResource(R.string.setting_audio_bitrate, settings.bitrateKbps)
+        },
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         style = MaterialTheme.typography.bodySmall
     )
@@ -460,14 +465,18 @@ fun AudioAdvancedSettingsControl(
                         Text(stringResource(R.string.setting_lossless_audio),
                             style = MaterialTheme.typography.bodyMedium)
                     } else {
-                        Text(stringResource(R.string.setting_audio_bitrate, draft.bitrateKbps),
-                            style = MaterialTheme.typography.bodyMedium)
-                        Slider(
-                            value = draft.bitrateKbps.toFloat(),
-                            onValueChange = {
-                                draft = draft.copy(bitrateKbps = (it.roundToInt() / 16 * 16).coerceIn(32, 320))
-                            },
-                            valueRange = 32f..320f
+                        ChoiceField(
+                            label = stringResource(R.string.audio_bitrate_choice),
+                            value = draft.bitrateKbps.toString(),
+                            options = bitrateMenuOptions(
+                                draft.bitrateKbps, BitrateSelection.audioStandardsKbps
+                            ),
+                            onChange = { draft = draft.copy(bitrateKbps = it.toInt()) }
+                        )
+                        Text(
+                            stringResource(R.string.bitrate_mode_explanation),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Text(

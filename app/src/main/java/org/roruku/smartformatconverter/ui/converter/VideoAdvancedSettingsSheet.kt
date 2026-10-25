@@ -40,6 +40,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.roruku.smartformatconverter.R
+import org.roruku.smartformatconverter.engine.media.BitrateSelection
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.VideoSettingsValidator
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
@@ -60,8 +61,6 @@ fun VideoAdvancedSettingsControl(
     var resolutionChoice by remember { mutableStateOf("source") }
     var customWidth by remember { mutableStateOf("1920") }
     var customHeight by remember { mutableStateOf("1080") }
-    var videoBitrateInput by remember { mutableStateOf("8000") }
-    var audioBitrateInput by remember { mutableStateOf("192") }
     var formError by remember { mutableStateOf<String?>(null) }
 
     OutlinedButton(
@@ -74,8 +73,6 @@ fun VideoAdvancedSettingsControl(
                 } ?: "custom"
             customWidth = (settings.width ?: 1920).toString()
             customHeight = (settings.height ?: 1080).toString()
-            videoBitrateInput = settings.videoBitrateKbps.toString()
-            audioBitrateInput = settings.audioBitrateKbps.toString()
             formError = null
             open = true
         }
@@ -93,7 +90,11 @@ fun VideoAdvancedSettingsControl(
             stringResource(R.string.source_value),
             settings.videoCodec.uppercase(),
             "VBR",
-            stringResource(R.string.advanced_rate_kbps, settings.videoBitrateKbps)
+            when (settings.videoBitrateKbps) {
+                BitrateSelection.AUTO -> stringResource(R.string.bitrate_auto)
+                BitrateSelection.SOURCE -> stringResource(R.string.bitrate_source)
+                else -> stringResource(R.string.advanced_rate_kbps, settings.videoBitrateKbps)
+            }
         ),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         style = MaterialTheme.typography.bodySmall
@@ -203,19 +204,20 @@ fun VideoAdvancedSettingsControl(
                     draft = draft.copy(videoCodec = it)
                 }
 
-                OutlinedTextField(
-                    value = videoBitrateInput,
-                    onValueChange = {
-                        videoBitrateInput = it
-                        draft = draft.copy(
-                            videoBitrateKbps = it.toIntOrNull() ?: 0,
-                            rateControl = "vbr"
-                        )
-                    },
-                    label = { Text(stringResource(R.string.video_bitrate_kbps)) },
-                    supportingText = { Text(stringResource(R.string.video_bitrate_supporting)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                ChoiceField(
+                    label = stringResource(R.string.video_bitrate_choice),
+                    value = draft.videoBitrateKbps.toString(),
+                    options = bitrateMenuOptions(
+                        draft.videoBitrateKbps, BitrateSelection.videoStandardsKbps
+                    ),
+                    onChange = { choice ->
+                        draft = draft.copy(videoBitrateKbps = choice.toInt(), rateControl = "vbr")
+                    }
+                )
+                Text(
+                    stringResource(R.string.bitrate_mode_explanation),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
 
@@ -240,15 +242,15 @@ fun VideoAdvancedSettingsControl(
                     formError = null
                 }
                 if (draft.audioCodec != "none") {
-                    OutlinedTextField(
-                        value = audioBitrateInput,
-                        onValueChange = {
-                            audioBitrateInput = it
-                            draft = draft.copy(audioBitrateKbps = it.toIntOrNull() ?: 0)
-                        },
-                        label = { Text(stringResource(R.string.audio_bitrate_kbps)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                    ChoiceField(
+                        label = stringResource(R.string.audio_bitrate_choice),
+                        value = draft.audioBitrateKbps.toString(),
+                        options = bitrateMenuOptions(
+                            draft.audioBitrateKbps, BitrateSelection.audioStandardsKbps
+                        ),
+                        onChange = { choice ->
+                            draft = draft.copy(audioBitrateKbps = choice.toInt())
+                        }
                     )
                 }
             } else {
@@ -340,7 +342,7 @@ private fun ToggleOption(title: String, checked: Boolean, onChange: (Boolean) ->
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChoiceField(
+internal fun ChoiceField(
     label: String,
     value: String,
     options: List<Pair<String, String>>,
@@ -379,6 +381,26 @@ private fun ChoiceField(
                 )
             }
         }
+    }
+}
+
+
+/**
+ * Keep legacy positive custom numbers visible when reopening existing jobs,
+ * while offering only standardized presets for new selections.
+ */
+@Composable
+internal fun bitrateMenuOptions(
+    selectedKbps: Int,
+    standardKbps: List<Int>
+): List<Pair<String, String>> = buildList {
+    add(BitrateSelection.AUTO.toString() to stringResource(R.string.bitrate_auto))
+    add(BitrateSelection.SOURCE.toString() to stringResource(R.string.bitrate_source))
+    standardKbps.forEach { kbps ->
+        add(kbps.toString() to "$kbps kbps")
+    }
+    if (selectedKbps > 0 && selectedKbps !in standardKbps) {
+        add(selectedKbps.toString() to "$selectedKbps kbps (previous selection)")
     }
 }
 

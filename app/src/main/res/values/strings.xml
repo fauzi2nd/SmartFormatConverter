@@ -395,4 +395,9 @@
     <string name="media3_audio_unsupported_note">Custom volume adjustment and metadata control are unavailable in this Media3 version.</string>
     <string name="media3_video_muxer_note">Metadata handling and MP4 fast-start are controlled automatically by Media3.</string>
     <string name="media3_hardware_automatic_note">Media3 selects an available encoder and may use a supported fallback. Manual hardware selection is not yet available.</string>
+    <string name="video_bitrate_choice">Video bitrate</string>
+    <string name="audio_bitrate_choice">Audio bitrate</string>
+    <string name="bitrate_auto">Auto (recommended)</string>
+    <string name="bitrate_source">Source / original</string>
+    <string name="bitrate_mode_explanation">Auto uses an encoder-recommended bitrate. Source tries to match the source track bitrate when available, otherwise falls back to Auto. Source is not lossless unless using Remux.</string>
 </resources>

@@ -37,6 +37,7 @@ import org.roruku.smartformatconverter.engine.media3.VideoConversionConfig
 import org.roruku.smartformatconverter.engine.media3.AudioOutputFormat
 import org.roruku.smartformatconverter.engine.media3.AudioConversionConfig
 import org.roruku.smartformatconverter.engine.media3.Media3DeviceCapabilities
+import org.roruku.smartformatconverter.engine.media.BitrateSelection
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.VideoSettingsValidator
 import org.roruku.smartformatconverter.engine.image.ImageConversionConfig
@@ -284,6 +285,8 @@ class ConversionRepository(
                         advanced.width == null && advanced.height == null &&
                         advanced.fps == null && advanced.videoCodec == "auto" &&
                         advanced.audioCodec == "auto" && advanced.audioStream == "first" &&
+                        advanced.videoBitrateKbps in setOf(BitrateSelection.AUTO, BitrateSelection.SOURCE) &&
+                        advanced.audioBitrateKbps in setOf(BitrateSelection.AUTO, BitrateSelection.SOURCE) &&
                         advanced.volumePercent == 100 && advanced.subtitleMode == "auto"
                     )
                     val autoRemux = smartAuto && format == VideoOutputFormat.MP4 &&

@@ -59,6 +59,9 @@ import org.roruku.smartformatconverter.AppBottomNavigationBar
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.roruku.smartformatconverter.data.storage.StorageManager
+import org.roruku.smartformatconverter.data.db.MediaType
+import org.roruku.smartformatconverter.data.repository.FormatCapabilityRegistry
+import org.roruku.smartformatconverter.engine.media3.Media3DeviceCapabilities
 
 data class ConverterFormat(
     val tab: Int,
@@ -66,18 +69,21 @@ data class ConverterFormat(
     @StringRes val descriptionRes: Int,
 )
 
-private val formats = listOf(
-    listOf(
-        ConverterFormat(0, "mp4", R.string.format_desc_universal),
-    ),
-    listOf(
-        ConverterFormat(1, "jpg", R.string.format_desc_photo),
-        ConverterFormat(1, "png", R.string.format_desc_lossless),
-        ConverterFormat(1, "webp", R.string.format_desc_compact),
-    ),
-    listOf(
-        ConverterFormat(2, "m4a", R.string.format_desc_aac_audio),
-    )
+private fun catalogFormats(): List<List<ConverterFormat>> = listOf(
+    FormatCapabilityRegistry.formats(MediaType.VIDEO).map {
+        ConverterFormat(0, it.extension,
+            if (it.extension == "webm") R.string.format_desc_web else R.string.format_desc_universal)
+    },
+    FormatCapabilityRegistry.formats(MediaType.IMAGE).map {
+        ConverterFormat(1, it.extension, when (it.extension) {
+            "png" -> R.string.format_desc_lossless
+            "webp" -> R.string.format_desc_compact
+            else -> R.string.format_desc_photo
+        })
+    },
+    FormatCapabilityRegistry.formats(MediaType.AUDIO).map {
+        ConverterFormat(2, it.extension, R.string.format_desc_aac_audio)
+    }
 )
 
 /**
@@ -96,6 +102,13 @@ fun ConverterScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val formats = remember(context) {
+        catalogFormats().mapIndexed { tab, entries ->
+            if (tab == 0) entries.filter {
+                Media3DeviceCapabilities.canExport(MediaType.VIDEO, it.extension)
+            } else entries
+        }
+    }
     var selected by remember { mutableStateOf<ConverterFormat?>(null) }
 
     LaunchedEffect(initialTab, initialFormat) {
@@ -168,6 +181,7 @@ fun ConverterScreen(
     }
 
     ConverterCatalogContent(
+        formats = formats,
         selected = selected,
         isScanning = state.isScanning,
         initialTab = initialTab,
@@ -190,6 +204,7 @@ fun ConverterScreen(
 @Composable
 fun ConverterCatalogContent(
     selected: ConverterFormat?,
+    formats: List<List<ConverterFormat>> = catalogFormats(),
     isScanning: Boolean,
     onSelect: (ConverterFormat?) -> Unit,
     onFilesSelected: (ConverterFormat) -> Unit,

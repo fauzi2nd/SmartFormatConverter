@@ -32,6 +32,7 @@ work = "2.12.0"
 coil = "2.7.0"
 media3 = "1.11.1"
 sqliteJdbc = "3.53.4.0"
+jsonTest = "20240303"
 
 
 [libraries]
@@ -42,6 +43,7 @@ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = 
 # Unit and instrumentation testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 sqlite-jdbc = { group = "org.xerial", name = "sqlite-jdbc", version.ref = "sqliteJdbc" }
+test-json = { group = "org.json", name = "json", version.ref = "jsonTest" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 

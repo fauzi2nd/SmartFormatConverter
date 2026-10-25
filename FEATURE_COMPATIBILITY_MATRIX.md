@@ -18,24 +18,24 @@ Dokumen ini memetakan perbandingan kemampuan konversi multimedia antara engine l
 
 ## 2. Format Masukan (Input Formats)
 
-Media3 Transformer menggunakan AndroidX Media3 Extractor yang membaca dan mendekode berbagai container multimedia:
+Media3 Transformer menggunakan AndroidX Media3 Extractor. Tabel berikut menunjukkan format yang dapat dikenali extractor; **bukan jaminan** bahwa semua codec dalam format tersebut dapat didekode pada setiap perangkat Android. Status decoding harus diuji di perangkat sasaran:
 
 | Format Input | Ekstensi | Status | Keterangan |
 | :--- | :--- | :--- | :--- |
-| **MP4 / M4V** | `.mp4`, `.m4v` | ✅ Didukung Penuh | Native ISO-BMFF extractor resmi AOSP. |
-| **Matroska / MKV** | `.mkv` | ✅ Didukung Penuh | Native Media3 Matroska extractor. |
-| **WebM** | `.webm` | ✅ Didukung Penuh | Native Media3 WebM VP8/VP9 extractor. |
-| **QuickTime / MOV** | `.mov` | ✅ Didukung Penuh | Native Media3 QuickTime atoms extractor. |
-| **MPEG-TS** | `.ts`, `.m2ts` | ✅ Didukung Penuh | Native Media3 TS extractor. |
-| **MP3** | `.mp3` | ✅ Didukung Penuh | Native Media3 MP3 audio extractor. |
-| **AAC / M4A** | `.aac`, `.m4a` | ✅ Didukung Penuh | Native Media3 ADTS & MP4 audio extractor. |
-| **FLAC** | `.flac` | ✅ Didukung Penuh | Native Media3 FLAC extractor. |
-| **WAV** | `.wav` | ✅ Didukung Penuh | Native Media3 WAV / PCM extractor. |
-| **OGG / Opus** | `.ogg`, `.opus` | ✅ Didukung Penuh | Native Media3 Ogg extractor. |
+| **MP4 / M4V** | `.mp4`, `.m4v` | ⚠️ Extractor tersedia; codec bergantung perangkat | Native ISO-BMFF extractor resmi AOSP. |
+| **Matroska / MKV** | `.mkv` | ⚠️ Extractor tersedia; codec bergantung perangkat | Native Media3 Matroska extractor. |
+| **WebM** | `.webm` | ⚠️ Extractor tersedia; codec bergantung perangkat | Native Media3 WebM VP8/VP9 extractor. |
+| **QuickTime / MOV** | `.mov` | ⚠️ Extractor tersedia; codec bergantung perangkat | Native Media3 QuickTime atoms extractor. |
+| **MPEG-TS** | `.ts`, `.m2ts` | ⚠️ Extractor tersedia; codec bergantung perangkat | Native Media3 TS extractor. |
+| **MP3** | `.mp3` | ⚠️ Extractor tersedia; codec bergantung perangkat | Native Media3 MP3 audio extractor. |
+| **AAC / M4A** | `.aac`, `.m4a` | ⚠️ Extractor tersedia; codec bergantung perangkat | Native Media3 ADTS & MP4 audio extractor. |
+| **FLAC** | `.flac` | ⚠️ Extractor tersedia; codec bergantung perangkat | Native Media3 FLAC extractor. |
+| **WAV** | `.wav` | ⚠️ Extractor tersedia; codec bergantung perangkat | Native Media3 WAV / PCM extractor. |
+| **OGG / Opus** | `.ogg`, `.opus` | ⚠️ Extractor tersedia; codec bergantung perangkat | Native Media3 Ogg extractor. |
 | **AVI** | `.avi` | ⚠️ Parsial / Eksperimental | Didukung oleh Media3 `AviExtractor`. Bukan container progressive standar resmi ExoPlayer; keberhasilan decoding bergantung pada ketersediaan codec video/audio di platform (codec lawas seperti Cinepak/Indeo tidak dijamin oleh AOSP). |
-| **JPEG** | `.jpg`, `.jpeg` | ✅ Didukung Penuh | Native Android BitmapFactory. |
-| **PNG** | `.png` | ✅ Didukung Penuh | Native Android BitmapFactory. |
-| **WebP** | `.webp` | ✅ Didukung Penuh | Native Android BitmapFactory. |
+| **JPEG** | `.jpg`, `.jpeg` | ⚠️ Extractor tersedia; codec bergantung perangkat | Native Android BitmapFactory. |
+| **PNG** | `.png` | ⚠️ Extractor tersedia; codec bergantung perangkat | Native Android BitmapFactory. |
+| **WebP** | `.webp` | ⚠️ Extractor tersedia; codec bergantung perangkat | Native Android BitmapFactory. |
 
 ---
 
@@ -47,11 +47,11 @@ Untuk memastikan integritas container dan mencegah corrupt / ekstensi file yang 
 
 | Format Output | Container Muxer | Codec | Status | Catatan Integritas |
 | :--- | :--- | :--- | :--- | :--- |
-| **MP4 Video (`.mp4`)** | Media3 `InAppMp4Muxer` | H.264 / AVC, H.265 / HEVC | ✅ **Fully Supported** | Format video universal standar Android & iOS. Fast-start otomatis. |
-| **M4A Audio (`.m4a`)** | Media3 `InAppMp4Muxer` | AAC (`audio/mp4a-latm`) | ✅ **Fully Supported** | Kontainer MP4 berisi stream audio AAC standar industri dengan ekstensi `.m4a`. |
-| **JPEG Image (`.jpg`)** | Android SDK `Bitmap.compress` | JPEG | ✅ **Fully Supported** | Kualitas 1–100. Subsampling didelegasikan ke engine Skia/libjpeg internal platform (umumnya 4:2:0 default sistem). |
-| **PNG Image (`.png`)** | Android SDK `Bitmap.compress` | PNG Lossless | ✅ **Fully Supported** | Kompresi lossless penuh native. |
-| **WebP Image (`.webp`)** | Android SDK `Bitmap.compress` | WebP (Lossy / Lossless) | ✅ **Fully Supported** | Lossy pada semua API, lossless pada Android 11+ (API 30+). |
+| **MP4 Video (`.mp4`)** | Media3 `InAppMp4Muxer` | H.264 / AVC, H.265 / HEVC | ✅ **Diimplementasikan; uji perangkat diperlukan** | Format video umum untuk Android & iOS. Fast-start dan metadata perlu diuji pada output aktual. |
+| **M4A Audio (`.m4a`)** | Media3 `InAppMp4Muxer` | AAC (`audio/mp4a-latm`) | ✅ **Diimplementasikan; uji perangkat diperlukan** | Kontainer MP4 berisi stream audio AAC standar industri dengan ekstensi `.m4a`. |
+| **JPEG Image (`.jpg`)** | Android SDK `Bitmap.compress` | JPEG | ✅ **Diimplementasikan; uji perangkat diperlukan** | Kualitas 1–100. Subsampling didelegasikan ke engine Skia/libjpeg internal platform (umumnya 4:2:0 default sistem). |
+| **PNG Image (`.png`)** | Android SDK `Bitmap.compress` | PNG Lossless | ✅ **Diimplementasikan; uji perangkat diperlukan** | Kompresi lossless penuh native. |
+| **WebP Image (`.webp`)** | Android SDK `Bitmap.compress` | WebP (Lossy / Lossless) | ✅ **Diimplementasikan; uji perangkat diperlukan** | Lossy pada semua API, lossless pada Android 11+ (API 30+). |
 | **MKV / WebM / AVI / MOV Output** | Tidak disediakan oleh Media3 DefaultMuxer | - | ⛔ **Input Only** | Dikonversi ke MP4 universal agar hasil ekspor valid dan dapat diputar di semua platform. |
 | **MP3 Output** | AOSP tidak memiliki encoder MP3 | - | ⛔ **Input Only** | Audio dikonversi ke M4A (AAC) standar. |
 

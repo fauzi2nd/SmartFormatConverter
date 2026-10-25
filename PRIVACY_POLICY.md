@@ -11,8 +11,8 @@ We believe that your personal files, media, and data belong exclusively to you. 
 ### 1. Zero Data Collection & On-Device Processing
 
 * **No Personal Data Collection**: The Application does not collect, record, log, or harvest any personal information, device identifiers, email addresses, phone numbers, or usage analytics.
-* **100% On-Device Execution**: All media transcoding, image conversion, metadata parsing, and compression tasks are executed entirely locally on your device hardware (using native Android Media3 and Android Graphics APIs). Your files are never uploaded to any remote server or cloud service for processing.
-* **No Third-Party SDKs or Trackers**: The Application contains zero tracking libraries, zero analytics SDKs (e.g., no Google Analytics, Firebase Analytics, or Facebook SDK), and zero advertising networks.
+* **Local Conversion**: Media transcoding, image conversion, metadata parsing, and compression are performed on your device (using Android Media3 and Android Graphics APIs). The application does not upload local files to a cloud transcoding service. Downloader requests fetch content from the user-provided internet address.
+* **No Analytics or Advertising SDKs**: The current application code contains no analytics or advertising integrations. Open-source dependencies such as AndroidX Media3, Room and Coil are used to implement application features. Review the final dependency graph before release.
 
 ---
 
@@ -32,13 +32,13 @@ The Application requests only the minimal permissions technically required to pe
 ### 3. Data Storage and Retention
 
 * **Job Queue & History**: Details of queued and completed conversion tasks (such as filename, output format, file size, and status) are stored locally on your device in a private SQLite/Room database. This database is never synced to external cloud services.
-* **Temporary Cache**: Intermediate files created during conversion are temporarily stored in your application's private cache directory and deleted immediately upon completion or cancellation. You can also manually clear this cache at any time via Settings.
+* **Temporary Cache**: Media conversions use private temporary cache files, with cleanup during normal completion, failure and cancellation handling. Partial direct HTTP downloads may be retained to support resume until a job is deleted or the cache is cleared. Android may also clear app cache when device storage is low.
 
 ---
 
 ### 4. Children's Privacy
 
-The Application does not collect information from anyone, including children under the age of 13. It is fully safe for users of all ages.
+The Application is not designed to collect information from children. App-store age targeting and suitability should be reviewed before publication; the direct URL downloader accesses sites selected by the user.
 
 ---
 
@@ -52,3 +52,7 @@ Smart Format Converter is committed to complete transparency. The source code of
 
 If you have any questions or feedback regarding this Privacy Policy or the security of the Application, please open an issue on the official GitHub repository:
 * **Repository**: [https://github.com/fauzi2nd/SmartFormatConverter/issues](https://github.com/fauzi2nd/SmartFormatConverter/issues)
+
+### 7. Network Requests from the Downloader
+
+Downloading a direct HTTP/HTTPS URL sends requests to the specified host (and may follow permitted redirects). The destination server can observe network information normally available to web servers, such as the device's IP address. Ordinary HTTP connections are not encrypted. File conversion itself does not require internet access.

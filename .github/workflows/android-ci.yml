@@ -2,7 +2,7 @@ name: Android CI Build & Test
 
 on:
   push:
-    branches: [ "master", "fix/release-audit-20261025" ]
+    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
   workflow_dispatch:
@@ -18,12 +18,10 @@ concurrency:
 jobs:
   build:
     # Do not execute untrusted PR code on a persistent self-hosted runner.
-    # During this audit, only trusted pushes to this exact maintainer branch
-    # are admitted. Restore master-only after the passing validation run.
+    # Persistent self-hosted Windows runner executes only trusted master refs.
+    # Untrusted PRs must stay on isolated GitHub-hosted runner infrastructure.
     if: >-
-      (github.event_name == 'push' &&
-       (github.ref == 'refs/heads/master' ||
-        github.ref == 'refs/heads/fix/release-audit-20261025')) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master')
     name: Build & Test Android App (Trusted Windows Runner)
     runs-on: self-hosted

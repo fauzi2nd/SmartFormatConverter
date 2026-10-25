@@ -16,6 +16,11 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
+import org.junit.Assume.assumeTrue
+import org.roruku.smartformatconverter.data.db.MediaType
+import org.roruku.smartformatconverter.data.repository.MediaOutputIntegrity
+import org.roruku.smartformatconverter.engine.media3.Media3DeviceCapabilities
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.roruku.smartformatconverter.engine.media3.AudioConversionConfig
@@ -94,6 +99,48 @@ class ConversionSmokeInstrumentedTest {
             } finally {
                 extractor.release()
             }
+        } finally {
+            source.delete()
+            output.delete()
+        }
+    }
+
+    @Test
+    fun wavAndAdtsAacExportsAreReadable() = runBlocking {
+        exerciseAudio(AudioOutputFormat.WAV)
+        exerciseAudio(AudioOutputFormat.AAC)
+    }
+
+    @Test
+    fun oggOpusIsReadableOnCompatibleDevices() = runBlocking {
+        assumeTrue(Media3DeviceCapabilities.canExport(MediaType.AUDIO, "ogg"))
+        exerciseAudio(AudioOutputFormat.OGG)
+    }
+
+    @Test
+    fun flacStreamIsReadableOnCompatibleDevices() = runBlocking {
+        assumeTrue(Media3DeviceCapabilities.canExport(MediaType.AUDIO, "flac"))
+        exerciseAudio(AudioOutputFormat.FLAC)
+    }
+
+    private suspend fun exerciseAudio(format: AudioOutputFormat) {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val id = UUID.randomUUID().toString()
+        val source = File(context.cacheDir, "audio_fixture_$id.wav")
+        val output = File(context.cacheDir, "audio_output_$id.${format.extension}")
+        try {
+            writeWave(source)
+            val result = withTimeout(180_000L) {
+                Media3TransformerEngine.convertAudio(
+                    context = context,
+                    inputUri = Uri.fromFile(source),
+                    tempOutputFile = output,
+                    config = AudioConversionConfig(outputFormat = format),
+                    onProgress = { _, _, _ -> }
+                )
+            }
+            assertTrue(result.exceptionOrNull()?.toString().orEmpty(), result.isSuccess)
+            assertNull(MediaOutputIntegrity.validate(output, MediaType.AUDIO, format.extension))
         } finally {
             source.delete()
             output.delete()

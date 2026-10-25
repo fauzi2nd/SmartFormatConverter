@@ -50,10 +50,18 @@ jobs:
         run: gradlew.bat testDebugUnitTest --warning-mode summary --stacktrace
         shell: cmd
 
-      - name: Run Android Lint
+      - name: Run Android Lint (Debug)
         # Self-hosted runners retain Gradle outputs between jobs. Reanalyze
         # rather than reusing a stale lint report for generated local.properties.
         run: gradlew.bat lintDebug --rerun-tasks --no-configuration-cache --warning-mode summary --stacktrace
+        shell: cmd
+
+      - name: Build Release AAB
+        run: gradlew.bat bundleRelease --warning-mode summary --stacktrace
+        shell: cmd
+
+      - name: Run Android Lint (Release)
+        run: gradlew.bat lintRelease --rerun-tasks --no-configuration-cache --warning-mode summary --stacktrace
         shell: cmd
 
       - name: Verify 16 KB page-size compliance

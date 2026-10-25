@@ -18,6 +18,12 @@ import java.io.File
 import java.io.FileOutputStream
 import org.roruku.smartformatconverter.data.storage.StorageManager
 
+enum class ChromaSubsampling(val modeId: Int, val description: String) {
+    S444(0, "4:4:4 (Full Quality)"),
+    S422(1, "4:2:2 (High Quality)"),
+    S420(2, "4:2:0 (Standard Compression)")
+}
+
 data class ImageConversionConfig(
     val outputFormat: ImageOutputFormat,
     val jpegQuality: Int = 100,
@@ -125,33 +131,18 @@ object ImageConverterEngine {
 
             when (config.outputFormat) {
                 ImageOutputFormat.JPEG -> {
-                    // Some Android devices/ABIs cannot load our optional TurboJPEG JNI.
-                    // A missing native library must not make ordinary JPEG conversion fail.
-                    // Android Bitmap JPEG fallback may use chroma subsampling other than 4:4:4.
-                    val nativeSuccess = JpegNativeEncoder.isNative444Available() &&
-                        JpegNativeEncoder.encodeJpeg444(
-                            bitmap = finalBitmap,
-                            outputPath = outputFile.absolutePath,
-                            quality = config.jpegQuality,
-                            subsampling = config.chromaSubsampling,
-                            whiteBackgroundForAlpha = true
+                    val compressed = FileOutputStream(outputFile).use { stream ->
+                        finalBitmap.compress(
+                            Bitmap.CompressFormat.JPEG,
+                            config.jpegQuality.coerceIn(1, 100),
+                            stream
                         )
-                    if (!nativeSuccess || !validateJpegFile(outputFile)) {
-                        Log.w(TAG, "Native JPEG encoding unavailable or invalid; using Android JPEG fallback (subsampling not guaranteed)")
+                    }
+                    if (!compressed || !validateJpegFile(outputFile)) {
                         outputFile.delete()
-                        val compressed = FileOutputStream(outputFile).use { stream ->
-                            finalBitmap.compress(
-                                Bitmap.CompressFormat.JPEG,
-                                config.jpegQuality.coerceIn(1, 100),
-                                stream
-                            )
-                        }
-                        if (!compressed || !validateJpegFile(outputFile)) {
-                            outputFile.delete()
-                            return@withContext Result.failure(IllegalStateException(
-                                "JPEG encoding failed (native and Android fallback)"
-                            ))
-                        }
+                        return@withContext Result.failure(IllegalStateException(
+                            "JPEG encoding failed"
+                        ))
                     }
                 }
                 ImageOutputFormat.PNG -> {

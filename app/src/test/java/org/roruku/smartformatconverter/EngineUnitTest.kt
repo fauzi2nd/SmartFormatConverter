@@ -20,7 +20,6 @@ import org.roruku.smartformatconverter.engine.image.ExifTransform
 import org.roruku.smartformatconverter.engine.image.ImageConversionConfig
 import org.roruku.smartformatconverter.engine.image.ImageConverterEngine
 import org.roruku.smartformatconverter.engine.image.ImageOutputFormat
-import org.roruku.smartformatconverter.engine.image.JpegNativeEncoder
 import java.io.File
 
 class EngineUnitTest {
@@ -74,11 +73,13 @@ class EngineUnitTest {
     }
 
     @Test
-    fun testJpegNativeEncoderAvailabilityCall() {
-        // Method should execute without crashing
-        val isAvailable = JpegNativeEncoder.isNative444Available()
-        // In JVM unit test environment without native lib loaded, returns false
-        assertFalse(isAvailable)
+    fun testPureKotlinJpegEncodingConfiguration() {
+        val config = ImageConversionConfig(
+            outputFormat = ImageOutputFormat.JPEG,
+            jpegQuality = 90
+        )
+        assertEquals(90, config.jpegQuality)
+        assertEquals(ImageOutputFormat.JPEG, config.outputFormat)
     }
 
     @Test

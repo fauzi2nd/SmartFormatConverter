@@ -76,5 +76,32 @@ Untuk memastikan integritas container dan mencegah corrupt / ekstensi file yang 
 
 ## 5. Validasi Migrasi Basis Data (Room)
 
-- **Unit Test SQLite Asli (`RoomMigrationTest.kt`)**: Memvalidasi migrasi skema tabel `conversion_jobs` dan `user_settings` menggunakan driver JDBC SQLite asli di JVM untuk memastikan `ALTER TABLE`, penambahan kolom baru, dan integritas data tidak menyebabkan crash atau kehilangan data historis.
+- **Unit Test SQLite Asli (`RoomMigrationTest.kt`)**: Memvalidasi SQL migrasi tabel `conversion_jobs` menggunakan driver JDBC SQLite asli di JVM untuk memastikan `ALTER TABLE`, penambahan kolom baru, dan integritas data tidak menyebabkan crash atau kehilangan data historis.
 - **Pengujian Perangkat Fisik Pra-Rilis**: Direkomendasikan melakukan uji instalasi pembaruan (in-place update) dari APK versi rilis sebelumnya pada perangkat fisik sebelum peluncuran production di Google Play.
+
+---
+
+## 6. Actual Release Boundaries (Audit 2026-10-25)
+
+- **Video export:** MP4 only. **Audio export:** AAC in M4A only. Old queued
+  FFmpeg formats are rejected with actionable errors rather than silently
+  creating files whose extension disagrees with the data.
+- **Legacy remux/stream copy:** not guaranteed by Media3, and rejected in this
+  release until validated end-to-end. Do not advertise lossless stream copy.
+- **Audio sample rate, channel forcing, volume and metadata editing:** not
+  exposed in the current UI because they are not implemented in the active
+  Media3 transform path.
+- **Video metadata/fast-start manual toggles:** not exposed; Media3 controls
+  muxing internally. Video encoding bitrate and selectable H.264/H.265 remain
+  the supported tuning knobs.
+- **Video prevent-upscale:** requesting dimensions larger than the identified
+  source leaves the original dimensions unchanged; unknown source dimensions
+  fail safely rather than forcing an upscale.
+- **JPEG chroma subsampling:** Android platform encoder chooses the mode.
+  Stored legacy "444" settings must NOT be presented as a 4:4:4 guarantee.
+- **Image memory:** for explicit downscale without cropping, BitmapFactory
+  sample-size reduces decode memory. Original-size exports still require
+  sufficient heap and must not be silently resized.
+- **CI vs device validation:** a successful Gradle build and unit test run
+  does not prove all conversions work across Android chipsets. Manual device
+  tests and a signed release AAB are separate launch gates.

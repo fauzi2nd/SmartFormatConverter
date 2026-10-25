@@ -24,20 +24,18 @@ import org.roruku.smartformatconverter.data.db.MediaType
 import org.roruku.smartformatconverter.data.preferences.UserPreferencesRepository
 import org.roruku.smartformatconverter.data.storage.StorageManager
 import org.roruku.smartformatconverter.data.storage.OutputPathPolicy
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoOutputFormat
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoPreset
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoCodec
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioOutputFormat
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioCodec
 import org.roruku.smartformatconverter.engine.downloader.HttpDownloaderEngine
 import org.roruku.smartformatconverter.engine.downloader.HttpMediaFormatOption
 import org.roruku.smartformatconverter.engine.downloader.HttpDownloadableMediaInfo
 import org.roruku.smartformatconverter.engine.downloader.DirectDownloadSnapshot
 import org.roruku.smartformatconverter.engine.downloader.DirectMediaPolicy
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioConversionConfig
 import org.roruku.smartformatconverter.engine.media3.Media3TransformerEngine
+import org.roruku.smartformatconverter.engine.media3.VideoOutputFormat
+import org.roruku.smartformatconverter.engine.media3.VideoPreset
+import org.roruku.smartformatconverter.engine.media3.VideoConversionConfig
+import org.roruku.smartformatconverter.engine.media3.AudioOutputFormat
+import org.roruku.smartformatconverter.engine.media3.AudioConversionConfig
 import org.roruku.smartformatconverter.engine.media3.Media3DeviceCapabilities
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoConversionConfig
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoSettingsValidator
 import org.roruku.smartformatconverter.engine.image.ImageConversionConfig
@@ -256,15 +254,7 @@ class ConversionRepository(
                     }
                     val config = VideoConversionConfig(
                         outputFormat = format,
-                        preset = preset,
-                        remuxMode = preset == VideoPreset.REMUX,
-                        videoCodec = if (format == VideoOutputFormat.WEBM) VideoCodec.VP9 else VideoCodec.H264,
-                        audioCodec = when (format) {
-                            VideoOutputFormat.WEBM -> AudioCodec.OPUS
-                            VideoOutputFormat.AVI -> AudioCodec.MP3
-                            else -> AudioCodec.AAC
-                        },
-                        crf = preset.crf
+                        bitrateKbps = preset.targetBitrateKbps.takeIf { it > 0 }
                     )
                     // Old jobs without a snapshot use the supported Media3 MP4 defaults.
                     val advanced = job.customParamsJson
@@ -301,25 +291,7 @@ class ConversionRepository(
                     val format = AudioOutputFormat.entries.firstOrNull {
                         it.extension.equals(job.outputFormat, ignoreCase = true)
                     } ?: throw IllegalArgumentException("Unknown audio output format: " + job.outputFormat)
-                    val codec = when (format) {
-                        AudioOutputFormat.MP3 -> AudioCodec.MP3
-                        AudioOutputFormat.AAC, AudioOutputFormat.M4A -> AudioCodec.AAC
-                        AudioOutputFormat.OGG -> AudioCodec.VORBIS
-                        AudioOutputFormat.OPUS -> AudioCodec.OPUS
-                        AudioOutputFormat.FLAC -> AudioCodec.FLAC
-                        AudioOutputFormat.WAV -> AudioCodec.PCM_S16LE
-                    }
-                    val config = AudioConversionConfig(
-                        outputFormat = format,
-                        audioCodec = codec,
-                        sampleRate = when (format) {
-                            AudioOutputFormat.OPUS -> 48000
-                            AudioOutputFormat.WAV,
-                            AudioOutputFormat.FLAC,
-                            AudioOutputFormat.OGG -> null
-                            else -> 44100
-                        }
-                    )
+                    val config = AudioConversionConfig(outputFormat = format)
                     val advancedAudio = job.customParamsJson?.takeIf { it.isNotBlank() }
                         ?.let(AudioAdvancedSettings::fromJson)
                     if (advancedAudio != null) {

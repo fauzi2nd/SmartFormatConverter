@@ -69,7 +69,7 @@ class EngineUnitTest {
         assertEquals(null, Media3OutputPolicy.rejectionReason(MediaType.DOWNLOAD, "mkv"))
         assertNotNull(Media3OutputPolicy.rejectionReason(MediaType.VIDEO, "mkv"))
         assertNotNull(Media3OutputPolicy.rejectionReason(MediaType.AUDIO, "mp3"))
-        assertNotNull(Media3OutputPolicy.rejectionReason(MediaType.AUDIO, "flac"))
+        assertEquals(null, Media3OutputPolicy.rejectionReason(MediaType.AUDIO, "flac"))
         assertNotNull(Media3OutputPolicy.rejectionReason(MediaType.IMAGE, "tiff"))
     }
 

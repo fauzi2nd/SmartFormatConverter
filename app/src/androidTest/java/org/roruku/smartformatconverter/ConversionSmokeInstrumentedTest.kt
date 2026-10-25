@@ -18,8 +18,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioConversionConfig
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioOutputFormat
+import org.roruku.smartformatconverter.engine.media3.AudioConversionConfig
+import org.roruku.smartformatconverter.engine.media3.AudioOutputFormat
 import org.roruku.smartformatconverter.engine.image.ImageConversionConfig
 import org.roruku.smartformatconverter.engine.image.ImageConverterEngine
 import org.roruku.smartformatconverter.engine.image.ImageOutputFormat

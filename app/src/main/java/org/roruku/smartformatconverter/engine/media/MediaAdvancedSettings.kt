@@ -73,7 +73,7 @@ data class ImageAdvancedSettings(
 
 object ImageSettingsValidator {
     fun validate(s: ImageAdvancedSettings): String? = when {
-        s.format !in setOf("jpg", "jpeg", "png", "webp") -> "Unsupported image format"
+        s.format !in setOf("jpg", "jpeg", "png", "webp", "heic", "avif", "gif") -> "Unsupported image format"
         s.jpegQuality !in 1..100 || s.webpQuality !in 1..100 -> "Image quality must be 1–100"
         s.jpegSubsampling !in setOf("444", "422", "420") -> "Invalid JPEG chroma subsampling"
         (s.width == null) != (s.height == null) -> "Set both image width and height"
@@ -131,12 +131,12 @@ data class AudioAdvancedSettings(
     }
 }
 
-/** Media3 currently exports AAC audio into the MP4/M4A container only. */
+/** Media3 audio exporters: M4A, ADTS AAC, Ogg Opus, or decoded PCM16 WAV. */
 object AudioSettingsValidator {
-    val losslessFormats: Set<String> = emptySet()
+    val losslessFormats: Set<String> = setOf("wav")
 
     fun validate(s: AudioAdvancedSettings): String? = when {
-        s.format != "m4a" -> "Audio export currently supports M4A only"
+        s.format !in setOf("m4a", "aac", "ogg", "wav") -> "Unsupported audio container"
         s.bitrateKbps !in 32..512 -> "Audio bitrate must be 32–512 kbps"
         s.sampleRate != null && s.sampleRate !in setOf(32000, 44100, 48000, 96000) ->
             "Unsupported audio sample rate"

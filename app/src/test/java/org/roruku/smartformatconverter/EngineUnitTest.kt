@@ -188,6 +188,34 @@ class EngineUnitTest {
     }
 
     @Test
+    fun testNewMediaContainerSignaturesAndCodecs() {
+        val ogg = "OggS".toByteArray(Charsets.US_ASCII)
+        val flac = "fLaC".toByteArray(Charsets.US_ASCII)
+        val gif = "GIF89a".toByteArray(Charsets.US_ASCII)
+        val wav = "RIFF".toByteArray() + byteArrayOf(0,0,0,0) + "WAVE".toByteArray()
+        assertEquals(true, MediaOutputIntegrity.signatureMatches("ogg", ogg))
+        assertEquals(true, MediaOutputIntegrity.signatureMatches("flac", flac))
+        assertEquals(true, MediaOutputIntegrity.signatureMatches("gif", gif))
+        assertEquals(true, MediaOutputIntegrity.signatureMatches("wav", wav))
+        assertEquals(false, MediaOutputIntegrity.signatureMatches("flac", wav))
+        assertEquals(true, MediaOutputIntegrity.codecMatches(MediaType.AUDIO, "ogg", listOf("audio/opus")))
+        assertEquals(true, MediaOutputIntegrity.codecMatches(MediaType.AUDIO, "wav", listOf("audio/raw")))
+        assertEquals(true, MediaOutputIntegrity.codecMatches(MediaType.AUDIO, "flac", listOf("audio/flac")))
+        assertEquals(false, MediaOutputIntegrity.codecMatches(MediaType.AUDIO, "ogg", listOf("audio/mp4a-latm")))
+    }
+
+    @Test
+    fun testMp4StreamCopyNeverDropsTracksSilently() {
+        val guard = org.roruku.smartformatconverter.engine.media3.Mp4RemuxEngine
+        assertEquals(true, guard.supportedTracks(listOf("video/avc", "audio/mp4a-latm")))
+        assertEquals(true, guard.supportedTracks(listOf("video/hevc")))
+        assertEquals(false, guard.supportedTracks(listOf("video/x-vnd.on2.vp9", "audio/opus")))
+        assertEquals(false, guard.supportedTracks(listOf("video/avc", "audio/ac3")))
+        assertEquals(false, guard.supportedTracks(listOf("video/avc", "audio/mp4a-latm", "text/vtt")))
+        assertEquals(false, guard.supportedTracks(listOf("video/avc", "audio/mp4a-latm", "audio/mp4a-latm")))
+    }
+
+    @Test
     fun testBatchScanConfigDefaults() {
         val config = BatchScanConfig()
         assertEquals("mp4", config.targetVideoFormat)

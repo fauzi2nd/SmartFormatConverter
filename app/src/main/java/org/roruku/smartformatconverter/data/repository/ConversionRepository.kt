@@ -36,16 +36,16 @@ import org.roruku.smartformatconverter.engine.media3.VideoConversionConfig
 import org.roruku.smartformatconverter.engine.media3.AudioOutputFormat
 import org.roruku.smartformatconverter.engine.media3.AudioConversionConfig
 import org.roruku.smartformatconverter.engine.media3.Media3DeviceCapabilities
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoSettingsValidator
+import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.VideoSettingsValidator
 import org.roruku.smartformatconverter.engine.image.ImageConversionConfig
 import org.roruku.smartformatconverter.engine.image.ImageConverterEngine
 import org.roruku.smartformatconverter.engine.image.ImageOutputFormat
 import org.roruku.smartformatconverter.engine.image.ChromaSubsampling
-import org.roruku.smartformatconverter.engine.ffmpeg.ImageAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.ImageSettingsValidator
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioSettingsValidator
+import org.roruku.smartformatconverter.engine.media.ImageAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.ImageSettingsValidator
+import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.AudioSettingsValidator
 import java.io.File
 
 class ConversionRepository(

@@ -44,7 +44,7 @@ internal object PcmWavExportEngine {
                 original.getLong(MediaFormat.KEY_DURATION).coerceAtLeast(1L) else 0L
 
             if (mime == MediaFormat.MIMETYPE_AUDIO_RAW) {
-                require(original.getInteger(MediaFormat.KEY_PCM_ENCODING, AudioFormat.ENCODING_PCM_16BIT) ==
+                require(pcmEncoding(original) ==
                     AudioFormat.ENCODING_PCM_16BIT) { "WAV export requires PCM16 input" }
                 val rate = original.getInteger(MediaFormat.KEY_SAMPLE_RATE)
                 val channels = original.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
@@ -68,7 +68,7 @@ internal object PcmWavExportEngine {
                         if (durationUs > 0 && t >= 0) onProgress((t.toFloat() / durationUs).coerceIn(0f, 0.99f), null, null)
                         extractor.advance()
                     }
-                    finish(wav)
+                    finish(wav, rate, channels)
                 }
             } else {
                 codec = MediaCodec.createDecoderByType(mime)
@@ -79,6 +79,8 @@ internal object PcmWavExportEngine {
                 var inputDone = false
                 var outputDone = false
                 var wav: RandomAccessFile? = null
+                var wavRate = 0
+                var wavChannels = 0
                 val scratch = ByteArray(32 * 1024)
                 try {
                     while (!outputDone) {
@@ -101,12 +103,14 @@ internal object PcmWavExportEngine {
                         when (val slot = decoder.dequeueOutputBuffer(bufferInfo, 10_000)) {
                             MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                                 val fmt = decoder.outputFormat
-                                val encoding = fmt.getInteger(MediaFormat.KEY_PCM_ENCODING, AudioFormat.ENCODING_PCM_16BIT)
+                                val encoding = pcmEncoding(fmt)
                                 require(encoding == AudioFormat.ENCODING_PCM_16BIT) {
                                     "Decoder emits non-PCM16 audio; WAV export not supported on this device"
                                 }
                                 val rate = fmt.getInteger(MediaFormat.KEY_SAMPLE_RATE)
                                 val channels = fmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                                wavRate = rate
+                                wavChannels = channels
                                 wav = RandomAccessFile(output, "rw").also { prepare(it, rate, channels) }
                             }
                             in 0..Int.MAX_VALUE -> {
@@ -114,8 +118,10 @@ internal object PcmWavExportEngine {
                                     val fmt = decoder.outputFormat
                                     val rate = fmt.getInteger(MediaFormat.KEY_SAMPLE_RATE)
                                     val channels = fmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
-                                    require(fmt.getInteger(MediaFormat.KEY_PCM_ENCODING, AudioFormat.ENCODING_PCM_16BIT) ==
+                                    require(pcmEncoding(fmt) ==
                                         AudioFormat.ENCODING_PCM_16BIT) { "Expected PCM16 decoder output" }
+                                    wavRate = rate
+                                    wavChannels = channels
                                     wav = RandomAccessFile(output, "rw").also { prepare(it, rate, channels) }
                                 }
                                 if (bufferInfo.size > 0 && bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
@@ -137,7 +143,7 @@ internal object PcmWavExportEngine {
                         }
                     }
                     val file = requireNotNull(wav) { "No PCM frames were decoded" }
-                    finish(file)
+                    finish(file, wavRate, wavChannels)
                 } finally {
                     wav?.close()
                 }
@@ -171,11 +177,31 @@ internal object PcmWavExportEngine {
         raf.write(chunk, 0, size)
     }
 
-    private fun finish(raf: RandomAccessFile) {
-        val len = raf.length()
-        require(len > 44)
-        // Preserve format values stored by caller? Header is finalized by
-        // reading the sample parameters in a future refactor.
-        raf.seek(len)
+    private fun pcmEncoding(format: MediaFormat): Int =
+        if (format.containsKey(MediaFormat.KEY_PCM_ENCODING))
+            format.getInteger(MediaFormat.KEY_PCM_ENCODING)
+        else AudioFormat.ENCODING_PCM_16BIT
+
+    /** Standard little-endian RIFF PCM16; exact size, rate and channels. */
+    private fun finish(raf: RandomAccessFile, sampleRate: Int, channels: Int) {
+        require(sampleRate in 8000..192000 && channels in 1..2)
+        val dataLength = raf.length() - 44
+        require(dataLength > 0 && dataLength <= 0xFFFF_FFFFL - 36)
+        val header = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN)
+        header.put("RIFF".toByteArray(Charsets.US_ASCII))
+        header.putInt((dataLength + 36).toInt())
+        header.put("WAVE".toByteArray(Charsets.US_ASCII))
+        header.put("fmt ".toByteArray(Charsets.US_ASCII))
+        header.putInt(16)
+        header.putShort(1) // integer PCM
+        header.putShort(channels.toShort())
+        header.putInt(sampleRate)
+        header.putInt(sampleRate * channels * 2)
+        header.putShort((channels * 2).toShort())
+        header.putShort(16)
+        header.put("data".toByteArray(Charsets.US_ASCII))
+        header.putInt(dataLength.toInt())
+        raf.seek(0)
+        raf.write(header.array())
     }
 }

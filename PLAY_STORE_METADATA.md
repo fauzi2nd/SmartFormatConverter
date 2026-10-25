@@ -9,7 +9,7 @@ This document provides ready-to-use declaration answers, foreground service rati
 | Question | Answer | Details / Explanation |
 | :--- | :--- | :--- |
 | **Does your app collect or share any user data?** | **No** | The app is an offline-capable utility. All conversion happens 100% on-device. |
-| **Is all data in transit encrypted?** | **Yes** | When downloading user-requested URLs in the Downloader tab, modern TLS (HTTPS) is enforced. |
+| **Is all data in transit encrypted?** | **No (with exception)** | All HTTPS connections are encrypted. However, the app allows downloading user-entered plain HTTP URLs in the Downloader tab (`usesCleartextTraffic="true"`), during which transit for that specific requested media file is unencrypted. |
 | **Do you provide a way for users to request data deletion?** | **Yes** | Users can delete conversion history and temporary cache files at any time via the in-app Settings and Queue screens. |
 
 ---

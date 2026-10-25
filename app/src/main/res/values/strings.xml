@@ -322,7 +322,7 @@
     <string name="setting_webp_quality">WebP quality: %1$d</string>
     <string name="setting_lossless_webp">Lossless WebP (file size may increase)</string>
     <string name="setting_png_lossless">PNG always uses lossless compression.</string>
-    <string name="setting_jpeg_native_note">4:4:4 is preserved when the native encoder is available. On unsupported devices, JPEG falls back to the Android encoder, whose subsampling may differ.</string>
+    <string name="setting_jpeg_native_note">The Pure Kotlin Android SDK encoder applies system-optimized 4:2:0 chroma subsampling for high quality and compatibility across all photo viewers.</string>
     <string name="setting_resize">Resize &amp; Dimensions</string>
     <string name="setting_preset_original">Original</string>
     <string name="setting_preset_1080p">1080p FHD</string>
@@ -355,9 +355,6 @@
     <string name="setting_khz441">44.1 kHz</string>
     <string name="setting_khz48">48 kHz</string>
     <string name="setting_khz96">96 kHz</string>
-    <string name="setting_jpeg_chroma_444">4:4:4 — best color detail</string>
-    <string name="setting_jpeg_chroma_422">4:2:2 — balanced</string>
-    <string name="setting_jpeg_chroma_420">4:2:0 — smaller file</string>
     <string name="setting_custom_validation">Please correct settings before applying.</string>
     <string name="setting_audio_source_rate">Source sample rate (Opus output is fixed at 48 kHz).</string>
     <string name="queue_measuring">Measuring…</string>

@@ -40,7 +40,7 @@ KEY_ALIAS=releaseKey
 KEY_PASSWORD=PasswordKeyAnda
 ```
 
-> **Catatan:** Jika environment variables di atas tidak diisi, sistem build Gradle akan tetap membangun release bundle tanpa error (unsigned bundle) yang dapat ditandatangani manual atau menggunakan fitur **Google Play App Signing**.
+> **Catatan:** Google Play Console mewajibkan file AAB ditandatangani dengan Upload Key (keystore rilis) sebelum diunggah. Jika variabel di atas belum disetel, Gradle akan menghasilkan unsigned AAB yang perlu ditandatangani menggunakan `jarsigner` sebelum diunggah. Disarankan menyetel properti di atas pada `local.properties` agar `bundleRelease` langsung menghasilkan signed AAB.
 
 ---
 

@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.gradle.api.tasks.testing.Test
 
 plugins {
@@ -26,12 +27,28 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystorePath = System.getenv("KEYSTORE_FILE") ?: (project.findProperty("KEYSTORE_FILE") as? String)
+            val localProps = Properties().apply {
+                val propFile = rootProject.file("local.properties")
+                if (propFile.exists()) {
+                    propFile.inputStream().use { stream ->
+                        load(stream)
+                    }
+                }
+            }
+            val keystorePath = System.getenv("KEYSTORE_FILE")
+                ?: (project.findProperty("KEYSTORE_FILE") as? String)
+                ?: localProps.getProperty("KEYSTORE_FILE")
             if (keystorePath != null && file(keystorePath).exists()) {
                 storeFile = file(keystorePath)
-                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: (project.findProperty("KEYSTORE_PASSWORD") as? String)
-                keyAlias = System.getenv("KEY_ALIAS") ?: (project.findProperty("KEY_ALIAS") as? String)
-                keyPassword = System.getenv("KEY_PASSWORD") ?: (project.findProperty("KEY_PASSWORD") as? String)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                    ?: (project.findProperty("KEYSTORE_PASSWORD") as? String)
+                    ?: localProps.getProperty("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                    ?: (project.findProperty("KEY_ALIAS") as? String)
+                    ?: localProps.getProperty("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+                    ?: (project.findProperty("KEY_PASSWORD") as? String)
+                    ?: localProps.getProperty("KEY_PASSWORD")
             }
         }
     }
@@ -127,6 +144,7 @@ dependencies {
 
     // Unit Tests
     testImplementation(libs.junit)
+    testImplementation(libs.sqlite.jdbc)
 
     // Android Instrumentation Tests
     // The Compose BOM is required separately for the androidTest classpath.

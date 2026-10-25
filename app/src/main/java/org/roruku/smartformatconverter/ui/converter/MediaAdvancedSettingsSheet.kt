@@ -168,15 +168,6 @@ fun ImageAdvancedSettingsControl(
                             )
                             Text(stringResource(R.string.setting_chroma_subsampling),
                                 style = MaterialTheme.typography.titleSmall)
-                            MediaOptionChooser(
-                                selected = draft.jpegSubsampling,
-                                options = listOf(
-                                    "444" to stringResource(R.string.setting_jpeg_chroma_444),
-                                    "422" to stringResource(R.string.setting_jpeg_chroma_422),
-                                    "420" to stringResource(R.string.setting_jpeg_chroma_420)
-                                ),
-                                onChange = { draft = draft.copy(jpegSubsampling = it) }
-                            )
                             Text(stringResource(R.string.setting_jpeg_native_note),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)

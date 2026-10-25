@@ -17,13 +17,13 @@ A modern, privacy-focused, offline-first Android multimedia conversion and downl
 ## Tech Stack
 
 - **UI:** Jetpack Compose, Material 3, Navigation Compose
-- **Language:** Kotlin 2.4.x, C++17 (NDK 28.2)
+- **Language:** Pure Kotlin 2.4.x (100% Kotlin codebase, zero native C++/NDK)
 - **Architecture:** MVVM, Clean Architecture, Unidirectional Data Flow (UDF)
 - **Persistence:** Room Database, DataStore Preferences, Storage Access Framework (SAF)
 - **Engines:**
-  - `libjpeg-turbo` (TurboJPEG 3 C++ JNI)
-  - `RxFFmpeg` native engine
-  - AndroidX Media3 / ExoPlayer & Coil
+  - AndroidX Media3 Transformer & ExoPlayer (Hardware-accelerated media transcoding)
+  - Android SDK Native Graphics (Pure Kotlin image processing)
+  - Coil Image & Video Loader
 
 ---
 
@@ -33,16 +33,12 @@ A modern, privacy-focused, offline-first Android multimedia conversion and downl
 
 - **JDK:** OpenJDK 25 (bundled JetBrains Runtime / Android Studio JBR recommended)
 - **Android SDK:** Compile SDK 37, Min SDK 26
-- **Android NDK:** 28.2.13676358
-- **CMake:** 3.22.1
 
 ### Build Instructions
 
-1. **Clone the repository with submodules:**
+1. **Clone the repository:**
    ```bash
-   git clone --recursive <repo-url>
-   # If already cloned:
-   git submodule update --init --recursive
+   git clone <repo-url>
    ```
 
 2. **Configure SDK path in `local.properties`:**
@@ -55,21 +51,22 @@ A modern, privacy-focused, offline-first Android multimedia conversion and downl
    ./gradlew assembleDebug
    ```
 
-4. **Install to Connected Device:**
+4. **Build Release AAB (Google Play):**
    ```bash
-   ./gradlew installDebug
+   ./gradlew bundleRelease
    ```
 
 ---
 
 ## Documentation
 
-- [System Architecture](ARCHITECTURE.md)
-- [Development Progress & Phase History](DEVELOPMENT_PROGRESS.md)
-- [Known Issues & Technical Constraints](KNOWN_ISSUES.md)
+- [Release Pipeline Guide](RELEASE_GUIDE.md)
+- [Feature Compatibility Matrix](FEATURE_COMPATIBILITY_MATRIX.md)
+- [Google Play Store Metadata](PLAY_STORE_METADATA.md)
+- [Privacy Policy](PRIVACY_POLICY.md)
 
 ---
 
 ## License
 
-Internal / Proprietary. All rights reserved.
+MIT License. Open source and publicly auditable.

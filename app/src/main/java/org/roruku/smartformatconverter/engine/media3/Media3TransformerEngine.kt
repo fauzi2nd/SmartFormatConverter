@@ -11,13 +11,16 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.Presentation
+import androidx.media3.transformer.AudioEncoderSettings
 import androidx.media3.transformer.Composition
+import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.Effects
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.Transformer
+import androidx.media3.transformer.VideoEncoderSettings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -79,12 +82,17 @@ object Media3TransformerEngine {
             else -> MimeTypes.AUDIO_AAC
         }
 
+        val videoBitrate = (advancedSettings?.videoBitrateKbps ?: config.bitrateKbps)?.takeIf { it > 0 }
+        val audioBitrate = (advancedSettings?.audioBitrateKbps ?: config.audioBitrateKbps).takeIf { it > 0 }
+
         executeTransformation(
             context = context,
             editedMediaItem = editedItemBuilder.build(),
             outputFile = tempOutputFile,
             videoMimeType = videoMime,
             audioMimeType = audioMime,
+            videoBitrateKbps = videoBitrate,
+            audioBitrateKbps = audioBitrate,
             onProgress = onProgress
         )
     }
@@ -102,20 +110,16 @@ object Media3TransformerEngine {
             .setRemoveVideo(true)
             .build()
 
-        val audioMime = when (config.outputFormat) {
-            AudioOutputFormat.FLAC -> MimeTypes.AUDIO_FLAC
-            AudioOutputFormat.WAV -> MimeTypes.AUDIO_RAW
-            AudioOutputFormat.OPUS, AudioOutputFormat.OGG -> MimeTypes.AUDIO_OPUS
-            AudioOutputFormat.MP3 -> MimeTypes.AUDIO_MPEG
-            else -> MimeTypes.AUDIO_AAC
-        }
+        val audioBitrate = (advancedSettings?.bitrateKbps ?: config.bitrateKbps).takeIf { it > 0 }
 
         executeTransformation(
             context = context,
             editedMediaItem = editedMediaItem,
             outputFile = tempOutputFile,
             videoMimeType = null,
-            audioMimeType = audioMime,
+            audioMimeType = MimeTypes.AUDIO_AAC,
+            videoBitrateKbps = null,
+            audioBitrateKbps = audioBitrate,
             onProgress = onProgress
         )
     }
@@ -126,9 +130,31 @@ object Media3TransformerEngine {
         outputFile: File,
         videoMimeType: String?,
         audioMimeType: String?,
+        videoBitrateKbps: Int?,
+        audioBitrateKbps: Int?,
         onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
     ): Result<File> = suspendCancellableCoroutine { continuation ->
+        val encoderFactoryBuilder = DefaultEncoderFactory.Builder(context)
+            .setEnableFallback(true)
+
+        if (videoBitrateKbps != null && videoBitrateKbps > 0) {
+            encoderFactoryBuilder.setRequestedVideoEncoderSettings(
+                VideoEncoderSettings.Builder()
+                    .setBitrate(videoBitrateKbps * 1000)
+                    .build()
+            )
+        }
+
+        if (audioBitrateKbps != null && audioBitrateKbps > 0) {
+            encoderFactoryBuilder.setRequestedAudioEncoderSettings(
+                AudioEncoderSettings.Builder()
+                    .setBitrate(audioBitrateKbps * 1000)
+                    .build()
+            )
+        }
+
         val transformerBuilder = Transformer.Builder(context)
+            .setEncoderFactory(encoderFactoryBuilder.build())
 
         if (videoMimeType != null) {
             transformerBuilder.setVideoMimeType(videoMimeType)

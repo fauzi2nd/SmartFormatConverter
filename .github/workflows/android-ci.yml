@@ -64,11 +64,29 @@ jobs:
         run: gradlew.bat lintRelease --rerun-tasks --no-configuration-cache --warning-mode summary --stacktrace
         shell: cmd
 
-      - name: Verify 16 KB page-size compliance
+      - name: Verify Native ELF and 16 KB Page-Size Compliance
         if: success()
         shell: powershell
         run: |
-          Write-Host "All legacy native C++ and RxFFmpeg dependencies have been replaced with Pure Kotlin and AndroidX Media3. 16 KB page alignment is 100% verified."
+          Write-Host "=== Technical Verification: Inspecting Release AAB for Native ELF Binaries ==="
+          $aabPath = "app/build/outputs/bundle/release/app-release.aab"
+          if (-not (Test-Path $aabPath)) {
+            Write-Error "Release AAB not found at $aabPath"
+            exit 1
+          }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $aabZip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $aabPath).Path)
+          $soEntries = $aabZip.Entries | Where-Object { $_.FullName -like "*.so" }
+          $aabZip.Dispose()
+
+          Write-Host "Native .so shared libraries found in Release AAB: $($soEntries.Count)"
+          if ($soEntries.Count -gt 0) {
+            $soEntries | ForEach-Object { Write-Host " - $($_.FullName)" }
+            Write-Error "Found $($soEntries.Count) native shared libraries in release AAB. Pure Kotlin migration requires 0 .so files."
+            exit 1
+          } else {
+            Write-Host "SUCCESS: 0 native .so shared libraries found in release AAB. The app is 100% Pure Kotlin bytecode and inherently 16 KB page-size compliant on Android 15+."
+          }
 
       - name: Print Lint Diagnostics on Failure
         if: failure()

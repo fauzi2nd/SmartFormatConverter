@@ -46,6 +46,14 @@ jobs:
           # Gradle's own cache is retained by the self-hosted Windows runner.
           # Avoid setup-java cache upload warnings (Windows tar, storage quota).
 
+      - name: Verify active JDK and clear stale Gradle daemons
+        shell: powershell
+        run: |
+          $jlink = Join-Path $env:JAVA_HOME 'bin/jlink.exe'
+          if (-not (Test-Path $jlink)) { throw "JDK jlink.exe not found at $jlink" }
+          Write-Host "Using JDK: $env:JAVA_HOME"
+          & .\gradlew.bat --stop
+
       - name: Create local.properties
         shell: powershell
         run: |
@@ -55,17 +63,17 @@ jobs:
           Write-Host "SDK property: $(Get-Content local.properties)"
 
       - name: Build Debug APK
-        run: gradlew.bat assembleDebug --warning-mode summary --stacktrace
+        run: gradlew.bat assembleDebug --no-configuration-cache --warning-mode summary --stacktrace
         shell: cmd
 
       - name: Run Unit Tests
-        run: gradlew.bat testDebugUnitTest --warning-mode summary --stacktrace
+        run: gradlew.bat testDebugUnitTest --no-configuration-cache --warning-mode summary --stacktrace
         shell: cmd
 
       - name: Compile On-Device Smoke Tests
         # Device execution is a separate release gate. This verifies that
         # AndroidJUnit4/Media3 test sources compile on every trusted push.
-        run: gradlew.bat assembleDebugAndroidTest --warning-mode summary --stacktrace
+        run: gradlew.bat assembleDebugAndroidTest --no-configuration-cache --warning-mode summary --stacktrace
         shell: cmd
 
       - name: Run Android Lint (Debug)
@@ -75,11 +83,11 @@ jobs:
         shell: cmd
 
       - name: Build Release AAB
-        run: gradlew.bat bundleRelease --warning-mode summary --stacktrace
+        run: gradlew.bat bundleRelease --no-configuration-cache --warning-mode summary --stacktrace
         shell: cmd
 
       - name: Run Android Lint (Release)
-        run: gradlew.bat lintRelease --rerun-tasks --no-configuration-cache --warning-mode summary --stacktrace
+        run: gradlew.bat lintRelease --rerun-tasks --no-configuration-cache --no-configuration-cache --warning-mode summary --stacktrace
         shell: cmd
 
       - name: Verify Native ELF and 16 KB Page-Size Compliance

@@ -5,6 +5,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.roruku.smartformatconverter.engine.media.BitrateSelection
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.VideoSettingsValidator
 import org.roruku.smartformatconverter.data.repository.Media3OutputPolicy
@@ -63,6 +64,8 @@ class VideoV3Test {
         assertEquals(12000, base.applyPreset("High Quality").videoBitrateKbps)
         assertEquals(6000, base.applyPreset("Balanced").videoBitrateKbps)
         assertEquals(2500, base.applyPreset("Small File").videoBitrateKbps)
+        assertEquals(BitrateSelection.AUTO, base.applyPreset("Smart Auto").videoBitrateKbps)
+        assertEquals(BitrateSelection.AUTO, base.applyPreset("Smart Auto").audioBitrateKbps)
     }
 
     @Test
@@ -70,9 +73,26 @@ class VideoV3Test {
         assertNotNull(VideoSettingsValidator.validate(
             VideoAdvancedSettings(width = 1921, height = 1080)))
         assertNotNull(VideoSettingsValidator.validate(
-            VideoAdvancedSettings(videoBitrateKbps = 0)))
+            VideoAdvancedSettings(videoBitrateKbps = -2)))
+        assertNotNull(VideoSettingsValidator.validate(
+            VideoAdvancedSettings(audioBitrateKbps = -2)))
+        assertNull(VideoSettingsValidator.validate(
+            VideoAdvancedSettings(videoBitrateKbps = BitrateSelection.AUTO)))
+        assertNull(VideoSettingsValidator.validate(
+            VideoAdvancedSettings(videoBitrateKbps = BitrateSelection.SOURCE,
+                audioBitrateKbps = BitrateSelection.SOURCE)))
         assertNotNull(VideoSettingsValidator.validate(
             VideoAdvancedSettings(fps = "999")))
+    }
+
+    @Test
+    fun bitrateSelectionSurvivesPersistedVideoSnapshots() {
+        val settings = VideoAdvancedSettings(
+            videoBitrateKbps = BitrateSelection.SOURCE,
+            audioBitrateKbps = BitrateSelection.AUTO
+        )
+        assertEquals(settings, VideoAdvancedSettings.fromJson(settings.toJson()))
+        assertNull(VideoSettingsValidator.validate(settings))
     }
 
     @Test

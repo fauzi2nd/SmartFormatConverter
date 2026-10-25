@@ -6,6 +6,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.roruku.smartformatconverter.engine.media.BitrateSelection
 import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.AudioSettingsValidator
 import org.roruku.smartformatconverter.engine.media.ImageAdvancedSettings
@@ -148,6 +149,18 @@ class MediaAdvancedSettingsTest {
             assertNotNull(AudioSettingsValidator.validate(AudioAdvancedSettings(format = legacy)))
         }
         assertTrue("wav" in AudioSettingsValidator.losslessFormats)
+    }
+
+    @Test
+    fun audioBitrateAutoSourceAndLegacyNumbersRemainValid() {
+        val auto = AudioAdvancedSettings(bitrateKbps = BitrateSelection.AUTO)
+        val source = AudioAdvancedSettings(bitrateKbps = BitrateSelection.SOURCE)
+        val legacy = AudioAdvancedSettings(bitrateKbps = 224)
+        for (settings in listOf(auto, source, legacy)) {
+            assertNull(AudioSettingsValidator.validate(settings))
+            assertEquals(settings, AudioAdvancedSettings.fromJson(settings.toJson()))
+        }
+        assertNotNull(AudioSettingsValidator.validate(AudioAdvancedSettings(bitrateKbps = -2)))
     }
 
     @Test

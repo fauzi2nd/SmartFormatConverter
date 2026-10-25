@@ -75,8 +75,8 @@ release gate terpisah. Detail: [P6–P10 Implementation](P6_P10_IMPLEMENTATION.m
 | Pengaturan | RxFFmpeg | Pure Kotlin / Media3 | Status Implementasi |
 | :--- | :--- | :--- | :--- |
 | **Custom Resolution (Width & Height)** | `-vf scale=w:h` | `Presentation.createForWidthAndHeight()` | ✅ **Aktif & Diterapkan** |
-| **Video Bitrate (Target Bitrate)** | `-b:v` | `VideoEncoderSettings.Builder().setBitrate()` | ✅ **Aktif & Diterapkan** |
-| **Audio Bitrate** | `-b:a` | `AudioEncoderSettings.Builder().setBitrate()` | ✅ **Aktif & Diterapkan** |
+| **Video Bitrate (Auto / Source / Standar)** | `-b:v` | Target tetap melalui `VideoEncoderSettings.Builder().setBitrate()`, Source dari bitrate track bila metadata tersedia, Auto menyerahkan target ke encoder | ✅ **Dropdown tanpa input manual** |
+| **Audio Bitrate (Auto / Source / Standar)** | `-b:a` | Mode Auto menggunakan bitrate rekomendasi codec/channel; Source menggunakan metadata bitrate audio bila ada; fallback Auto | ✅ **Dropdown tanpa input manual** |
 | **Mute / Remove Audio** | `-an` | `EditedMediaItem.setRemoveAudio(true)` | ✅ **Aktif & Diterapkan** |
 | **Video Codec (H.264 vs H.265)** | `libx264` / `libx265` | `MimeTypes.VIDEO_H264` / `VIDEO_H265` | ✅ **Aktif & Diterapkan** |
 | **Hardware Encoding** | Flag eksperimental | MediaCodec Hardware Encoder Default | ✅ **Aktif Secara Native** |

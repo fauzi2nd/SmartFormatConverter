@@ -5,6 +5,8 @@ A privacy-focused Android multimedia converter and direct file downloader, built
 ## Currently implemented
 
 - **Video conversion:** Export MP4 (H.264/H.265) and, on devices with VP9 and Opus encoders, WebM (VP9/Opus). Both use Media3 with device-dependent codec support. Configurable target bitrate and resolution.
+- **Advanced bitrate selection:** Video and audio use dropdown presets: Auto, Source / original, and standard kbps targets. Source follows the source-track bitrate *when available* but still transcodes unless Remux is used; missing/unsupported metadata falls back to Auto.
+
 - **Audio conversion:** M4A (AAC), raw ADTS AAC, Ogg/Opus, PCM16 WAV and device-gated FLAC. Source decoding and encoder availability depend on the Android chipset; these formats need on-device validation.
 - **Images:** JPEG, PNG, WebP, device-gated HEIC and AVIF, and **single-frame GIF** (not animation). Resize and quality controls are available; JPEG 4:4:4 and metadata preservation across all formats are not guaranteed.
 - **Direct URL downloads:** Download direct HTTP/HTTPS media files, with progress and resumable byte-range transfers when the server supports them. This is not a general streaming-site extractor.

@@ -28,6 +28,19 @@ internal object Mp4RemuxEngine {
             mimes.filter { it.startsWith("audio/") }.all { it == "audio/mp4a-latm" } &&
             mimes.all { it.startsWith("video/") || it.startsWith("audio/") }
 
+    /** Preflight for Smart Auto. No file is written and no tracks are dropped. */
+    fun canRemux(context: Context, input: Uri): Boolean {
+        val extractor = MediaExtractor()
+        return try {
+            extractor.setDataSource(context, input, null)
+            val mimes = (0 until extractor.trackCount).map {
+                extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME).orEmpty()
+            }
+            supportedTracks(mimes)
+        } catch (_: Exception) { false }
+        finally { extractor.release() }
+    }
+
     suspend fun remux(
         context: Context,
         input: Uri,

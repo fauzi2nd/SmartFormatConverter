@@ -22,6 +22,7 @@ import org.roruku.smartformatconverter.data.db.MediaType
 import org.roruku.smartformatconverter.data.preferences.UserPreferencesRepository
 import org.roruku.smartformatconverter.data.repository.ConversionRepository
 import org.roruku.smartformatconverter.data.repository.Media3OutputPolicy
+import org.roruku.smartformatconverter.engine.media3.Media3DeviceCapabilities
 import org.roruku.smartformatconverter.data.storage.BatchConversionScanner
 import org.roruku.smartformatconverter.data.storage.BatchScanConfig
 import org.roruku.smartformatconverter.data.storage.MediaDetails
@@ -359,7 +360,8 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
         val state = _uiState.value
         if (state.selectedFiles.isEmpty() || state.isConverting || state.isScanning) return
         val mediaType = typeForTab(state.selectedTab)
-        Media3OutputPolicy.rejectionReason(mediaType, state.targetFormat)?.let { reason ->
+        (Media3OutputPolicy.rejectionReason(mediaType, state.targetFormat)
+            ?: Media3DeviceCapabilities.unsupportedReason(mediaType, state.targetFormat))?.let { reason ->
             _uiState.update { it.copy(message = reason) }
             return
         }

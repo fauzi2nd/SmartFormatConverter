@@ -21,6 +21,7 @@ import org.roruku.smartformatconverter.data.db.ConversionJobEntity
 import org.roruku.smartformatconverter.data.db.MediaType
 import org.roruku.smartformatconverter.data.preferences.UserPreferencesRepository
 import org.roruku.smartformatconverter.data.repository.ConversionRepository
+import org.roruku.smartformatconverter.data.repository.Media3OutputPolicy
 import org.roruku.smartformatconverter.data.storage.BatchConversionScanner
 import org.roruku.smartformatconverter.data.storage.BatchScanConfig
 import org.roruku.smartformatconverter.data.storage.MediaDetails
@@ -358,6 +359,10 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
         val state = _uiState.value
         if (state.selectedFiles.isEmpty() || state.isConverting || state.isScanning) return
         val mediaType = typeForTab(state.selectedTab)
+        Media3OutputPolicy.rejectionReason(mediaType, state.targetFormat)?.let { reason ->
+            _uiState.update { it.copy(message = reason) }
+            return
+        }
         // Resolve and validate a separate immutable configuration per source
         // file before submitting a batch. Nothing is read from UI state later.
         val videoSnapshots = if (mediaType == MediaType.VIDEO) {
@@ -390,7 +395,8 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
             }
         }
         audioSnapshots.values.forEach { config ->
-            AudioSettingsValidator.validate(config)?.let { error ->
+            (AudioSettingsValidator.validate(config)
+                ?: Media3OutputPolicy.unsupportedAudioSettings(config))?.let { error ->
                 _uiState.update { it.copy(message = error) }
                 return
             }
@@ -398,6 +404,7 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
 
         for (config in videoSnapshots.values) {
             val error = VideoSettingsValidator.validate(config)
+                ?: Media3OutputPolicy.unsupportedVideoSettings(config)
             if (error != null) {
                 _uiState.update { it.copy(message = error) }
                 return

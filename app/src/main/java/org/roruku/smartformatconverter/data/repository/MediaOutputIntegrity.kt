@@ -28,6 +28,26 @@ internal object MediaOutputIntegrity {
             "webm" -> header.size >= 4 &&
                 header[0] == 0x1a.toByte() && header[1] == 0x45.toByte() &&
                 header[2] == 0xdf.toByte() && header[3] == 0xa3.toByte()
+            "aac" -> header.size >= 2 && header[0] == 0xff.toByte() &&
+                (header[1].toInt() and 0xf0) == 0xf0
+            "ogg" -> header.size >= 4 && String(header, 0, 4, Charsets.US_ASCII) == "OggS"
+            "wav" -> header.size >= 12 &&
+                String(header, 0, 4, Charsets.US_ASCII) == "RIFF" &&
+                String(header, 8, 4, Charsets.US_ASCII) == "WAVE"
+            "jpg", "jpeg" -> header.size >= 3 &&
+                header[0] == 0xff.toByte() && header[1] == 0xd8.toByte() &&
+                header[2] == 0xff.toByte()
+            "png" -> header.size >= 8 &&
+                header.take(8) == listOf(137,80,78,71,13,10,26,10).map { it.toByte() }
+            "webp" -> header.size >= 12 &&
+                String(header,0,4,Charsets.US_ASCII) == "RIFF" &&
+                String(header,8,4,Charsets.US_ASCII) == "WEBP"
+            "gif" -> header.size >= 6 &&
+                String(header,0,6,Charsets.US_ASCII) in setOf("GIF87a","GIF89a")
+            "heic", "avif" -> header.size >= 12 &&
+                String(header,4,4,Charsets.US_ASCII) == "ftyp" &&
+                (if (ext == "avif") String(header,8,4,Charsets.US_ASCII) in setOf("avif","avis")
+                    else String(header,8,4,Charsets.US_ASCII) in setOf("heic","heix","hevc","mif1","msf1"))
             else -> false
         }
     }
@@ -41,9 +61,15 @@ internal object MediaOutputIntegrity {
                     trackMimes.filter { it.startsWith("audio/") }.all { it == "audio/opus" }
                 else -> false
             }
-            MediaType.AUDIO -> extension.equals("m4a", true) &&
-                trackMimes.any { it == "audio/mp4a-latm" } &&
-                trackMimes.none { it.startsWith("video/") }
+            MediaType.AUDIO -> {
+                val required = when (extension.lowercase()) {
+                    "m4a", "aac" -> "audio/mp4a-latm"
+                    "ogg" -> "audio/opus"
+                    "wav" -> "audio/raw"
+                    else -> return false
+                }
+                trackMimes.any { it == required } && trackMimes.none { it.startsWith("video/") }
+            }
             MediaType.IMAGE, MediaType.DOWNLOAD -> true
         }
 
@@ -51,7 +77,7 @@ internal object MediaOutputIntegrity {
         if (!file.isFile || file.length() <= 0L) return "Output file is missing or empty"
         return when (type) {
             MediaType.VIDEO, MediaType.AUDIO -> validateAv(file, type, extension)
-            MediaType.IMAGE -> validateImage(file)
+            MediaType.IMAGE -> validateImage(file, extension)
             MediaType.DOWNLOAD -> null
         }
     }
@@ -100,8 +126,13 @@ internal object MediaOutputIntegrity {
         }
     }
 
-    private fun validateImage(file: File): String? =
+    private fun validateImage(file: File, extension: String): String? =
         try {
+            val header = ByteArray(12)
+            val n = FileInputStream(file).use { it.read(header) }
+            if (!signatureMatches(extension, header.copyOf(n.coerceAtLeast(0)))) {
+                return "Output image signature does not match " + extension.uppercase()
+            }
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeFile(file.absolutePath, bounds)
             if (bounds.outWidth > 0 && bounds.outHeight > 0) null

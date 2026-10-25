@@ -59,7 +59,7 @@ object Media3TransformerEngine {
             // Do not upscale a smaller source when the user enabled "Prevent upscale".
             // If the source dimensions cannot be read, fail rather than silently
             // violating an explicit quality requirement.
-            val canResize = if (advancedSettings.preventUpscale) {
+            val canResize = if (advancedSettings?.preventUpscale == true) {
                 val input = FFmpegEngine.probeMedia(context, inputUri)
                 if (input.videoWidth <= 0 || input.videoHeight <= 0) {
                     return@withContext Result.failure(

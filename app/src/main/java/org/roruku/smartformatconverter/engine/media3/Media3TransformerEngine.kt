@@ -130,8 +130,12 @@ object Media3TransformerEngine {
         if (config.outputFormat == AudioOutputFormat.FLAC) {
             return@withContext PlatformFlacExportEngine.export(context, inputUri, tempOutputFile, onProgress)
         }
+        // Some vendor MediaMuxer implementations reject otherwise valid Opus
+        // packets. Use Media3's dedicated audio muxers as a second route when
+        // the platform MediaCodec/MediaMuxer pipeline fails.
+        var nativeFailure: Throwable? = null
         if (config.outputFormat in setOf(AudioOutputFormat.M4A, AudioOutputFormat.AAC, AudioOutputFormat.OGG)) {
-            return@withContext PlatformCompressedAudioExportEngine.export(
+            val nativeResult = PlatformCompressedAudioExportEngine.export(
                 context = context,
                 input = inputUri,
                 output = tempOutputFile,
@@ -139,6 +143,10 @@ object Media3TransformerEngine {
                 bitrateKbps = advancedSettings?.bitrateKbps ?: config.bitrateKbps,
                 onProgress = onProgress
             )
+            if (nativeResult.isSuccess) return@withContext nativeResult
+            nativeFailure = nativeResult.exceptionOrNull()
+            Log.w(TAG, "Platform compressed audio failed; trying Media3 fallback", nativeFailure)
+            tempOutputFile.delete()
         }
         val mediaItem = MediaItem.fromUri(inputUri)
         val editedMediaItem = EditedMediaItem.Builder(mediaItem)
@@ -155,7 +163,7 @@ object Media3TransformerEngine {
             AudioOutputFormat.OGG -> OggOpusMuxerFactory()
             else -> null
         }
-        executeTransformation(
+        val fallbackResult = executeTransformation(
             context = context,
             editedMediaItem = editedMediaItem,
             outputFile = tempOutputFile,
@@ -166,6 +174,14 @@ object Media3TransformerEngine {
             muxerFactory = muxerFactory,
             onProgress = onProgress
         )
+        if (fallbackResult.isSuccess || nativeFailure == null) return@withContext fallbackResult
+        val fallbackFailure = fallbackResult.exceptionOrNull()
+        Result.failure(IllegalStateException(
+            "Audio export failed using both Android and Media3. Android: " +
+                (nativeFailure.message ?: nativeFailure.javaClass.simpleName) +
+                "; Media3: " + (fallbackFailure?.message ?: "unknown error"),
+            fallbackFailure ?: nativeFailure
+        ))
     }
 
     /**

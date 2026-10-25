@@ -97,7 +97,7 @@ internal object PlatformCompressedAudioExportEngine {
             val activeCodec = codec
             requireNotNull(activeCodec)
             require(activeCodec.codecInfo.getCapabilitiesForType(mime)
-                .audioCapabilities.isSampleRateSupported(rate)) {
+                .audioCapabilities?.isSampleRateSupported(rate) == true) {
                 "The device " + mime + " encoder does not support " + rate + " Hz"
             }
             activeCodec.configure(encoderFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)

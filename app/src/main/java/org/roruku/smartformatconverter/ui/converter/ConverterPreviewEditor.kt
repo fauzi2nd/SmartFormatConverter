@@ -127,6 +127,7 @@ fun editorCategoryName(tab: Int): String = when (tab) {
 @Composable
 fun presetDisplayName(preset: String): String = when (preset) {
     "Original Quality / Remux" -> stringResource(R.string.preset_original_remux)
+    "Smart Auto" -> "Smart Auto"
     "High Quality" -> stringResource(R.string.preset_high_quality)
     "Balanced" -> stringResource(R.string.preset_balanced)
     "Small File" -> stringResource(R.string.preset_small_file)
@@ -1014,7 +1015,7 @@ fun ConverterPreviewEditor(
                         Text(stringResource(R.string.preset), fontWeight = FontWeight.SemiBold)
                         // MP4 supports strict stream copy when source codecs and tracks match.
                         val presets = if (state.targetFormat == "mp4") {
-                            listOf("Original Quality / Remux", "High Quality", "Balanced", "Small File", "Custom")
+                            listOf("Smart Auto", "Original Quality / Remux", "High Quality", "Balanced", "Small File", "Custom")
                         } else listOf("High Quality", "Balanced", "Small File", "Custom")
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(presets.size) { i ->

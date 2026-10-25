@@ -43,6 +43,15 @@ class StillGifWriterTest {
         assertEquals(0xffffffff.toInt(), img.getRGB(1, 0))
     }
 
+    @Test fun transparentPixelsBecomeWhiteWithoutSecondBitmap() {
+        val output = ByteArrayOutputStream()
+        StillGifWriter.write(output, 1, 1) { _, row ->
+            row[0] = 0x00000000
+        }
+        val image = ImageIO.read(ByteArrayInputStream(output.toByteArray()))
+        assertEquals(0xffffffff.toInt(), image.getRGB(0, 0))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun refusesDimensionsBeyondGifSpec() {
         StillGifWriter.write(ByteArrayOutputStream(), 65536, 2) { _, _ -> }

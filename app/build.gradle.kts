@@ -128,6 +128,8 @@ dependencies {
 
     // Media and Storage
     implementation(libs.androidx.exifinterface)
+    implementation(libs.androidx.heifwriter)
+    implementation(libs.square.gifencoder)
     implementation(libs.androidx.documentfile)
     implementation(libs.androidx.work.runtime.ktx)
 

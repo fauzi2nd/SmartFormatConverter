@@ -28,12 +28,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioConversionConfig
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioOutputFormat
-import org.roruku.smartformatconverter.engine.ffmpeg.FFmpegEngine
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoConversionConfig
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoOutputFormat
 import org.roruku.smartformatconverter.data.db.MediaType
 import java.io.File
 import kotlin.coroutines.resume
@@ -64,7 +59,7 @@ object Media3TransformerEngine {
             // If the source dimensions cannot be read, fail rather than silently
             // violating an explicit quality requirement.
             val canResize = if (advancedSettings?.preventUpscale == true) {
-                val input = FFmpegEngine.probeMedia(context, inputUri)
+                val input = MediaProbe.probeMedia(context, inputUri)
                 if (input.videoWidth <= 0 || input.videoHeight <= 0) {
                     return@withContext Result.failure(
                         IllegalStateException("Cannot determine source resolution for prevent-upscale. Try original resolution.")

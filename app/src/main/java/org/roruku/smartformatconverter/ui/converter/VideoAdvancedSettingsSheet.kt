@@ -252,7 +252,7 @@ fun VideoAdvancedSettingsControl(
             SectionHeader(stringResource(R.string.video_setting_other))
 
             Text(
-                "Metadata handling and MP4 fast-start are controlled automatically by Media3.",
+                stringResource(R.string.media3_video_muxer_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

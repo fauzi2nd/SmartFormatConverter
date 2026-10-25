@@ -10,8 +10,6 @@ import android.net.Uri
 import android.util.Log
 import androidx.heifwriter.HeifWriter
 import androidx.heifwriter.AvifWriter
-import com.squareup.gifencoder.GifEncoder
-import com.squareup.gifencoder.ImageOptions
 import java.io.BufferedOutputStream
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
@@ -226,22 +224,14 @@ object ImageConverterEngine {
                         }
                 }
                 ImageOutputFormat.GIF -> {
-                    // This converts a still image to one GIF89a frame.
-                    // Animated-source preservation is NOT claimed.
-                    require(finalBitmap.width <= 2048 && finalBitmap.height <= 2048) {
-                        "GIF export is limited to 2048×2048 to control memory use"
-                    }
-                    val width = finalBitmap.width
-                    val height = finalBitmap.height
-                    val pixels = IntArray(width * height)
-                    finalBitmap.getPixels(pixels, 0, width, 0, 0, width, height)
-                    val rgb = Array(height) { y ->
-                        IntArray(width) { x -> pixels[y * width + x] and 0x00FFFFFF }
-                    }
+                    // Preserve source dimensions. Indexed-colour GIF has only
+                    // 256 colours; this single-frame encoder uses streaming
+                    // rows to avoid a second width*height IntArray allocation.
                     BufferedOutputStream(FileOutputStream(outputFile)).use { out ->
-                        GifEncoder(out, width, height, 0)
-                            .addImage(rgb, ImageOptions())
-                            .finishEncoding()
+                        StillGifWriter.write(out, finalBitmap.width, finalBitmap.height) { y, row ->
+                            finalBitmap.getPixels(row, 0, finalBitmap.width, 0, y,
+                                finalBitmap.width, 1)
+                        }
                     }
                 }
             }

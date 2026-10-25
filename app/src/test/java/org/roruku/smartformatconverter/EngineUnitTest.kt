@@ -3,11 +3,13 @@ package org.roruku.smartformatconverter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.roruku.smartformatconverter.data.db.Converters
 import org.roruku.smartformatconverter.data.db.JobStatus
 import org.roruku.smartformatconverter.data.db.MediaType
 import org.roruku.smartformatconverter.data.repository.Media3OutputPolicy
+import org.roruku.smartformatconverter.data.repository.MediaOutputIntegrity
 import org.roruku.smartformatconverter.data.storage.BatchOutputStructure
 import org.roruku.smartformatconverter.data.storage.BatchScanConfig
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioCodec
@@ -24,6 +26,18 @@ import org.roruku.smartformatconverter.engine.image.ImageOutputFormat
 import java.io.File
 
 class EngineUnitTest {
+
+    @Test
+    fun testMediaOutputIntegrityTrackPolicy() {
+        assertEquals(true, MediaOutputIntegrity.containsExpectedTrack(MediaType.VIDEO, listOf("video/avc", "audio/mp4a-latm")))
+        assertEquals(false, MediaOutputIntegrity.containsExpectedTrack(MediaType.VIDEO, listOf("audio/mp4a-latm")))
+        assertEquals(true, MediaOutputIntegrity.containsExpectedTrack(MediaType.AUDIO, listOf("audio/mp4a-latm")))
+        assertEquals(false, MediaOutputIntegrity.containsExpectedTrack(MediaType.AUDIO, listOf("video/avc")))
+        assertEquals(false, MediaOutputIntegrity.containsExpectedTrack(MediaType.VIDEO, emptyList()))
+        assertNotNull(MediaOutputIntegrity.validate(File("unavailable-test-file.mp4"), MediaType.DOWNLOAD))
+        assertNotNull(MediaOutputIntegrity.validate(File("unavailable-test-file.mp4"), MediaType.VIDEO))
+    }
+
 
 
     @Test

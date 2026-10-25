@@ -408,12 +408,12 @@ fun VideoAdvancedExpandedPreview() {
     }
 }
 
-@Preview(name = "Advanced Video - Remux", showBackground = true, widthDp = 393, heightDp = 860)
+@Preview(name = "Advanced Video - WebM", showBackground = true, widthDp = 393, heightDp = 860)
 @Composable
-fun VideoAdvancedRemuxPreview() {
+fun VideoAdvancedWebmPreview() {
     SmartFormatConverterTheme {
         VideoAdvancedSettingsControl(
-            settings = VideoAdvancedSettings().applyPreset("Original Quality / Remux"),
+            settings = VideoAdvancedSettings(format = "webm", videoCodec = "vp9", audioCodec = "opus"),
             onApply = {},
             previewExpanded = true
         )

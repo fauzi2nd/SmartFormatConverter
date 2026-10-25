@@ -133,10 +133,10 @@ data class AudioAdvancedSettings(
 
 /** Media3 audio exporters: M4A, ADTS AAC, Ogg Opus, or decoded PCM16 WAV. */
 object AudioSettingsValidator {
-    val losslessFormats: Set<String> = setOf("wav")
+    val losslessFormats: Set<String> = setOf("wav", "flac")
 
     fun validate(s: AudioAdvancedSettings): String? = when {
-        s.format !in setOf("m4a", "aac", "ogg", "wav") -> "Unsupported audio container"
+        s.format !in setOf("m4a", "aac", "ogg", "wav", "flac") -> "Unsupported audio container"
         s.bitrateKbps !in 32..512 -> "Audio bitrate must be 32–512 kbps"
         s.sampleRate != null && s.sampleRate !in setOf(32000, 44100, 48000, 96000) ->
             "Unsupported audio sample rate"

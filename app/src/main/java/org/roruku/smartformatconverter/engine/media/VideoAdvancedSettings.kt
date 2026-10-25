@@ -37,6 +37,7 @@ data class VideoAdvancedSettings(
 
     fun applyPreset(name: String): VideoAdvancedSettings = when (name) {
         "Original Quality / Remux" -> copy(preset = name)
+        "Smart Auto" -> copy(preset = name, rateControl = "vbr", videoBitrateKbps = 6000)
         // Media3 uses encoder target bitrate, not libx264 CRF. Presets must
         // adjust the setting actually consumed by the runtime.
         "High Quality" -> copy(preset = name, crf = 18, rateControl = "vbr", videoBitrateKbps = 12000)

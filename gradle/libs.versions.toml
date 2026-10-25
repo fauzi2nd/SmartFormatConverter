@@ -31,6 +31,8 @@ documentfile = "1.1.0"
 work = "2.12.0"
 coil = "2.7.0"
 media3 = "1.11.1"
+heifwriter = "1.1.0"
+gifencoder = "0.10.1"
 sqliteJdbc = "3.53.4.0"
 jsonTest = "20260814"
 
@@ -101,6 +103,8 @@ androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplaye
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
 androidx-media3-transformer = { group = "androidx.media3", name = "media3-transformer", version.ref = "media3" }
 androidx-media3-muxer = { group = "androidx.media3", name = "media3-muxer", version.ref = "media3" }
+androidx-heifwriter = { group = "androidx.heifwriter", name = "heifwriter", version.ref = "heifwriter" }
+square-gifencoder = { group = "com.squareup", name = "gifencoder", version.ref = "gifencoder" }
 androidx-media3-effect = { group = "androidx.media3", name = "media3-effect", version.ref = "media3" }
 
 

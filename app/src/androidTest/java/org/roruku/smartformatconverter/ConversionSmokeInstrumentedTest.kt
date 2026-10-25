@@ -106,6 +106,38 @@ class ConversionSmokeInstrumentedTest {
     }
 
     @Test
+    fun stillGifOver2048PixelsPreservesOriginalDimensions() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val id = UUID.randomUUID().toString()
+        val source = File(context.cacheDir, "large_gif_source_$id.png")
+        val output = File(context.cacheDir, "large_gif_output_$id.gif")
+        // Narrow fixture verifies the 2048px regression without high memory usage.
+        val bitmap = Bitmap.createBitmap(3001, 8, Bitmap.Config.ARGB_8888)
+        try {
+            bitmap.eraseColor(Color.RED)
+            source.outputStream().use {
+                assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
+            }
+            val result = withTimeout(90_000L) {
+                ImageConverterEngine.convertImage(
+                    context, Uri.fromFile(source), output,
+                    ImageConversionConfig(outputFormat = ImageOutputFormat.GIF), {}
+                )
+            }
+            assertTrue(result.exceptionOrNull()?.toString().orEmpty(), result.isSuccess)
+            assertNull(MediaOutputIntegrity.validate(output, MediaType.IMAGE, "gif"))
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(output.absolutePath, bounds)
+            assertEquals(3001, bounds.outWidth)
+            assertEquals(8, bounds.outHeight)
+        } finally {
+            bitmap.recycle()
+            source.delete()
+            output.delete()
+        }
+    }
+
+    @Test
     fun stillGifExportHasCorrectSignature() = runBlocking {
         exerciseImage(ImageOutputFormat.GIF)
     }

@@ -73,8 +73,13 @@ internal object PlatformFlacExportEngine {
                                 val maxBytes = (buf.remaining() / frameBytes) * frameBytes
                                 require(maxBytes > 0) { "FLAC input buffer too small" }
                                 val scratch = ByteArray(minOf(maxBytes, 32 * 1024))
-                                val n = raw.read(scratch)
-                                if (n < 0) {
+                                var n = 0
+                                while (n < scratch.size) {
+                                    val got = raw.read(scratch, n, scratch.size - n)
+                                    if (got < 0) break
+                                    n += got
+                                }
+                                if (n == 0) {
                                     codec.queueInputBuffer(slot, 0, 0,
                                         fedFrames * 1_000_000L / sampleRate,
                                         MediaCodec.BUFFER_FLAG_END_OF_STREAM)

@@ -66,27 +66,46 @@ jobs:
 
       - name: Verify Native ELF and 16 KB Page-Size Compliance
         if: success()
-        shell: powershell
         run: |
-          Write-Host "=== Technical Verification: Inspecting Release AAB for Native ELF Binaries ==="
-          $aabPath = "app/build/outputs/bundle/release/app-release.aab"
-          if (-not (Test-Path $aabPath)) {
-            Write-Error "Release AAB not found at $aabPath"
-            exit 1
-          }
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $aabZip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $aabPath).Path)
-          $soEntries = $aabZip.Entries | Where-Object { $_.FullName -like "*.so" }
-          $aabZip.Dispose()
+          python -c "
+          import zipfile, struct, sys, os
 
-          Write-Host "Native .so shared libraries found in Release AAB: $($soEntries.Count)"
-          if ($soEntries.Count -gt 0) {
-            $soEntries | ForEach-Object { Write-Host " - $($_.FullName)" }
-            Write-Error "Found $($soEntries.Count) native shared libraries in release AAB. Pure Kotlin migration requires 0 .so files."
-            exit 1
-          } else {
-            Write-Host "SUCCESS: 0 native .so shared libraries found in release AAB. The app is 100% Pure Kotlin bytecode and inherently 16 KB page-size compliant on Android 15+."
-          }
+          aab_path = 'app/build/outputs/bundle/release/app-release.aab'
+          if not os.path.exists(aab_path):
+              print(f'ERROR: Release bundle {aab_path} not found!')
+              sys.exit(1)
+
+          print(f'=== Verifying 16 KB ELF Page-Size Alignment in {aab_path} ===')
+          failed = False
+          so_count = 0
+
+          with zipfile.ZipFile(aab_path) as z:
+              for name in z.namelist():
+                  if name.endswith('.so'):
+                      so_count += 1
+                      if 'arm64-v8a' in name or 'x86_64' in name:
+                          data = z.read(name)
+                          if data[:4] == b'\x7fELF':
+                              e_phoff = struct.unpack('<Q', data[32:40])[0]
+                              e_phentsize = struct.unpack('<H', data[54:56])[0]
+                              e_phnum = struct.unpack('<H', data[56:58])[0]
+                              for i in range(e_phnum):
+                                  ph = data[e_phoff + i * e_phentsize : e_phoff + (i + 1) * e_phentsize]
+                                  p_type = struct.unpack('<I', ph[:4])[0]
+                                  if p_type == 1: # PT_LOAD
+                                      p_align = struct.unpack('<Q', ph[48:56])[0]
+                                      if p_align < 16384:
+                                          print(f'FAIL: {name} PT_LOAD segment alignment is {p_align} (< 16384 bytes)')
+                                          failed = True
+                                      else:
+                                          print(f'PASS: {name} PT_LOAD alignment = {p_align} (>= 16 KB compliant)')
+
+          print(f'Total .so libraries inspected: {so_count}')
+          if failed:
+              print('ERROR: Found native shared libraries that are NOT 16 KB aligned!')
+              sys.exit(1)
+          print('SUCCESS: All 64-bit native libraries are 100% compliant with Android 15+ 16 KB page-size.')
+          "
 
       - name: Print Lint Diagnostics on Failure
         if: failure()

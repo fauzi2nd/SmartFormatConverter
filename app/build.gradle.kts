@@ -103,21 +103,11 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
 
-    // Source previews: ExoPlayer for video and audio.
+    // Media3: ExoPlayer for preview and Transformer for hardware-accelerated conversion
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
-
-    // FFmpeg Multimedia Engine
-    // WARNING:
-    // RxFFmpeg 4.9.0 contains native binaries
-    // that may not support 16 KB memory pages.
-    //
-    // Retained temporarily because existing
-    // Kotlin code depends on RxFFmpeg.
-    //
-    // Must be replaced or rebuilt before
-    // declaring 16 KB compatibility.
-    implementation(libs.rxffmpeg)
+    implementation(libs.androidx.media3.transformer)
+    implementation(libs.androidx.media3.effect)
 
     // Unit Tests
     testImplementation(libs.junit)

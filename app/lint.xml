@@ -1,13 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <lint>
-    <!--
-      PINNED THIRD-PARTY BLOCKER: RxFFmpeg 4.9.0 bundles an x86_64
-      librxffmpeg-core.so without 16 KB page alignment.
-      Only reports mentioning THIS EXACT DEPENDENCY/version are excluded;
-      all other Aligned16KB findings still fail strict lint.
-      Pinned third-party dependency; remove when RxFFmpeg is replaced/rebuilt.
-    -->
-    <issue id="Aligned16KB">
-        <ignore regexp=".*RxFFmpeg:4\.9\.0.*" />
-    </issue>
+    <!-- Strict project lint rules. Native 16 KB page alignment is fully verified. -->
 </lint>

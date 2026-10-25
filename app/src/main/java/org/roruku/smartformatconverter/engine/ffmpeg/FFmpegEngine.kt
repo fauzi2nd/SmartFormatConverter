@@ -5,15 +5,11 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
 import android.util.Log
-import io.microshow.rxffmpeg.RxFFmpegInvoke
-import io.microshow.rxffmpeg.RxFFmpegSubscriber
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.roruku.smartformatconverter.data.storage.StorageManager
+import org.roruku.smartformatconverter.engine.media3.Media3TransformerEngine
 import java.io.File
-import kotlin.coroutines.resume
 
 enum class VideoOutputFormat(val extension: String, val mimeType: String) {
     MP4("mp4", "video/mp4"),
@@ -156,75 +152,14 @@ object FFmpegEngine {
         config: VideoConversionConfig,
         advancedSettings: VideoAdvancedSettings? = null,
         onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
-    ): Result<File> = withContext(Dispatchers.IO) {
-        try {
-            coroutineContext.ensureActive()
-
-            val tempInputFile = StorageManager.createTempFileInCache(context, "ffmpeg_in", "media")
-            try {
-                onProgress(0.05f, "Preparing input...", null)
-                val copied = StorageManager.copyUriToTempFile(context, inputUri, tempInputFile)
-                if (!copied || !tempInputFile.exists()) {
-                    return@withContext Result.failure(IllegalStateException("Failed staging input file for FFmpeg processing"))
-                }
-
-                coroutineContext.ensureActive()
-
-                val cmdList = if (advancedSettings != null) {
-                    VideoCommandBuilder.build(
-                        inputPath = tempInputFile.absolutePath,
-                        outputPath = tempOutputFile.absolutePath,
-                        settings = advancedSettings
-                    )
-                } else {
-                    // Compatibility path for jobs queued before V3.
-                    val legacy = mutableListOf("ffmpeg", "-y", "-i", tempInputFile.absolutePath)
-                    if (config.remuxMode || config.preset == VideoPreset.REMUX) {
-                        legacy.addAll(listOf("-c", "copy"))
-                    } else {
-                        legacy.addAll(listOf("-c:v", config.videoCodec.ffmpegName))
-                        if (config.videoCodec in setOf(VideoCodec.H264, VideoCodec.H265)) {
-                            legacy.addAll(listOf("-preset", config.preset.presetSpeed))
-                            if (config.crf > 0) legacy.addAll(listOf("-crf", config.crf.toString()))
-                        }
-                        if (config.videoCodec == VideoCodec.VP9 && config.bitrateKbps == null) {
-                            legacy.addAll(listOf("-b:v", "0", "-crf", config.crf.toString()))
-                        }
-                        config.bitrateKbps?.let { legacy.addAll(listOf("-b:v", "${it}k")) }
-                        config.resolution?.let { legacy.addAll(listOf("-vf", "scale=$it")) }
-                        config.frameRate?.let { legacy.addAll(listOf("-r", it.toString())) }
-                        legacy.addAll(listOf("-c:a", config.audioCodec.ffmpegName))
-                        if (config.audioCodec != AudioCodec.COPY) {
-                            legacy.addAll(listOf("-b:a", "${config.audioBitrateKbps}k"))
-                            config.audioChannels?.let { legacy.addAll(listOf("-ac", it.toString())) }
-                            config.audioSampleRate?.let { legacy.addAll(listOf("-ar", it.toString())) }
-                        }
-                    }
-                    legacy.add(tempOutputFile.absolutePath)
-                    legacy
-                }
-
-                val ffmpegCmdArray = cmdList.toTypedArray()
-                Log.d(TAG, "Executing FFmpeg command: ${cmdList.joinToString(" ")}")
-
-                val conversionSuccess = executeFFmpegCommand(ffmpegCmdArray, onProgress)
-
-                if (!conversionSuccess || !tempOutputFile.exists() || tempOutputFile.length() == 0L) {
-                    return@withContext Result.failure(IllegalStateException("FFmpeg processing failed or produced empty file"))
-                }
-
-                onProgress(1.0f, "Complete", "00:00")
-                Result.success(tempOutputFile)
-            } finally {
-                if (tempInputFile.exists()) {
-                    tempInputFile.delete()
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Video conversion failed", e)
-            Result.failure(e)
-        }
-    }
+    ): Result<File> = Media3TransformerEngine.convertVideo(
+        context = context,
+        inputUri = inputUri,
+        tempOutputFile = tempOutputFile,
+        config = config,
+        advancedSettings = advancedSettings,
+        onProgress = onProgress
+    )
 
     suspend fun convertAudio(
         context: Context,
@@ -233,113 +168,12 @@ object FFmpegEngine {
         config: AudioConversionConfig,
         advancedSettings: AudioAdvancedSettings? = null,
         onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
-    ): Result<File> = withContext(Dispatchers.IO) {
-        try {
-            coroutineContext.ensureActive()
-            val tempInputFile = StorageManager.createTempFileInCache(context, "ffmpeg_audio_in", "media")
-            try {
-                onProgress(0.05f, "Preparing audio...", null)
-                val copied = StorageManager.copyUriToTempFile(context, inputUri, tempInputFile)
-                if (!copied || !tempInputFile.exists()) {
-                    return@withContext Result.failure(IllegalStateException("Failed staging input audio file"))
-                }
-
-                coroutineContext.ensureActive()
-
-                val cmdList = if (advancedSettings != null) {
-                    AudioCommandBuilder.build(
-                        inputPath = tempInputFile.absolutePath,
-                        outputPath = tempOutputFile.absolutePath,
-                        s = advancedSettings
-                    )
-                } else {
-                    // Jobs created before Advanced Audio Settings keep their legacy arguments.
-                    mutableListOf("ffmpeg", "-y", "-i", tempInputFile.absolutePath, "-vn").apply {
-                        if (config.copyStream || config.audioCodec == AudioCodec.COPY) {
-                            addAll(listOf("-c:a", "copy"))
-                        } else {
-                            addAll(listOf("-c:a", config.audioCodec.ffmpegName))
-                            if (config.audioCodec != AudioCodec.PCM_S16LE &&
-                                config.audioCodec != AudioCodec.FLAC) {
-                                addAll(listOf("-b:a", "${config.bitrateKbps}k"))
-                            }
-                            config.sampleRate?.let { addAll(listOf("-ar", it.toString())) }
-                            config.channels?.let { addAll(listOf("-ac", it.toString())) }
-                        }
-                        add(tempOutputFile.absolutePath)
-                    }
-                }
-
-                val ffmpegCmdArray = cmdList.toTypedArray()
-                Log.d(TAG, "Executing FFmpeg Audio command: ${cmdList.joinToString(" ")}")
-
-                val conversionSuccess = executeFFmpegCommand(ffmpegCmdArray, onProgress)
-
-                if (!conversionSuccess || !tempOutputFile.exists() || tempOutputFile.length() == 0L) {
-                    return@withContext Result.failure(IllegalStateException("FFmpeg audio conversion failed or produced empty file"))
-                }
-
-                onProgress(1.0f, "Complete", "00:00")
-                Result.success(tempOutputFile)
-            } finally {
-                if (tempInputFile.exists()) {
-                    tempInputFile.delete()
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Audio conversion failed", e)
-            Result.failure(e)
-        }
-    }
-
-    private suspend fun executeFFmpegCommand(
-        commandArray: Array<String>,
-        onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
-    ): Boolean = suspendCancellableCoroutine { continuation ->
-        val subscriber = object : RxFFmpegSubscriber() {
-            override fun onFinish() {
-                if (continuation.isActive) {
-                    continuation.resume(value = true)
-                }
-            }
-
-            override fun onProgress(progress: Int, progressTime: Long) {
-                // RxFFmpeg's callbacks report task progress, not a reliable
-                // wall-clock media speed. The repository estimates speed/ETA
-                // consistently using monotonic elapsed time.
-                onProgress((progress / 100f).coerceIn(0f, 0.99f), null, null)
-            }
-
-            override fun onCancel() {
-                if (continuation.isActive) {
-                    continuation.resume(false)
-                }
-            }
-
-            override fun onError(message: String?) {
-                Log.e(TAG, "FFmpeg error: $message")
-                if (continuation.isActive) {
-                    continuation.resume(false)
-                }
-            }
-        }
-
-        continuation.invokeOnCancellation {
-            try {
-                RxFFmpegInvoke.getInstance().exit()
-                subscriber.dispose()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error cancelling FFmpeg command", e)
-            }
-        }
-
-        try {
-            RxFFmpegInvoke.getInstance().runCommand(commandArray, subscriber)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed launching FFmpeg native command", e)
-            if (continuation.isActive) {
-                continuation.resume(false)
-            }
-        }
-    }
+    ): Result<File> = Media3TransformerEngine.convertAudio(
+        context = context,
+        inputUri = inputUri,
+        tempOutputFile = tempOutputFile,
+        config = config,
+        advancedSettings = advancedSettings,
+        onProgress = onProgress
+    )
 }

@@ -35,7 +35,7 @@ import org.roruku.smartformatconverter.engine.downloader.HttpDownloadableMediaIn
 import org.roruku.smartformatconverter.engine.downloader.DirectDownloadSnapshot
 import org.roruku.smartformatconverter.engine.downloader.DirectMediaPolicy
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioConversionConfig
-import org.roruku.smartformatconverter.engine.ffmpeg.FFmpegEngine
+import org.roruku.smartformatconverter.engine.media3.Media3TransformerEngine
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoConversionConfig
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.VideoSettingsValidator
@@ -264,7 +264,7 @@ class ConversionRepository(
                             )
                         }
                     }
-                    FFmpegEngine.convertVideo(
+                    Media3TransformerEngine.convertVideo(
                         context = context,
                         inputUri = job.inputUri.toUri(),
                         tempOutputFile = tempOutFile,
@@ -290,8 +290,6 @@ class ConversionRepository(
                     val config = AudioConversionConfig(
                         outputFormat = format,
                         audioCodec = codec,
-                        // libopus does not accept 44.1 kHz. Other lossless
-                        // formats should keep the original sample rate.
                         sampleRate = when (format) {
                             AudioOutputFormat.OPUS -> 48000
                             AudioOutputFormat.WAV,
@@ -310,7 +308,7 @@ class ConversionRepository(
                             throw IllegalArgumentException(it)
                         }
                     }
-                    FFmpegEngine.convertAudio(
+                    Media3TransformerEngine.convertAudio(
                         context = context,
                         inputUri = job.inputUri.toUri(),
                         tempOutputFile = tempOutFile,

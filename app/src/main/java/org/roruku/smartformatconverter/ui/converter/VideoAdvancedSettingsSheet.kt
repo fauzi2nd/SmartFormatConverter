@@ -251,15 +251,11 @@ fun VideoAdvancedSettingsControl(
             HorizontalDivider()
             SectionHeader(stringResource(R.string.video_setting_other))
 
-            ToggleOption(
-                stringResource(R.string.video_setting_keep_metadata),
-                draft.preserveMetadata
-            ) { draft = draft.copy(preserveMetadata = it) }
-
-            ToggleOption(
-                stringResource(R.string.video_setting_mp4_fast_start),
-                draft.fastStart
-            ) { draft = draft.copy(fastStart = it) }
+            Text(
+                "Metadata handling and MP4 fast-start are controlled automatically by Media3.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             val validation = VideoSettingsValidator.validate(draft)
             val error = formError ?: validation

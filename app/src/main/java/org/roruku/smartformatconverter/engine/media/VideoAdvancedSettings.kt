@@ -2,6 +2,7 @@ package org.roruku.smartformatconverter.engine.media
 
 import org.json.JSONObject
 
+
 /**
  * Immutable job snapshot. Values are stored in ConversionJobEntity.customParamsJson,
  * not read from mutable UI preferences when a queued conversion starts.
@@ -21,10 +22,10 @@ data class VideoAdvancedSettings(
     val encoder: String = "auto",
     val rateControl: String = "vbr",
     val crf: Int = 23,
-    val videoBitrateKbps: Int = 8000,
+    val videoBitrateKbps: Int = BitrateSelection.AUTO,
     val pixelFormat: String = "auto",
     val audioCodec: String = "auto",
-    val audioBitrateKbps: Int = 192,
+    val audioBitrateKbps: Int = BitrateSelection.AUTO,
     val volumePercent: Int = 100,
     val audioStream: String = "first",
     val sampleRate: Int? = null,
@@ -37,7 +38,7 @@ data class VideoAdvancedSettings(
 
     fun applyPreset(name: String): VideoAdvancedSettings = when (name) {
         "Original Quality / Remux" -> copy(preset = name)
-        "Smart Auto" -> copy(preset = name, rateControl = "vbr", videoBitrateKbps = 6000)
+        "Smart Auto" -> copy(preset = name, rateControl = "vbr", videoBitrateKbps = BitrateSelection.AUTO, audioBitrateKbps = BitrateSelection.AUTO)
         // Media3 uses encoder target bitrate, not libx264 CRF. Presets must
         // adjust the setting actually consumed by the runtime.
         "High Quality" -> copy(preset = name, crf = 18, rateControl = "vbr", videoBitrateKbps = 12000)
@@ -130,8 +131,14 @@ object VideoSettingsValidator {
         if (s.format == "mp4" && s.audioCodec !in setOf("auto", "aac", "none")) {
             return "MP4 requires AAC audio or no audio"
         }
-        if (s.videoBitrateKbps !in 100..200000) return "Video bitrate must be 100–200000 kbps"
-        if (s.audioBitrateKbps !in 32..1024) return "Audio bitrate must be 32–1024 kbps"
+        if (s.videoBitrateKbps !in 100..200000 &&
+            s.videoBitrateKbps !in setOf(BitrateSelection.AUTO, BitrateSelection.SOURCE)) {
+            return "Video bitrate must be Auto, Source, or 100–200000 kbps"
+        }
+        if (s.audioBitrateKbps !in 32..1024 &&
+            s.audioBitrateKbps !in setOf(BitrateSelection.AUTO, BitrateSelection.SOURCE)) {
+            return "Audio bitrate must be Auto, Source, or 32–1024 kbps"
+        }
         if ((s.width == null) != (s.height == null)) return "Set both width and height"
         val width = s.width
         val height = s.height

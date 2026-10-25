@@ -21,7 +21,9 @@ data class MediaProbeDetails(
     val audioChannels: Int = 0,
     val audioSampleRate: Int = 0,
     val hasVideo: Boolean = false,
-    val hasAudio: Boolean = false
+    val hasAudio: Boolean = false,
+    val videoBitrateKbps: Int = 0,
+    val audioBitrateKbps: Int = 0
 )
 
 object MediaProbe {
@@ -33,6 +35,8 @@ object MediaProbe {
         var hasVideo = false
         var hasAudio = false
         var fr = 0f
+        var videoRateKbps = 0
+        var audioRateKbps = 0
 
         val extractor = MediaExtractor()
         try {
@@ -44,12 +48,14 @@ object MediaProbe {
                 if (mime.startsWith("video/")) {
                     hasVideo = true
                     vCodec = mime.removePrefix("video/")
+                    if (videoRateKbps == 0) videoRateKbps = trackBitrateKbps(format)
                     if (format.containsKey(MediaFormat.KEY_FRAME_RATE)) {
                         fr = try { format.getInteger(MediaFormat.KEY_FRAME_RATE).toFloat() } catch (e: Exception) { 0f }
                     }
                 } else if (mime.startsWith("audio/")) {
                     hasAudio = true
                     aCodec = mime.removePrefix("audio/")
+                    if (audioRateKbps == 0) audioRateKbps = trackBitrateKbps(format)
                 }
             }
         } catch (e: Exception) {
@@ -70,8 +76,16 @@ object MediaProbe {
             audioChannels = details.audioChannels,
             audioSampleRate = details.sampleRate,
             hasVideo = hasVideo || details.width > 0,
-            hasAudio = hasAudio
+            hasAudio = hasAudio,
+            videoBitrateKbps = videoRateKbps,
+            audioBitrateKbps = audioRateKbps
         )
     }
 
+    private fun trackBitrateKbps(format: MediaFormat): Int = try {
+        if (format.containsKey(MediaFormat.KEY_BIT_RATE)) {
+            (format.getInteger(MediaFormat.KEY_BIT_RATE).toLong() / 1000L)
+                .coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+        } else 0
+    } catch (_: Exception) { 0 }
 }

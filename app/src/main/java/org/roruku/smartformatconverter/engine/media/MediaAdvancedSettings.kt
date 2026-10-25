@@ -85,7 +85,7 @@ object ImageSettingsValidator {
 
 data class AudioAdvancedSettings(
     val format: String = "m4a",
-    val bitrateKbps: Int = 192,
+    val bitrateKbps: Int = BitrateSelection.AUTO,
     // Legacy snapshot: any explicit rate is rejected until runtime support exists.
     val sampleRate: Int? = null,
     val channels: Int? = null,
@@ -137,7 +137,9 @@ object AudioSettingsValidator {
 
     fun validate(s: AudioAdvancedSettings): String? = when {
         s.format !in setOf("m4a", "aac", "ogg", "wav", "flac") -> "Unsupported audio container"
-        s.bitrateKbps !in 32..512 -> "Audio bitrate must be 32–512 kbps"
+        s.bitrateKbps !in 32..512 &&
+            s.bitrateKbps !in setOf(BitrateSelection.AUTO, BitrateSelection.SOURCE) ->
+            "Audio bitrate must be Auto, Source, or 32–512 kbps"
         s.sampleRate != null && s.sampleRate !in setOf(32000, 44100, 48000, 96000) ->
             "Unsupported audio sample rate"
         s.channels != null && s.channels !in setOf(1, 2) -> "Only mono/stereo allowed"

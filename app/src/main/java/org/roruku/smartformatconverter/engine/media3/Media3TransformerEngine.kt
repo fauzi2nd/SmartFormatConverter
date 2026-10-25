@@ -28,6 +28,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import org.roruku.smartformatconverter.engine.media.BitrateSelection
 import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 import org.roruku.smartformatconverter.data.db.MediaType
@@ -97,8 +98,23 @@ object Media3TransformerEngine {
             else -> MimeTypes.AUDIO_AAC
         }
 
-        val videoBitrate = (advancedSettings?.videoBitrateKbps ?: config.bitrateKbps)?.takeIf { it > 0 }
-        val audioBitrate = (advancedSettings?.audioBitrateKbps ?: config.audioBitrateKbps).takeIf { it > 0 }
+        val videoChoice = advancedSettings?.videoBitrateKbps
+            ?: config.bitrateKbps ?: BitrateSelection.AUTO
+        val audioChoice = advancedSettings?.audioBitrateKbps ?: config.audioBitrateKbps
+        val sourceRates = if (videoChoice == BitrateSelection.SOURCE ||
+            audioChoice == BitrateSelection.SOURCE) {
+            MediaProbe.probeMedia(context, inputUri)
+        } else null
+        val videoBitrate = BitrateSelection.videoTargetKbps(
+            videoChoice, sourceRates?.videoBitrateKbps)
+        val audioBitrate = if (advancedSettings?.audioCodec == "none") null else
+            BitrateSelection.audioTargetKbps(
+                audioChoice, sourceRates?.audioBitrateKbps,
+                BitrateSelection.audioRecommendedKbps(
+                    opus = config.outputFormat == VideoOutputFormat.WEBM,
+                    channels = sourceRates?.audioChannels ?: 2
+                )
+            )
 
         executeTransformation(
             context = context,
@@ -134,13 +150,26 @@ object Media3TransformerEngine {
         // packets. Use Media3's dedicated audio muxers as a second route when
         // the platform MediaCodec/MediaMuxer pipeline fails.
         var nativeFailure: Throwable? = null
+        val audioChoice = advancedSettings?.bitrateKbps ?: config.bitrateKbps
+        val sourceRates = if (audioChoice == BitrateSelection.SOURCE ||
+            audioChoice == BitrateSelection.AUTO) {
+            MediaProbe.probeMedia(context, inputUri)
+        } else null
+        val targetAudioBitrate = BitrateSelection.audioTargetKbps(
+            audioChoice,
+            sourceRates?.audioBitrateKbps,
+            BitrateSelection.audioRecommendedKbps(
+                opus = config.outputFormat == AudioOutputFormat.OGG,
+                channels = sourceRates?.audioChannels ?: 2
+            )
+        )
         if (config.outputFormat in setOf(AudioOutputFormat.M4A, AudioOutputFormat.AAC, AudioOutputFormat.OGG)) {
             val nativeResult = PlatformCompressedAudioExportEngine.export(
                 context = context,
                 input = inputUri,
                 output = tempOutputFile,
                 format = config.outputFormat,
-                bitrateKbps = advancedSettings?.bitrateKbps ?: config.bitrateKbps,
+                bitrateKbps = targetAudioBitrate,
                 onProgress = onProgress
             )
             if (nativeResult.isSuccess) return@withContext nativeResult
@@ -153,7 +182,7 @@ object Media3TransformerEngine {
             .setRemoveVideo(true)
             .build()
 
-        val audioBitrate = (advancedSettings?.bitrateKbps ?: config.bitrateKbps).takeIf { it > 0 }
+        val audioBitrate = targetAudioBitrate
         val audioMime = when (config.outputFormat) {
             AudioOutputFormat.OGG -> MimeTypes.AUDIO_OPUS
             else -> MimeTypes.AUDIO_AAC

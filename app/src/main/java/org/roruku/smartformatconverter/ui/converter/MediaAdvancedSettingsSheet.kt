@@ -476,7 +476,7 @@ fun AudioAdvancedSettingsControl(
                     Text(stringResource(R.string.cancel))
                 }
                 Button(
-                    onClick = { onApply(draft.copy(preset = "Custom")); open = false },
+                    onClick = { onApply(draft.copy(preset = "Custom", sampleRate = null, channels = null, volumePercent = 100, preserveMetadata = true)); open = false },
                     enabled = invalid == null,
                     modifier = Modifier.weight(1f)
                 ) { Text(stringResource(R.string.apply)) }

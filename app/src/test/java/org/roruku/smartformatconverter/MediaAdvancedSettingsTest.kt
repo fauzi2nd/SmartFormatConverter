@@ -7,7 +7,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioCommandBuilder
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioSettingsValidator
 import org.roruku.smartformatconverter.engine.ffmpeg.ImageAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.ImageSettingsValidator
@@ -17,9 +16,6 @@ import org.roruku.smartformatconverter.data.repository.ActiveConversionJobs
 import kotlinx.coroutines.Job
 
 class MediaAdvancedSettingsTest {
-    private fun hasOption(args: List<String>, option: String, value: String) =
-        args.windowed(2).any { it[0] == option && it[1] == value }
-
     @Test
     fun jpegDefaultRetains444AndNeverUpscales() {
         val settings = ImageAdvancedSettings()
@@ -144,46 +140,22 @@ class MediaAdvancedSettingsTest {
     }
 
     @Test
-    fun audioCodecAndLosslessControlsAreCorrectForEveryOutput() {
-        val formats = mapOf(
-            "mp3" to "libmp3lame", "aac" to "aac", "m4a" to "aac",
-            "wav" to "pcm_s16le", "flac" to "flac", "ogg" to "libvorbis",
-            "opus" to "libopus"
-        )
-        for ((format, codec) in formats) {
-            val s = AudioAdvancedSettings(format = format)
-            assertNull(AudioSettingsValidator.validate(s))
-            val args = AudioCommandBuilder.build("/in", "/out.$format", s)
-            assertTrue(hasOption(args, "-c:a", codec))
-            assertTrue(args.contains("/out.$format"))
-            if (format in AudioSettingsValidator.losslessFormats) {
-                assertFalse(args.contains("-b:a"))
-            } else {
-                assertTrue(hasOption(args, "-b:a", "192k"))
-            }
+    fun onlyImplementedAudioOutputIsValid() {
+        assertNull(AudioSettingsValidator.validate(AudioAdvancedSettings(format = "m4a")))
+        for (legacy in listOf("mp3", "aac", "flac", "opus", "wav", "ogg")) {
+            assertNotNull(AudioSettingsValidator.validate(AudioAdvancedSettings(format = legacy)))
         }
     }
 
     @Test
-    fun audioVolumeSampleRateChannelsAndMetadataApply() {
-        val s = AudioAdvancedSettings(format = "m4a", bitrateKbps = 256,
-            sampleRate = 48000, channels = 1, volumePercent = 150,
-            preserveMetadata = false)
-        val args = AudioCommandBuilder.build("/in", "/out.m4a", s)
-        assertTrue(hasOption(args, "-b:a", "256k"))
-        assertTrue(hasOption(args, "-ar", "48000"))
-        assertTrue(hasOption(args, "-ac", "1"))
-        assertTrue(hasOption(args, "-af", "volume=1.50"))
-        assertTrue(hasOption(args, "-map_metadata", "-1"))
-    }
-
-    @Test
-    fun opusRequires48KhzAndHasExplicitRate() {
-        assertNotNull(AudioSettingsValidator.validate(
-            AudioAdvancedSettings(format = "opus", sampleRate = 44100)))
-        val args = AudioCommandBuilder.build("/in", "/out.opus",
-            AudioAdvancedSettings(format = "opus"))
-        assertTrue(hasOption(args, "-ar", "48000"))
+    fun unsupportedLegacyAudioEffectsAreRejected() {
+        val unsupported = AudioAdvancedSettings(
+            format = "m4a", bitrateKbps = 256, sampleRate = 48000, channels = 1,
+            volumePercent = 150, preserveMetadata = false)
+        assertNull(AudioSettingsValidator.validate(unsupported))
+        assertNotNull(
+            org.roruku.smartformatconverter.data.repository.Media3OutputPolicy.unsupportedAudioSettings(unsupported)
+        )
     }
 
     @Test

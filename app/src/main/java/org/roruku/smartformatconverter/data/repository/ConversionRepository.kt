@@ -30,6 +30,7 @@ import org.roruku.smartformatconverter.engine.downloader.HttpDownloadableMediaIn
 import org.roruku.smartformatconverter.engine.downloader.DirectDownloadSnapshot
 import org.roruku.smartformatconverter.engine.downloader.DirectMediaPolicy
 import org.roruku.smartformatconverter.engine.media3.Media3TransformerEngine
+import org.roruku.smartformatconverter.engine.media3.Mp4RemuxEngine
 import org.roruku.smartformatconverter.engine.media3.VideoOutputFormat
 import org.roruku.smartformatconverter.engine.media3.VideoPreset
 import org.roruku.smartformatconverter.engine.media3.VideoConversionConfig
@@ -253,9 +254,6 @@ class ConversionRepository(
                     val preset = VideoPreset.entries.firstOrNull {
                         it.displayName.equals(job.presetName, ignoreCase = true)
                     } ?: VideoPreset.BALANCED
-                    require(preset != VideoPreset.REMUX) {
-                        "Remux/stream copy is not guaranteed by this Media3 release. Select a conversion preset."
-                    }
                     val config = VideoConversionConfig(
                         outputFormat = format,
                         bitrateKbps = preset.targetBitrateKbps.takeIf { it > 0 }
@@ -280,16 +278,29 @@ class ConversionRepository(
                             )
                         }
                     }
-                    Media3TransformerEngine.convertVideo(
-                        context = context,
-                        inputUri = job.inputUri.toUri(),
-                        tempOutputFile = tempOutFile,
-                        config = config,
-                        advancedSettings = advanced,
-                        onProgress = { pct, _, _ ->
-                            emitProgress(0.05f + pct.coerceIn(0f, 1f) * 0.84f)
-                        }
-                    )
+                    val remuxRequested = preset == VideoPreset.REMUX || advanced?.isRemux == true
+                    if (remuxRequested) {
+                        require(format == VideoOutputFormat.MP4) { "Remux supports MP4 only" }
+                        Mp4RemuxEngine.remux(
+                            context = context,
+                            input = job.inputUri.toUri(),
+                            output = tempOutFile,
+                            onProgress = { pct, _, _ ->
+                                emitProgress(0.05f + pct.coerceIn(0f, 1f) * 0.84f)
+                            }
+                        )
+                    } else {
+                        Media3TransformerEngine.convertVideo(
+                            context = context,
+                            inputUri = job.inputUri.toUri(),
+                            tempOutputFile = tempOutFile,
+                            config = config,
+                            advancedSettings = advanced,
+                            onProgress = { pct, _, _ ->
+                                emitProgress(0.05f + pct.coerceIn(0f, 1f) * 0.84f)
+                            }
+                        )
+                    }
                 }
                 MediaType.AUDIO -> {
                     val format = AudioOutputFormat.entries.firstOrNull {

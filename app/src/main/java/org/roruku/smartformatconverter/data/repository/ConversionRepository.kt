@@ -200,10 +200,14 @@ class ConversionRepository(
 
             val conversionResult = when (job.mediaType) {
                 MediaType.IMAGE -> {
-                    val format = when (job.outputFormat.lowercase()) {
-                        "jpg", "jpeg" -> ImageOutputFormat.JPEG
+                    val format = when (effectiveExtension) {
+                        "jpg" -> ImageOutputFormat.JPEG
                         "png" -> ImageOutputFormat.PNG
-                        else -> ImageOutputFormat.WEBP
+                        "webp" -> ImageOutputFormat.WEBP
+                        "heic" -> ImageOutputFormat.HEIC
+                        "avif" -> ImageOutputFormat.AVIF
+                        "gif" -> ImageOutputFormat.GIF
+                        else -> throw IllegalArgumentException("Unknown image format: " + effectiveExtension)
                     }
                     val advanced = job.customParamsJson?.takeIf { it.isNotBlank() }
                         ?.let(ImageAdvancedSettings::fromJson)

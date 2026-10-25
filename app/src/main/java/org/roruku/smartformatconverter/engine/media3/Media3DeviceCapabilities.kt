@@ -24,6 +24,7 @@ internal object Media3DeviceCapabilities {
             MediaType.AUDIO -> when (cap.extension) {
                 "ogg" -> Build.VERSION.SDK_INT >= 29 && canEncode("audio/opus")
                 "wav" -> true // PCM output uses platform audio decoder, not an audio encoder.
+                "flac" -> canEncode("audio/flac")
                 else -> canEncode("audio/mp4a-latm")
             }
             MediaType.IMAGE -> when (cap.extension) {

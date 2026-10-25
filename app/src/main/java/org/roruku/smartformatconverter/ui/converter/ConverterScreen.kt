@@ -204,12 +204,12 @@ fun ConverterScreen(
 @Composable
 fun ConverterCatalogContent(
     selected: ConverterFormat?,
-    formats: List<List<ConverterFormat>> = catalogFormats(),
     isScanning: Boolean,
     onSelect: (ConverterFormat?) -> Unit,
     onFilesSelected: (ConverterFormat) -> Unit,
     onFolderSelected: (ConverterFormat) -> Unit,
     modifier: Modifier = Modifier,
+    formats: List<List<ConverterFormat>> = catalogFormats(),
     initialTab: Int = 0,
 ) {
     val listState = rememberLazyListState()

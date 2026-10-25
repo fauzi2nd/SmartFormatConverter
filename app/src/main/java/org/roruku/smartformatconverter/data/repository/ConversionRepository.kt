@@ -279,7 +279,16 @@ class ConversionRepository(
                         }
                     }
                     val remuxRequested = preset == VideoPreset.REMUX || advanced?.isRemux == true
-                    if (remuxRequested) {
+                    val smartAuto = preset == VideoPreset.SMART_AUTO || advanced?.preset == "Smart Auto"
+                    val unchanged = advanced == null || (
+                        advanced.width == null && advanced.height == null &&
+                        advanced.fps == null && advanced.videoCodec == "auto" &&
+                        advanced.audioCodec == "auto" && advanced.audioStream == "first" &&
+                        advanced.volumePercent == 100 && advanced.subtitleMode == "auto"
+                    )
+                    val autoRemux = smartAuto && format == VideoOutputFormat.MP4 &&
+                        unchanged && Mp4RemuxEngine.canRemux(context, job.inputUri.toUri())
+                    if (remuxRequested || autoRemux) {
                         require(format == VideoOutputFormat.MP4) { "Remux supports MP4 only" }
                         Mp4RemuxEngine.remux(
                             context = context,

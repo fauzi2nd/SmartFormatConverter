@@ -85,6 +85,7 @@ private fun catalogFormats(): List<List<ConverterFormat>> = listOf(
     FormatCapabilityRegistry.formats(MediaType.AUDIO).map {
         ConverterFormat(2, it.extension, when (it.extension) {
             "wav" -> R.string.format_desc_pcm
+            "flac" -> R.string.format_desc_lossless
             "ogg" -> R.string.format_desc_efficient
             "aac" -> R.string.format_desc_streaming
             else -> R.string.format_desc_aac_audio

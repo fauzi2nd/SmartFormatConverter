@@ -14,10 +14,12 @@ internal object Media3OutputPolicy {
     fun unsupportedVideoSettings(s: VideoAdvancedSettings): String? = when {
         s.isRemux || s.videoCodec == "copy" || s.audioCodec == "copy" ->
             "Stream copy/remux is not supported. Choose a conversion preset."
-        s.videoCodec !in setOf("auto", "h264", "h265", "hevc") ->
-            "This Media3 release supports only H.264 and H.265 output."
-        s.audioCodec !in setOf("auto", "aac", "none") ->
-            "This Media3 release supports only AAC or no audio."
+        (s.format == "webm" && s.videoCodec !in setOf("auto", "vp9")) ||
+            (s.format == "mp4" && s.videoCodec !in setOf("auto", "h264", "h265", "hevc")) ->
+            "Select VP9 for WebM or H.264/H.265 for MP4."
+        (s.format == "webm" && s.audioCodec !in setOf("auto", "opus", "none")) ||
+            (s.format == "mp4" && s.audioCodec !in setOf("auto", "aac", "none")) ->
+            "Select Opus for WebM or AAC for MP4."
         s.encoder != "auto" ->
             "Manual hardware/software encoder selection is not supported."
         s.fps != null || s.pixelFormat != "auto" || s.rateControl == "cbr" ->

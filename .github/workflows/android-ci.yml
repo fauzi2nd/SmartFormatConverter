@@ -64,6 +64,12 @@ jobs:
         run: gradlew.bat testDebugUnitTest --warning-mode summary --stacktrace
         shell: cmd
 
+      - name: Compile On-Device Smoke Tests
+        # Device execution is a separate release gate. This verifies that
+        # AndroidJUnit4/Media3 test sources compile on every trusted push.
+        run: gradlew.bat assembleDebugAndroidTest --warning-mode summary --stacktrace
+        shell: cmd
+
       - name: Run Android Lint (Debug)
         # Self-hosted runners retain Gradle outputs between jobs. Reanalyze
         # rather than reusing a stale lint report for generated local.properties.
@@ -163,4 +169,4 @@ jobs:
       - name: Build, unit test and lint PR
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug testDebugUnitTest lintDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug testDebugUnitTest assembleDebugAndroidTest lintDebug --no-daemon --stacktrace

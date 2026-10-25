@@ -106,6 +106,50 @@ class ConversionSmokeInstrumentedTest {
     }
 
     @Test
+    fun stillGifExportHasCorrectSignature() = runBlocking {
+        exerciseImage(ImageOutputFormat.GIF)
+    }
+
+    @Test
+    fun heicExportOnSupportedDevices() = runBlocking {
+        assumeTrue(Media3DeviceCapabilities.canExport(MediaType.IMAGE, "heic"))
+        exerciseImage(ImageOutputFormat.HEIC)
+    }
+
+    @Test
+    fun avifExportOnSupportedDevices() = runBlocking {
+        assumeTrue(Media3DeviceCapabilities.canExport(MediaType.IMAGE, "avif"))
+        exerciseImage(ImageOutputFormat.AVIF)
+    }
+
+    private suspend fun exerciseImage(format: ImageOutputFormat) {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val id = UUID.randomUUID().toString()
+        val source = File(context.cacheDir, "image_fixture_$id.png")
+        val output = File(context.cacheDir, "image_output_$id.${format.extension}")
+        val bitmap = Bitmap.createBitmap(96, 64, Bitmap.Config.ARGB_8888)
+        try {
+            bitmap.eraseColor(Color.MAGENTA)
+            source.outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+            val result = withTimeout(180_000L) {
+                ImageConverterEngine.convertImage(
+                    context = context,
+                    inputUri = Uri.fromFile(source),
+                    outputFile = output,
+                    config = ImageConversionConfig(outputFormat = format),
+                    onProgress = {}
+                )
+            }
+            assertTrue(result.exceptionOrNull()?.toString().orEmpty(), result.isSuccess)
+            assertNull(MediaOutputIntegrity.validate(output, MediaType.IMAGE, format.extension))
+        } finally {
+            bitmap.recycle()
+            source.delete()
+            output.delete()
+        }
+    }
+
+    @Test
     fun wavAndAdtsAacExportsAreReadable() = runBlocking {
         exerciseAudio(AudioOutputFormat.WAV)
         exerciseAudio(AudioOutputFormat.AAC)

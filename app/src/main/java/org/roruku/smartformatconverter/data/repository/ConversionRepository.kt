@@ -396,7 +396,11 @@ class ConversionRepository(
             }
 
             if (conversionResult.isFailure) {
-                val err = conversionResult.exceptionOrNull()?.message ?: "Unknown conversion error"
+                val failure = conversionResult.exceptionOrNull()
+                val err = failure?.message?.takeIf { it.isNotBlank() }
+                    ?: failure?.cause?.message?.takeIf { it.isNotBlank() }
+                    ?: failure?.toString()
+                    ?: "Unknown conversion error"
                 dao.markFailed(job.id, err, executionToken = generation)
                 return@withContext Result.failure(Exception(err))
             }
@@ -488,7 +492,8 @@ class ConversionRepository(
         } catch (e: Exception) {
             Log.e(TAG, "Error executing job ${job.id}", e)
             if (generation == 0L || ActiveConversionJobs.isCurrent(job.id, generation)) {
-                dao.markFailed(job.id, e.message ?: "Job failed with exception", executionToken = generation)
+                dao.markFailed(job.id, e.message?.takeIf { it.isNotBlank() }
+                    ?: e.toString(), executionToken = generation)
             }
             Result.failure(e)
         } finally {

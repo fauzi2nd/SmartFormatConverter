@@ -1,5 +1,7 @@
 package org.roruku.smartformatconverter.ui.queue
 
+import org.roruku.smartformatconverter.data.repository.SourceFormatLabels
+
 import android.text.format.Formatter
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
@@ -314,7 +316,7 @@ fun JobCardItem(
                         Text(
                             text = stringResource(
                                 R.string.queue_job_format_flow,
-                                job.inputFormat.uppercase(),
+                                SourceFormatLabels.resolve(job.fileName, job.inputFormat).uppercase(),
                                 job.outputFormat.uppercase()
                             ),
                             style = MaterialTheme.typography.labelSmall,

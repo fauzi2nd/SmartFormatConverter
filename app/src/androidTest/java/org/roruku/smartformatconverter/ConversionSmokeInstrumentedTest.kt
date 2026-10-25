@@ -150,6 +150,15 @@ class ConversionSmokeInstrumentedTest {
     }
 
     @Test
+    fun wavToM4aAacAndOggUsePlatformEncoder() = runBlocking {
+        exerciseAudio(AudioOutputFormat.M4A)
+        exerciseAudio(AudioOutputFormat.AAC)
+        if (Media3DeviceCapabilities.canExport(MediaType.AUDIO, "ogg")) {
+            exerciseAudio(AudioOutputFormat.OGG)
+        }
+    }
+
+    @Test
     fun wavAndAdtsAacExportsAreReadable() = runBlocking {
         exerciseAudio(AudioOutputFormat.WAV)
         exerciseAudio(AudioOutputFormat.AAC)

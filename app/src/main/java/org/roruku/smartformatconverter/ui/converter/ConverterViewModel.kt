@@ -22,6 +22,7 @@ import org.roruku.smartformatconverter.data.db.MediaType
 import org.roruku.smartformatconverter.data.preferences.UserPreferencesRepository
 import org.roruku.smartformatconverter.data.repository.ConversionRepository
 import org.roruku.smartformatconverter.data.repository.Media3OutputPolicy
+import org.roruku.smartformatconverter.data.repository.SourceFormatLabels
 import org.roruku.smartformatconverter.engine.media3.Media3DeviceCapabilities
 import org.roruku.smartformatconverter.data.storage.BatchConversionScanner
 import org.roruku.smartformatconverter.data.storage.BatchScanConfig
@@ -430,7 +431,7 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                         fileName = file.details.fileName,
                         inputUri = file.uri.toString(),
                         mediaType = mediaType,
-                        inputFormat = file.details.mimeType?.substringAfter('/') ?: "unknown",
+                        inputFormat = SourceFormatLabels.resolve(file.details.fileName, file.details.mimeType),
                         outputFormat = state.targetFormat,
                         presetName = state.presetName,
                         fileSize = file.details.fileSize,

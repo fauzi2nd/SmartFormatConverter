@@ -130,6 +130,16 @@ object Media3TransformerEngine {
         if (config.outputFormat == AudioOutputFormat.FLAC) {
             return@withContext PlatformFlacExportEngine.export(context, inputUri, tempOutputFile, onProgress)
         }
+        if (config.outputFormat in setOf(AudioOutputFormat.M4A, AudioOutputFormat.AAC, AudioOutputFormat.OGG)) {
+            return@withContext PlatformCompressedAudioExportEngine.export(
+                context = context,
+                input = inputUri,
+                output = tempOutputFile,
+                format = config.outputFormat,
+                bitrateKbps = advancedSettings?.bitrateKbps ?: config.bitrateKbps,
+                onProgress = onProgress
+            )
+        }
         val mediaItem = MediaItem.fromUri(inputUri)
         val editedMediaItem = EditedMediaItem.Builder(mediaItem)
             .setRemoveVideo(true)

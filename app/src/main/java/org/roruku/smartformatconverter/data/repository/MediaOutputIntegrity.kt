@@ -105,7 +105,8 @@ internal object MediaOutputIntegrity {
             if (!containsExpectedTrack(type, mimes)) {
                 "Exported file does not contain the expected " + type.name.lowercase() + " track"
             } else if (!codecMatches(type, extension, mimes)) {
-                "Exported track codecs are incompatible with " + extension.uppercase()
+                "Exported track codecs are incompatible with " + extension.uppercase() +
+                    " (device reported: " + mimes.joinToString(", ") + ")"
             } else {
                 val index = (0 until extractor.trackCount).firstOrNull { index ->
                     extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME).orEmpty()
@@ -117,8 +118,14 @@ internal object MediaOutputIntegrity {
                     "Exported track duration is invalid"
                 } else {
                     extractor.selectTrack(index)
-                    if (extractor.sampleTime < 0L) "Exported track contains no readable samples"
-                    else null
+                    val sampleBuffer = java.nio.ByteBuffer.allocateDirect(
+                        if (type == MediaType.VIDEO) 2 * 1024 * 1024 else 256 * 1024
+                    )
+                    val firstSampleSize = extractor.readSampleData(sampleBuffer, 0)
+                    if (firstSampleSize <= 0) {
+                        "Exported track contains no readable samples (format: " +
+                            mimes.joinToString(", ") + ", first sample: " + firstSampleSize + ")"
+                    } else null
                 }
             }
         } catch (error: Exception) {

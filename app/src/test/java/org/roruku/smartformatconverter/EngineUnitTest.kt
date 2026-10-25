@@ -12,6 +12,8 @@ import org.roruku.smartformatconverter.data.repository.Media3OutputPolicy
 import org.roruku.smartformatconverter.data.repository.MediaOutputIntegrity
 import org.roruku.smartformatconverter.data.storage.BatchOutputStructure
 import org.roruku.smartformatconverter.data.storage.BatchScanConfig
+import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
+import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioCodec
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioConversionConfig
 import org.roruku.smartformatconverter.engine.ffmpeg.AudioOutputFormat
@@ -26,6 +28,25 @@ import org.roruku.smartformatconverter.engine.image.ImageOutputFormat
 import java.io.File
 
 class EngineUnitTest {
+
+    @Test
+    fun testMedia3AdvancedSettingsCompatibility() {
+        assertNull(Media3OutputPolicy.unsupportedVideoSettings(VideoAdvancedSettings()))
+        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+            VideoAdvancedSettings().applyPreset("Original Quality / Remux")))
+        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+            VideoAdvancedSettings(encoder = "software")))
+        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+            VideoAdvancedSettings(fps = "60")))
+        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+            VideoAdvancedSettings(volumePercent = 150)))
+        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+            VideoAdvancedSettings(subtitleMode = "copy")))
+        assertNull(Media3OutputPolicy.unsupportedAudioSettings(AudioAdvancedSettings()))
+        assertNotNull(Media3OutputPolicy.unsupportedAudioSettings(
+            AudioAdvancedSettings(volumePercent = 150)))
+    }
+
 
     @Test
     fun testMediaOutputIntegrityTrackPolicy() {

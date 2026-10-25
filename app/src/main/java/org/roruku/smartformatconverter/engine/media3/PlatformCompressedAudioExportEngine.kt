@@ -1,5 +1,6 @@
 package org.roruku.smartformatconverter.engine.media3
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
@@ -106,6 +107,8 @@ internal object PlatformCompressedAudioExportEngine {
             if (format == AudioOutputFormat.AAC) {
                 rawAac = FileOutputStream(output)
             } else {
+                // This API 29 constant is guarded by the SDK check above.
+                @SuppressLint("InlinedApi")
                 val containerType = if (opus) MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG
                     else MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
                 muxer = MediaMuxer(output.absolutePath, containerType)

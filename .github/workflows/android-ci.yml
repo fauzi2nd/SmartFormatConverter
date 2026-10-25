@@ -66,13 +66,8 @@ jobs:
         run: gradlew.bat assembleDebug --no-configuration-cache --warning-mode summary --stacktrace
         shell: cmd
 
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: SmartFormatConverter-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
-          retention-days: 14
+      # APK remains on the trusted self-hosted runner. GitHub artifact uploads
+      # are disabled while the account's Actions storage quota is exhausted.
 
       - name: Run Unit Tests
         run: gradlew.bat testDebugUnitTest --no-configuration-cache --warning-mode summary --stacktrace

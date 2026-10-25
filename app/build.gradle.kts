@@ -145,6 +145,7 @@ dependencies {
     // Unit Tests
     testImplementation(libs.junit)
     testImplementation(libs.sqlite.jdbc)
+    testImplementation(libs.test.json)
 
     // Android Instrumentation Tests
     // The Compose BOM is required separately for the androidTest classpath.

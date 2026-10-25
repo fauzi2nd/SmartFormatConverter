@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- HeifWriter library declares minSdk 28. This app retains API 26;
+         HEIC and AVIF writer calls are explicitly gated to API 29+ / 34+.
+         Never initialize these codecs on Android 8. -->
+    <uses-sdk tools:overrideLibrary="androidx.heifwriter" />
+
     <!-- Network access -->
     <uses-permission
         android:name="android.permission.INTERNET" />

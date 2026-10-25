@@ -60,14 +60,15 @@ internal object Mp4RemuxEngine {
                 "Source sample size exceeds safe MP4 remux buffer limit (32 MiB)"
             }
             val buffer = ByteBuffer.allocateDirect(maxOf(8 * 1024 * 1024, maxInputSize))
-            muxer = MediaMuxer(output.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-            if (orientation in setOf(90, 180, 270)) muxer.setOrientationHint(orientation)
+            val writer = MediaMuxer(output.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            muxer = writer
+            if (orientation in setOf(90, 180, 270)) writer.setOrientationHint(orientation)
             val trackMap = IntArray(formats.size) { -1 }
             formats.forEachIndexed { idx, fmt ->
-                trackMap[idx] = muxer.addTrack(fmt)
+                trackMap[idx] = writer.addTrack(fmt)
                 extractor.selectTrack(idx)
             }
-            muxer.start()
+            writer.start()
             val info = MediaCodec.BufferInfo()
             var samples = 0L
             while (true) {
@@ -86,7 +87,7 @@ internal object Mp4RemuxEngine {
                 info.set(0, size, extractor.sampleTime.coerceAtLeast(0), flags)
                 buffer.position(0)
                 buffer.limit(size)
-                muxer.writeSampleData(trackMap[sourceTrack], buffer, info)
+                writer.writeSampleData(trackMap[sourceTrack], buffer, info)
                 samples += 1
                 if (totalDuration > 0 && samples % 16L == 0L) {
                     onProgress((info.presentationTimeUs.toDouble() / totalDuration).toFloat().coerceIn(0f, 0.99f), null, null)
@@ -94,7 +95,7 @@ internal object Mp4RemuxEngine {
                 extractor.advance()
             }
             require(samples > 0) { "No compressed samples to remux" }
-            muxer.stop()
+            writer.stop()
             finished = true
             require(output.isFile && output.length() > 0L) { "Remux produced an empty file" }
             onProgress(1f, null, null)

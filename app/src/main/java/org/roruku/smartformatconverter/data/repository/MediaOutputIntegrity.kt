@@ -96,6 +96,13 @@ internal object MediaOutputIntegrity {
             return "Output header is not a valid " + extension.uppercase() + " container"
         }
 
+        // FLAC is a standalone stream rather than a muxed container. Some
+        // Android vendors expose inconsistent MIME values through MediaExtractor;
+        // check native STREAMINFO and the first frame directly instead.
+        if (type == MediaType.AUDIO && extension.equals("flac", ignoreCase = true)) {
+            return FlacStreamVerifier.validate(file)
+        }
+
         val extractor = MediaExtractor()
         return try {
             extractor.setDataSource(file.absolutePath)

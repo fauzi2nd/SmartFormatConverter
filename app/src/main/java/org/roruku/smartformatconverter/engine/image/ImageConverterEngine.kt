@@ -89,8 +89,15 @@ object ImageConverterEngine {
             coroutineContext.ensureActive()
             onProgress(0.3f)
 
+            // For a requested downscale, decode a smaller intermediate instead
+            // of allocating every source pixel in the Java bitmap heap.
+            // Keep the original resolution when no resize was requested.
+            val sampleSize = calculateDecodeSampleSize(
+                originalWidth, originalHeight, config
+            )
             val decodeOptions = BitmapFactory.Options().apply {
                 inPreferredConfig = Bitmap.Config.ARGB_8888
+                inSampleSize = sampleSize
             }
             var bitmap: Bitmap? = StorageManager.openReadableInputStream(context, inputUri).use { stream ->
                 BitmapFactory.decodeStream(stream, null, decodeOptions)
@@ -195,6 +202,28 @@ object ImageConverterEngine {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    /**
+     * Decode at least twice the target resolution to retain interpolation quality.
+     * Exact cropping can change the needed source region, so use full decode there.
+     */
+    fun calculateDecodeSampleSize(
+        sourceWidth: Int,
+        sourceHeight: Int,
+        config: ImageConversionConfig
+    ): Int {
+        val targetW = config.customWidth ?: return 1
+        val targetH = config.customHeight ?: return 1
+        if (targetW <= 0 || targetH <= 0 ||
+            !config.maintainAspectRatio || config.cropToExactRatio) return 1
+        var sampleSize = 1
+        while (sampleSize < 128 &&
+            sourceWidth.toLong() / (sampleSize * 2) >= targetW.toLong() * 2 &&
+            sourceHeight.toLong() / (sampleSize * 2) >= targetH.toLong() * 2) {
+            sampleSize *= 2
+        }
+        return sampleSize
     }
 
     fun validateJpegFile(file: File): Boolean {

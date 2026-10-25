@@ -57,6 +57,31 @@ class Media3VideoSmokeInstrumentedTest {
         runVideoExport(VideoOutputFormat.WEBM)
     }
 
+    @Test
+    fun invalidVideoInputFailsWithoutLeavingOutput() = runBlocking {
+        val ctx = InstrumentationRegistry.getInstrumentation().targetContext
+        val id = UUID.randomUUID().toString()
+        val source = File(ctx.cacheDir, "invalid_video_$id.mp4")
+        val output = File(ctx.cacheDir, "invalid_video_output_$id.mp4")
+        try {
+            source.writeText("invalid MP4 data, not a media file")
+            val result = withTimeout(60_000L) {
+                Media3TransformerEngine.convertVideo(
+                    context = ctx,
+                    inputUri = Uri.fromFile(source),
+                    tempOutputFile = output,
+                    config = VideoConversionConfig(outputFormat = VideoOutputFormat.MP4),
+                    onProgress = { _, _, _ -> }
+                )
+            }
+            assertTrue("Invalid source must fail", result.isFailure)
+            assertTrue("Partial output must be cleaned", !output.exists())
+        } finally {
+            source.delete()
+            output.delete()
+        }
+    }
+
     private suspend fun runVideoExport(format: VideoOutputFormat) {
         val ctx = InstrumentationRegistry.getInstrumentation().targetContext
         val id = UUID.randomUUID().toString()

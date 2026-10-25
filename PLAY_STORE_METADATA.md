@@ -44,9 +44,9 @@ Private video, audio and image conversion with direct file downloads.
 **Smart Format Converter** is a modern, privacy-first multimedia conversion and downloader tool for Android. Convert your videos, music, and photos with hardware acceleration—100% on your device, without uploading your personal files to any cloud server!
 
 **Key Features:**
-* 🎬 **Video Converter**: Export MP4 (H.264/H.265 where supported by the device) from compatible input files using AndroidX Media3.
-* 🎵 **Audio Converter & Extractor**: Convert decodable input audio or extract audio from compatible video files into M4A (AAC).
-* 🖼️ **Image Resizer & Converter**: Convert between JPEG, PNG, and WebP. Adjust quality, resolution, center-crop, and maintain aspect ratios with live preview.
+* 🎬 **Video Converter**: Export MP4 and compatible WebM on supported devices; strict MP4 stream copy or Smart Auto can avoid re-encoding when source tracks match.
+* 🎵 **Audio Converter & Extractor**: M4A, AAC, WAV, and supported-device Ogg/Opus or FLAC, subject to codec availability.
+* 🖼️ **Image Resizer & Converter**: Export JPEG, PNG, WebP, static GIF, and HEIC/AVIF on supported Android versions/devices. GIF is a single still frame; animation is not preserved.
 * ⚡ **Android MediaCodec**: Uses device-supported encoders, with performance, power use and fallback behavior varying by chipset.
 * 🔒 **On-Device Conversion**: Local files are converted without cloud processing. Direct file downloads use the network only for the URLs you request.
 * 📁 **Storage Access Framework**: Fully compatible with modern Android scoped storage. Save converted media directly to your chosen folder.
@@ -67,6 +67,9 @@ Private video, audio and image conversion with direct file downloads.
 ## Important Pre-publication Checks
 
 - This text is a **draft**, not a verified certification of Play policy compliance. Review Data Safety against the final manifest, dependencies, actual network activity and retained data.
-- Avoid claims of universally supported input codecs, WebM/MP3 output, 5× speedups or guaranteed battery improvements: these have not been established by device benchmarks.
+- Avoid claims of universally supported codecs, MP3/MKV output, animated GIF conversion, 5× speedups or guaranteed battery improvements: these have not been established by device benchmarks.
 - The downloader sends requests to user-chosen hosts; those hosts can observe ordinary network information such as the source IP address. HTTP transport is unencrypted.
 - Include links/screenshots/recordings required by Google Play only after those actual assets exist.
+
+### P6–P10 Release Note
+The new codec-backed exports require physical device testing before Play Store claims are finalized. MP3 and MKV output are NOT implemented. FLAC/OGG/HEIC/AVIF depend on installed device encoders, and GIF export is one still frame. Verify Play Console Data Safety and license disclosure after adding AndroidX HeifWriter and Square GifEncoder. See [P6–P10 Implementation](P6_P10_IMPLEMENTATION.md).

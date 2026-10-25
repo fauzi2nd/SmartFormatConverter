@@ -1,8 +1,8 @@
 package org.roruku.smartformatconverter.data.repository
 
 import org.roruku.smartformatconverter.data.db.MediaType
-import org.roruku.smartformatconverter.engine.ffmpeg.AudioAdvancedSettings
-import org.roruku.smartformatconverter.engine.ffmpeg.VideoAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 
 /**
  * The active Media3 muxers support MP4, gated WebM, and AAC-in-MP4 audio.

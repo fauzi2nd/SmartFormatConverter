@@ -261,6 +261,9 @@ class ConversionRepository(
                     val preset = VideoPreset.entries.firstOrNull {
                         it.displayName.equals(job.presetName, ignoreCase = true)
                     } ?: VideoPreset.BALANCED
+                    require(preset != VideoPreset.REMUX) {
+                        "Remux/stream copy is not guaranteed by this Media3 release. Select a conversion preset."
+                    }
                     val config = VideoConversionConfig(
                         outputFormat = format,
                         preset = preset,

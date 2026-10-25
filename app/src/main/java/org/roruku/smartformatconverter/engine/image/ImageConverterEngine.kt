@@ -8,6 +8,11 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.net.Uri
 import android.util.Log
+import androidx.heifwriter.HeifWriter
+import androidx.heifwriter.AvifWriter
+import com.squareup.gifencoder.GifEncoder
+import com.squareup.gifencoder.ImageOptions
+import java.io.BufferedOutputStream
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
@@ -42,7 +47,10 @@ data class ImageConversionConfig(
 enum class ImageOutputFormat(val extension: String, val mimeType: String) {
     JPEG("jpg", "image/jpeg"),
     PNG("png", "image/png"),
-    WEBP("webp", "image/webp")
+    WEBP("webp", "image/webp"),
+    HEIC("heic", "image/heic"),
+    AVIF("avif", "image/avif"),
+    GIF("gif", "image/gif")
 }
 
 data class ExifTransform(
@@ -134,7 +142,7 @@ object ImageConverterEngine {
                 workingBitmap = bitmap
             }
 
-            val finalBitmap: Bitmap = if (config.outputFormat == ImageOutputFormat.JPEG && bitmap!!.hasAlpha()) {
+            val finalBitmap: Bitmap = if (config.outputFormat in setOf(ImageOutputFormat.JPEG, ImageOutputFormat.HEIC, ImageOutputFormat.GIF) && bitmap!!.hasAlpha()) {
                 compositeOverWhiteBackground(bitmap)
             } else {
                 bitmap!!
@@ -188,6 +196,53 @@ object ImageConverterEngine {
                         }
                     }
                     if (!written) throw IllegalStateException("WebP encoder rejected the image")
+                }
+                ImageOutputFormat.HEIC -> {
+                    require(android.os.Build.VERSION.SDK_INT >= 29) {
+                        "HEIC export needs Android 10 or newer"
+                    }
+                    HeifWriter.Builder(
+                        outputFile.absolutePath, finalBitmap.width, finalBitmap.height,
+                        HeifWriter.INPUT_MODE_BITMAP
+                    ).setMaxImages(1).setQuality(config.jpegQuality.coerceIn(1, 100))
+                        .build().use { writer ->
+                            writer.start()
+                            writer.addBitmap(finalBitmap)
+                            writer.stop(120_000L)
+                        }
+                }
+                ImageOutputFormat.AVIF -> {
+                    require(android.os.Build.VERSION.SDK_INT >= 34) {
+                        "AVIF export needs Android 14 or newer"
+                    }
+                    AvifWriter.Builder(
+                        outputFile.absolutePath, finalBitmap.width, finalBitmap.height,
+                        AvifWriter.INPUT_MODE_BITMAP
+                    ).setMaxImages(1).setQuality(config.jpegQuality.coerceIn(1, 100))
+                        .build().use { writer ->
+                            writer.start()
+                            writer.addBitmap(finalBitmap)
+                            writer.stop(120_000L)
+                        }
+                }
+                ImageOutputFormat.GIF -> {
+                    // This converts a still image to one GIF89a frame.
+                    // Animated-source preservation is NOT claimed.
+                    require(finalBitmap.width <= 2048 && finalBitmap.height <= 2048) {
+                        "GIF export is limited to 2048×2048 to control memory use"
+                    }
+                    val width = finalBitmap.width
+                    val height = finalBitmap.height
+                    val pixels = IntArray(width * height)
+                    finalBitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+                    val rgb = Array(height) { y ->
+                        IntArray(width) { x -> pixels[y * width + x] and 0x00FFFFFF }
+                    }
+                    BufferedOutputStream(FileOutputStream(outputFile)).use { out ->
+                        GifEncoder(out, width, height, 0)
+                            .addImage(rgb, ImageOptions())
+                            .finishEncoding()
+                    }
                 }
             }
             if (!outputFile.exists() || outputFile.length() == 0L) {

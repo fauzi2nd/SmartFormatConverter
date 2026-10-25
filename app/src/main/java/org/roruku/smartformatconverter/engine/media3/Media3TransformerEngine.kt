@@ -168,6 +168,47 @@ object Media3TransformerEngine {
         )
     }
 
+    /**
+     * Surface the underlying codec or muxer failure in the queue instead of
+     * Media3's unhelpful top-level "Unexpected runtime error" message.
+     * Logcat still holds the original exception and full stack trace.
+     */
+    private fun explainExportFailure(
+        exception: ExportException,
+        webmOutput: Boolean
+    ): IllegalStateException {
+        val stage = when (exception.errorCode) {
+            ExportException.ERROR_CODE_ENCODER_INIT_FAILED ->
+                "Device encoder could not start for the selected resolution/codec"
+            ExportException.ERROR_CODE_ENCODING_FORMAT_UNSUPPORTED ->
+                "Requested output codec/profile is not supported by the device"
+            ExportException.ERROR_CODE_ENCODING_FAILED ->
+                "Device encoder failed while processing media"
+            ExportException.ERROR_CODE_DECODER_INIT_FAILED,
+            ExportException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED ->
+                "Device decoder cannot open the source stream"
+            ExportException.ERROR_CODE_DECODING_FAILED ->
+                "Device decoder failed while reading source frames"
+            ExportException.ERROR_CODE_MUXING_FAILED,
+            ExportException.ERROR_CODE_MUXING_TIMEOUT ->
+                "Output muxer could not write the encoded tracks"
+            else -> "Media3 could not complete the export"
+        }
+        val root = generateSequence(exception as Throwable) { it.cause }
+            .take(6)
+            .mapNotNull { it.message?.trim()?.takeIf(String::isNotBlank) }
+            .lastOrNull()
+        val explanation = root?.takeUnless {
+            it.equals("Unexpected runtime error", ignoreCase = true)
+        }?.take(260)
+        val container = if (webmOutput) "WebM VP9/Opus" else "Media"
+        val detail = explanation?.let { ": " + it } ?: ""
+        return IllegalStateException(
+            "$container export failed (Media3 code ${exception.errorCode}). $stage$detail",
+            exception
+        )
+    }
+
     private suspend fun executeTransformation(
         context: Context,
         editedMediaItem: EditedMediaItem,
@@ -238,7 +279,9 @@ object Media3TransformerEngine {
                     Log.e(TAG, "Transformation error", exportException)
                     outputFile.delete()
                     if (continuation.isActive) {
-                        continuation.resume(Result.failure(exportException))
+                        continuation.resume(Result.failure(
+                            explainExportFailure(exportException, webmOutput)
+                        ))
                     }
                 }
             })

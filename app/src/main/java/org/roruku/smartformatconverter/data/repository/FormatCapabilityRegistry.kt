@@ -23,6 +23,7 @@ internal object FormatCapabilityRegistry {
         OutputCapability(MediaType.AUDIO, "aac", "audio/aac", audioMime = "audio/mp4a-latm"),
         OutputCapability(MediaType.AUDIO, "ogg", "audio/ogg", audioMime = "audio/opus"),
         OutputCapability(MediaType.AUDIO, "wav", "audio/wav", audioMime = "audio/raw"),
+        OutputCapability(MediaType.AUDIO, "flac", "audio/flac", audioMime = "audio/flac"),
         OutputCapability(MediaType.IMAGE, "jpg", "image/jpeg"),
         OutputCapability(MediaType.IMAGE, "png", "image/png"),
         OutputCapability(MediaType.IMAGE, "webp", "image/webp"),

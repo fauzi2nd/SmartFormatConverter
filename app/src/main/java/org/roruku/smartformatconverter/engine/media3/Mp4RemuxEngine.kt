@@ -97,7 +97,12 @@ internal object Mp4RemuxEngine {
                 val size = extractor.readSampleData(buffer, 0)
                 if (size < 0) break
                 require(size <= buffer.capacity()) { "Remux sample exceeded buffer" }
-                info.set(0, size, extractor.sampleTime.coerceAtLeast(0), flags)
+                val muxFlags =
+                    (if (flags and MediaExtractor.SAMPLE_FLAG_SYNC != 0)
+                        MediaCodec.BUFFER_FLAG_KEY_FRAME else 0) or
+                    (if (flags and MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME != 0)
+                        MediaCodec.BUFFER_FLAG_PARTIAL_FRAME else 0)
+                info.set(0, size, extractor.sampleTime.coerceAtLeast(0), muxFlags)
                 buffer.position(0)
                 buffer.limit(size)
                 writer.writeSampleData(trackMap[sourceTrack], buffer, info)

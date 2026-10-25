@@ -303,7 +303,7 @@ fun SettingsScreenContent(
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Media3 selects an available encoder and may use a supported fallback. Manual hardware selection is not yet available.",
+                    text = stringResource(R.string.media3_hardware_automatic_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

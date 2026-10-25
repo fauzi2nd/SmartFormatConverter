@@ -86,7 +86,7 @@ object ImageSettingsValidator {
 data class AudioAdvancedSettings(
     val format: String = "m4a",
     val bitrateKbps: Int = 192,
-    // null means retain source sample rate, except Opus is always 48 kHz.
+    // Legacy snapshot: any explicit rate is rejected until runtime support exists.
     val sampleRate: Int? = null,
     val channels: Int? = null,
     val volumePercent: Int = 100,
@@ -119,7 +119,7 @@ data class AudioAdvancedSettings(
                 "Unsupported audio settings snapshot"
             }
             return AudioAdvancedSettings(
-                format = obj.optString("format", "mp3"),
+                format = obj.optString("format", "mp3"), // Fail safely for FFmpeg-era jobs missing a format.
                 preset = obj.optString("preset", "Custom"),
                 bitrateKbps = obj.optInt("bitrateKbps", 192),
                 sampleRate = if (obj.has("sampleRate")) obj.getInt("sampleRate") else null,
@@ -131,52 +131,17 @@ data class AudioAdvancedSettings(
     }
 }
 
+/** Media3 currently exports AAC audio into the MP4/M4A container only. */
 object AudioSettingsValidator {
-    val losslessFormats = setOf("wav", "flac")
+    val losslessFormats: Set<String> = emptySet()
 
     fun validate(s: AudioAdvancedSettings): String? = when {
-        s.format !in setOf("mp3", "aac", "m4a", "wav", "flac", "ogg", "opus") ->
-            "Unsupported audio format"
+        s.format != "m4a" -> "Audio export currently supports M4A only"
         s.bitrateKbps !in 32..512 -> "Audio bitrate must be 32–512 kbps"
         s.sampleRate != null && s.sampleRate !in setOf(32000, 44100, 48000, 96000) ->
             "Unsupported audio sample rate"
-        s.format == "opus" && s.sampleRate != null && s.sampleRate != 48000 ->
-            "Opus supports only 48 kHz output"
-        s.channels != null && s.channels !in setOf(1, 2) ->
-            "Audio channels must be mono or stereo"
+        s.channels != null && s.channels !in setOf(1, 2) -> "Only mono/stereo allowed"
         s.volumePercent !in 0..200 -> "Audio volume must be between 0% and 200%"
         else -> null
-    }
-}
-
-/** Shared argument builder is pure, allowing unit tests without a device or FFmpeg binary. */
-object AudioCommandBuilder {
-    fun build(inputPath: String, outputPath: String, s: AudioAdvancedSettings): List<String> {
-        AudioSettingsValidator.validate(s)?.let { throw IllegalArgumentException(it) }
-        val codec = when (s.format) {
-            "mp3" -> "libmp3lame"
-            "aac", "m4a" -> "aac"
-            "ogg" -> "libvorbis"
-            "opus" -> "libopus"
-            "flac" -> "flac"
-            "wav" -> "pcm_s16le"
-            else -> error("Unsupported output format")
-        }
-        return buildList {
-            addAll(listOf("ffmpeg", "-hide_banner", "-nostdin", "-y", "-i", inputPath, "-vn",
-                "-c:a", codec))
-            if (s.format !in AudioSettingsValidator.losslessFormats) {
-                addAll(listOf("-b:a", "${s.bitrateKbps}k"))
-            }
-            val rate = if (s.format == "opus") 48000 else s.sampleRate
-            rate?.let { addAll(listOf("-ar", it.toString())) }
-            s.channels?.let { addAll(listOf("-ac", it.toString())) }
-            if (s.volumePercent != 100) {
-                addAll(listOf("-af", "volume=" +
-                    java.lang.String.format(java.util.Locale.US, "%.2f", s.volumePercent / 100.0)))
-            }
-            addAll(listOf("-map_metadata", if (s.preserveMetadata) "0" else "-1"))
-            add(outputPath)
-        }
     }
 }

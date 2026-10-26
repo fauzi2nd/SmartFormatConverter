@@ -5,6 +5,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Metadata
+import androidx.media3.common.util.CodecSpecificDataUtil
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.muxer.Muxer
 import androidx.media3.muxer.SeekableMuxerOutput
@@ -24,18 +25,34 @@ internal class WebmMuxerFactory : Muxer.Factory {
         wrap(WebmMuxer.Builder(SeekableMuxerOutput.of(path)).build())
 
     /**
-     * Transformer forwards Format.metadata through Muxer.addMetadataEntry().
-     * Media3 1.11.1 WebmMuxer unconditionally throws UnsupportedOperationException
-     * for this call, which aborts otherwise valid MP4 -> WebM exports with code
-     * 1001. WebM output supports the encoded VP9/Opus tracks, but not Media3's
-     * container-level metadata API; discard those entries at this boundary.
+     * Android Opus encoders may return csd-0 in a native AOPUSHDR envelope
+     * (8-byte signature, 8-byte little-endian header length, OpusHead bytes).
+     * Media3 1.11.1 WebmMuxer directly copies csd-0 into WebM CodecPrivate
+     * without stripping this envelope. FFmpeg then rejects the Opus extradata.
+     * Normalize it to the RFC 7845 OpusHead payload before the muxer writes it.
+     *
+     * Transformer also forwards container metadata through addMetadataEntry(),
+     * but Media3's WebmMuxer does not implement that method.
      */
     internal fun wrap(delegate: Muxer): Muxer = object : Muxer by delegate {
         override fun addTrack(format: Format): Int {
-            val safeFormat = if (format.language.isNullOrBlank()) {
-                format.buildUpon().setLanguage("und").build()
+            val normalized = if (format.sampleMimeType == MimeTypes.AUDIO_OPUS) {
+                // This Media3 utility understands both OpusHead and Android's
+                // AOPUSHDR-wrapped csd-0. Do not synthesize missing codec data:
+                // a missing or invalid OpusHead must fail, not produce bad WebM.
+                val opusHead = CodecSpecificDataUtil.getOpusInitializationData(format)
+                require(opusHead.size >= 19 &&
+                    opusHead.copyOfRange(0, 8).contentEquals(OPUS_HEAD_SIGNATURE)) {
+                    "Android Opus encoder provided an invalid OpusHead for WebM"
+                }
+                format.buildUpon().setInitializationData(listOf(opusHead)).build()
             } else {
                 format
+            }
+            val safeFormat = if (normalized.language.isNullOrBlank()) {
+                normalized.buildUpon().setLanguage("und").build()
+            } else {
+                normalized
             }
             return delegate.addTrack(safeFormat)
         }
@@ -44,6 +61,10 @@ internal class WebmMuxerFactory : Muxer.Factory {
             // WebmMuxer.addMetadataEntry is unsupported. Metadata is not encoded
             // in WebM; video/audio sample writing remains delegated unchanged.
         }
+    }
+
+    private companion object {
+        val OPUS_HEAD_SIGNATURE = "OpusHead".toByteArray(Charsets.US_ASCII)
     }
 
     override fun getSupportedSampleMimeTypes(trackType: Int): ImmutableList<String> =

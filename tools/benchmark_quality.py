@@ -16,9 +16,10 @@ import sys
 from pathlib import Path
 
 
-def command(args: list[str]) -> str:
+def command(args: list[str], *, cwd: Path | None = None) -> str:
     result = subprocess.run(args, text=True, stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE, check=False)
+                            stderr=subprocess.PIPE, check=False,
+                            cwd=str(cwd) if cwd is not None else None)
     if result.returncode:
         raise RuntimeError(
             f"Command failed ({result.returncode}): {args[0]}\n"
@@ -31,7 +32,9 @@ def probe(path: Path) -> dict:
     try:
         text = command(["ffprobe", "-v", "error", "-select_streams", "v:0",
                         "-show_entries",
-                        "stream=codec_name,width,height,avg_frame_rate:"
+                        "stream=codec_name,width,height,avg_frame_rate,"
+                        "sample_aspect_ratio,display_aspect_ratio:"
+                        "stream_side_data=rotation:stream_tags=rotate:"
                         "format=duration,size",
                         "-of", "json", str(path)])
     except RuntimeError as error:
@@ -56,8 +59,28 @@ def probe(path: Path) -> dict:
     video = (result.get("streams") or [{}])[0]
     if not video.get("width") or not video.get("height"):
         raise ValueError(f"No readable video in {path}")
+    # FFmpeg rotates input based on display-matrix metadata by default.
+    # The coded width/height can be portrait even when displayed frames are
+    # landscape. Calculate comparable geometry before scaling frames.
+    rotation = 0
+    side_data = video.get("side_data_list") or []
+    for entry in side_data:
+        if "rotation" in entry:
+            rotation = int(round(float(entry["rotation"]))) % 360
+            break
+    else:
+        tag_rotation = (video.get("tags") or {}).get("rotate")
+        if tag_rotation is not None:
+            rotation = int(round(float(tag_rotation))) % 360
+    coded_width, coded_height = int(video["width"]), int(video["height"])
+    display_width, display_height = (
+        (coded_height, coded_width) if rotation in (90, 270)
+        else (coded_width, coded_height)
+    )
     return {"codec": video.get("codec_name"),
-            "width": int(video["width"]), "height": int(video["height"]),
+            "width": coded_width, "height": coded_height,
+            "rotation_degrees": rotation,
+            "display_width": display_width, "display_height": display_height,
             "duration": float(result["format"].get("duration") or 0),
             "size": path.stat().st_size}
 
@@ -95,12 +118,18 @@ def vmaf_metric(source: Path, output: Path, width: int, height: int,
         f"[1:v]fps={fps},scale={width}:{height}:flags=lanczos,"
         "setsar=1,setpts=PTS-STARTPTS[dist];"
     )
-    escape_path = str(log_file.resolve()).replace("\\", "/").replace(":", "\\:")
+    # libvmaf's nested filter option parser treats a Windows drive colon
+    # as an option separator. Use an isolated cwd and a relative log name
+    # instead of a C:\\... path in the filter graph.
+    log_file.parent.mkdir(parents=True, exist_ok=True)
     command(["ffmpeg", "-hide_banner", "-nostdin", "-v", "error",
-             "-t", str(seconds), "-i", str(source), "-t", str(seconds),
-             "-i", str(output), "-filter_complex",
-             setup + f"[dist][ref]libvmaf=log_fmt=json:log_path={escape_path}",
-             "-an", "-f", "null", "-"])
+             "-t", str(seconds), "-i", str(source.resolve()),
+             "-t", str(seconds), "-i", str(output.resolve()),
+             "-filter_complex",
+             setup + f"[dist][ref]libvmaf=log_fmt=json:log_path={log_file.name}",
+             "-an", "-f", "null", "-"], cwd=log_file.parent)
+    if not log_file.is_file():
+        raise RuntimeError("VMAF log was not created by FFmpeg/libvmaf")
     data = json.loads(log_file.read_text(encoding="utf-8"))
     value = data.get("pooled_metrics", {}).get("vmaf", {}).get("mean")
     return float(value) if value is not None else None
@@ -133,6 +162,18 @@ def main() -> int:
     duration = min(args.seconds, ref["duration"], dist["duration"])
     if duration <= 0:
         parser.error("Could not obtain a positive shared video duration")
+    ref_ratio = ref["display_width"] / ref["display_height"]
+    dist_ratio = dist["display_width"] / dist["display_height"]
+    if abs(ref_ratio / dist_ratio - 1.0) > 0.02:
+        raise ValueError(
+            "Displayed aspect ratios differ: "
+            f"source {ref['display_width']}x{ref['display_height']} "
+            f"(rotation {ref['rotation_degrees']}deg), "
+            f"converted {dist['display_width']}x{dist['display_height']} "
+            f"(rotation {dist['rotation_degrees']}deg). "
+            "SSIM/PSNR/VMAF would be misleading. Inspect video orientation, "
+            "resizing, and cropping before comparing."
+        )
     score = {
         "source": str(args.source),
         "converted": str(args.converted),
@@ -140,9 +181,9 @@ def main() -> int:
         "seconds_analyzed": duration, "comparison_fps": args.fps,
         "size_ratio": round(dist["size"] / ref["size"], 4),
         "ssim": filter_metric(args.source, args.converted, "ssim",
-                              ref["width"], ref["height"], args.fps, duration),
+                              ref["display_width"], ref["display_height"], args.fps, duration),
         "psnr_db": filter_metric(args.source, args.converted, "psnr",
-                                 ref["width"], ref["height"], args.fps, duration),
+                                 ref["display_width"], ref["display_height"], args.fps, duration),
         "vmaf": None
     }
     if args.vmaf or args.min_vmaf is not None:

@@ -79,6 +79,7 @@ jobs:
           python tools/benchmark_quality.py --help
           python tools/inspect_webm_opus.py --help
           python -m unittest discover -s tools -p test_webm_inspector.py -v
+          python -m unittest discover -s tools -p test_benchmark_quality.py -v
 
       - name: Build Debug APK
         run: gradlew.bat assembleDebug --no-configuration-cache --warning-mode all --stacktrace

@@ -1,6 +1,7 @@
 package org.roruku.smartformatconverter.engine.media3
 
 import android.content.Context
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -128,6 +129,12 @@ object Media3TransformerEngine {
         val videoBitrate = plan.videoKbps
         val audioBitrate = plan.audioKbps
 
+        // Media3's fallback may silently downscale a 1440x1080 display source
+        // to 1080x810 when the device VP9 encoder cannot support it. Check the
+        // *actual muxed result* and reject unexpected resolution losses.
+        val shouldPreserveResolution = effectiveSettings.width == null &&
+            effectiveSettings.height == null
+
         executeTransformation(
             context = context,
             editedMediaItem = editedItemBuilder.build(),
@@ -138,6 +145,11 @@ object Media3TransformerEngine {
             audioBitrateKbps = audioBitrate,
             webmOutput = config.outputFormat == VideoOutputFormat.WEBM,
             sourceAudioChannels = source.audioChannels,
+            expectedDisplaySize = if (shouldPreserveResolution &&
+                source.videoWidth > 0 && source.videoHeight > 0
+            ) VideoGeometryPolicy.displaySize(
+                source.videoWidth, source.videoHeight, source.videoRotation
+            ) else null,
             onProgress = onProgress
         )
     }
@@ -279,6 +291,7 @@ object Media3TransformerEngine {
         webmOutput: Boolean = false,
         muxerFactory: Muxer.Factory? = null,
         sourceAudioChannels: Int = 0,
+        expectedDisplaySize: VideoGeometryPolicy.Size? = null,
         onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
     ): Result<File> = suspendCancellableCoroutine { continuation ->
         val encoderFactoryBuilder = DefaultEncoderFactory.Builder(context)
@@ -323,8 +336,36 @@ object Media3TransformerEngine {
                     isDone = true
                     if (continuation.isActive) {
                         if (outputFile.isFile && outputFile.length() > 0L) {
-                            onProgress(1.0f, "Complete", "00:00")
-                            continuation.resume(Result.success(outputFile))
+                            val mismatch = expectedDisplaySize?.let { original ->
+                                val retriever = MediaMetadataRetriever()
+                                try {
+                                    retriever.setDataSource(outputFile.absolutePath)
+                                    val w = retriever.extractMetadata(
+                                        MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH
+                                    )?.toIntOrNull() ?: 0
+                                    val h = retriever.extractMetadata(
+                                        MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT
+                                    )?.toIntOrNull() ?: 0
+                                    val rotation = retriever.extractMetadata(
+                                        MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION
+                                    )?.toIntOrNull() ?: 0
+                                    VideoGeometryPolicy.unexpectedResize(
+                                        original.width, original.height, 0, w, h, rotation
+                                    )
+                                } catch (error: Exception) {
+                                    Log.w(TAG, "Could not independently verify output resolution", error)
+                                    null
+                                } finally {
+                                    retriever.release()
+                                }
+                            }
+                            if (mismatch != null) {
+                                outputFile.delete()
+                                continuation.resume(Result.failure(IllegalStateException(mismatch)))
+                            } else {
+                                onProgress(1.0f, "Complete", "00:00")
+                                continuation.resume(Result.success(outputFile))
+                            }
                         } else {
                             continuation.resume(Result.failure(IllegalStateException("Media3 produced an empty output file")))
                         }

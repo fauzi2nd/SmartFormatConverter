@@ -17,6 +17,7 @@ data class MediaProbeDetails(
     val videoWidth: Int = 0,
     val videoHeight: Int = 0,
     val frameRate: Float = 0f,
+    val videoRotation: Int = 0,
     val audioCodec: String? = null,
     val audioChannels: Int = 0,
     val audioSampleRate: Int = 0,
@@ -35,6 +36,7 @@ object MediaProbe {
         var hasVideo = false
         var hasAudio = false
         var fr = 0f
+        var videoIndex = -1
         var videoRateKbps = 0
         var audioRateKbps = 0
         var extractedAudioChannels = 0
@@ -47,6 +49,7 @@ object MediaProbe {
                 val format = extractor.getTrackFormat(i)
                 val mime = format.getString(MediaFormat.KEY_MIME) ?: ""
                 if (mime.startsWith("video/")) {
+                    if (videoIndex == -1) videoIndex = i
                     hasVideo = true
                     vCodec = mime.removePrefix("video/")
                     if (videoRateKbps == 0) videoRateKbps = trackBitrateKbps(format)
@@ -65,6 +68,32 @@ object MediaProbe {
                     }
                 }
             }
+            // KEY_FRAME_RATE may describe a nominal 60-fps ceiling for MP4
+            // even when the actual sample timestamps average ~29.9 fps.
+            // Sample up to 12 seconds without decoding, to prefer measured
+            // rate for bitrate planning and source preservation checks.
+            if (videoIndex >= 0) {
+                extractor.selectTrack(videoIndex)
+                var count = 0
+                var firstTime = -1L
+                var lastTime = -1L
+                while (count < 480 && extractor.sampleTrackIndex == videoIndex) {
+                    val at = extractor.sampleTime
+                    if (at < 0) break
+                    if (firstTime < 0) firstTime = at
+                    lastTime = maxOf(lastTime, at)
+                    count++
+                    if (at - firstTime >= 12_000_000L) break
+                    if (!extractor.advance()) break
+                }
+                if (count >= 5 && lastTime > firstTime) {
+                    val measured = (count - 1) * 1_000_000.0 / (lastTime - firstTime)
+                    if (measured in 1.0..240.0) {
+                        Log.d(TAG, "Source FPS: format=$fr measured=$measured frames=$count")
+                        fr = measured.toFloat()
+                    }
+                }
+            }
         } catch (e: Exception) {
             Log.w(TAG, "MediaExtractor failed for probe on $inputUri", e)
         } finally {
@@ -79,6 +108,7 @@ object MediaProbe {
             videoWidth = details.width,
             videoHeight = details.height,
             frameRate = fr,
+            videoRotation = details.rotation,
             audioCodec = aCodec,
             audioChannels = extractedAudioChannels.takeIf { it > 0 }
                 ?: details.audioChannels,

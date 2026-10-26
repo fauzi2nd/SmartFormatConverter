@@ -8,6 +8,8 @@ import androidx.media3.common.Metadata
 import androidx.media3.common.util.CodecSpecificDataUtil
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.muxer.Muxer
+import androidx.media3.muxer.BufferInfo
+import java.nio.ByteBuffer
 import androidx.media3.muxer.SeekableMuxerOutput
 import androidx.media3.muxer.WebmMuxer
 import com.google.common.collect.ImmutableList
@@ -35,6 +37,9 @@ internal class WebmMuxerFactory(private val sourceAudioChannels: Int = 0) : Muxe
      * but Media3's WebmMuxer does not implement that method.
      */
     internal fun wrap(delegate: Muxer, outputPath: String? = null): Muxer = object : Muxer by delegate {
+        private var videoTrackId: Int? = null
+        private val videoTimestampsUs = ArrayList<Long>()
+
         override fun addTrack(format: Format): Int {
             val normalized = if (format.sampleMimeType == MimeTypes.AUDIO_OPUS) {
                 // This Media3 utility understands both OpusHead and Android's
@@ -65,7 +70,20 @@ internal class WebmMuxerFactory(private val sourceAudioChannels: Int = 0) : Muxe
             } else {
                 normalized
             }
-            return delegate.addTrack(safeFormat)
+            val id = delegate.addTrack(safeFormat)
+            if (safeFormat.sampleMimeType == MimeTypes.VIDEO_VP9) {
+                videoTrackId = id
+            }
+            return id
+        }
+
+        override fun writeSampleData(
+            trackId: Int, byteBuffer: ByteBuffer, bufferInfo: BufferInfo
+        ) {
+            if (trackId == videoTrackId) {
+                videoTimestampsUs.add(bufferInfo.presentationTimeUs)
+            }
+            delegate.writeSampleData(trackId, byteBuffer, bufferInfo)
         }
 
         override fun addMetadataEntry(metadataEntry: Metadata.Entry) {
@@ -83,6 +101,19 @@ internal class WebmMuxerFactory(private val sourceAudioChannels: Int = 0) : Muxe
                 if (repaired > 0) android.util.Log.i(
                     "WebmMuxerFactory", "Neutralized $repaired invalid Opus BitDepth element(s)"
                 )
+                val durationNs = WebmDefaultDurationWriter.frameDurationNs(videoTimestampsUs)
+                if (durationNs != null) {
+                    val updated = WebmDefaultDurationWriter.write(
+                        java.io.File(outputPath), durationNs
+                    )
+                    android.util.Log.i(
+                        "WebmMuxerFactory", "VP9 DefaultDuration updated=$updated ns=$durationNs"
+                    )
+                } else {
+                    android.util.Log.i(
+                        "WebmMuxerFactory", "Variable or unknown video frame cadence; keep VFR metadata"
+                    )
+                }
             }
         }
     }

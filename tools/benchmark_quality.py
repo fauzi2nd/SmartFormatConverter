@@ -41,15 +41,15 @@ def probe(path: Path) -> dict:
             # video stream is decodable. Never silently claim the audio is OK.
             video_only = path.with_name(path.stem + "_video_only.mkv")
             raise RuntimeError(
-                f"ffprobe failed while reading Opus audio extradata in: {path}\\n"
+                f"ffprobe failed while reading Opus audio extradata in: {path}\n"
                 "No PSNR/SSIM/VMAF was computed. Test audio separately; the "
-                "media may have an incompatible or malformed Opus header.\\n"
-                "To benchmark VIDEO ONLY (no re-encoding), run:\\n"
-                f'  ffmpeg -i "{path}" -map 0:v:0 -c:v copy -an "{video_only}"\\n'
+                "media may have an incompatible or malformed Opus header.\n"
+                "To benchmark VIDEO ONLY (no re-encoding), run:\n"
+                f'  ffmpeg -i "{path}" -map 0:v:0 -c:v copy -an "{video_only}"\n'
                 "Then rerun this benchmark with the resulting MKV in place "
                 "of the affected file. Check ffmpeg's exit status and output "
-                "before using the MKV. Keep the original file for diagnosis.\\n"
-                f"Original ffprobe error:\\n{message}"
+                "before using the MKV. Keep the original file for diagnosis.\n"
+                f"Original ffprobe error:\n{message}"
             ) from error
         raise RuntimeError(f"ffprobe could not inspect {path}: {message}") from error
     result = json.loads(text)

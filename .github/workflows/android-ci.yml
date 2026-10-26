@@ -25,6 +25,9 @@ jobs:
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master')
     name: Build & Test Android App (Trusted Windows Runner)
     runs-on: self-hosted
+    # Only trusted master builds can publish the debug release.
+    permissions:
+      contents: write
     timeout-minutes: 90
     env:
       ANDROID_HOME: C:\Users\space\AppData\Local\Android\Sdk
@@ -63,34 +66,34 @@ jobs:
           Write-Host "SDK property: $(Get-Content local.properties)"
 
       - name: Build Debug APK
-        run: gradlew.bat assembleDebug --no-configuration-cache --warning-mode summary --stacktrace
+        run: gradlew.bat assembleDebug --no-configuration-cache --warning-mode all --stacktrace
         shell: cmd
 
       # APK remains on the trusted self-hosted runner. GitHub artifact uploads
       # are disabled while the account's Actions storage quota is exhausted.
 
       - name: Run Unit Tests
-        run: gradlew.bat testDebugUnitTest --no-configuration-cache --warning-mode summary --stacktrace
+        run: gradlew.bat testDebugUnitTest --no-configuration-cache --warning-mode all --stacktrace
         shell: cmd
 
       - name: Compile On-Device Smoke Tests
         # Device execution is a separate release gate. This verifies that
         # AndroidJUnit4/Media3 test sources compile on every trusted push.
-        run: gradlew.bat assembleDebugAndroidTest --no-configuration-cache --warning-mode summary --stacktrace
+        run: gradlew.bat assembleDebugAndroidTest --no-configuration-cache --warning-mode all --stacktrace
         shell: cmd
 
       - name: Run Android Lint (Debug)
         # Self-hosted runners retain Gradle outputs between jobs. Reanalyze
         # rather than reusing a stale lint report for generated local.properties.
-        run: gradlew.bat lintDebug --rerun-tasks --no-configuration-cache --warning-mode summary --stacktrace
+        run: gradlew.bat lintDebug --rerun-tasks --no-configuration-cache --warning-mode all --stacktrace
         shell: cmd
 
       - name: Build Release AAB
-        run: gradlew.bat bundleRelease --no-configuration-cache --warning-mode summary --stacktrace
+        run: gradlew.bat bundleRelease --no-configuration-cache --warning-mode all --stacktrace
         shell: cmd
 
       - name: Run Android Lint (Release)
-        run: gradlew.bat lintRelease --rerun-tasks --no-configuration-cache --no-configuration-cache --warning-mode summary --stacktrace
+        run: gradlew.bat lintRelease --rerun-tasks --no-configuration-cache --warning-mode all --stacktrace
         shell: cmd
 
       - name: Verify Native ELF and 16 KB Page-Size Compliance
@@ -135,6 +138,25 @@ jobs:
               sys.exit(1)
           print('SUCCESS: All 64-bit native libraries are 100% compliant with Android 15+ 16 KB page-size.')
           "
+
+      - name: Publish installable Debug APK to GitHub Releases
+        if: success() && github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: debug-latest
+          name: Smart Format Converter — Debug APK (latest tested)
+          prerelease: true
+          make_latest: false
+          files: app/build/outputs/apk/debug/app-debug.apk
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          body: |
+            Debug APK intended for manual testing, not a Play Store release.
+            Latest validated source commit: ${{ github.sha }}
+            Build run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Download app-debug.apk under Assets. The release tag is a
+            stable download address; consult the source commit above
+            for the exact version of the attached APK.
 
       - name: Print Lint Diagnostics on Failure
         if: failure()

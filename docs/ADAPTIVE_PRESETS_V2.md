@@ -74,3 +74,27 @@ content-dependent. A reproducible comparison requires a curated corpus
 JUnit tests cover planner bounds, source caps, codec profiles, manual
 overrides, audio target selection, size estimation and warning paths.
 Android instrumentation tests still require execution on actual devices.
+
+## Inspect WebM / Opus metadata when FFmpeg cannot open audio
+
+FFprobe returning `{` and exit code 1, or reporting `Audio: opus, 48000 Hz, 0 channels`,
+is **not** a successful quality benchmark. Do not declare a file valid based
+only on Android MediaExtractor or Media3 Transformer success.
+
+A deterministic offline inspector is available, using Python standard library
+only (no FFmpeg required):
+
+```powershell
+python .\tools\inspect_webm_opus.py "C:\Benchmark\VID_001.webm" --json-out "reports\webm-opus-inspection.json"
+```
+
+Review `codec_private_length`, `opus_head_channels`,
+`audio_element_channels`, `opus_mapping_family`, and `issues`.
+The tool inspects the actual EBML TrackEntry bytes written to disk and can
+distinguish invalid OpusHead from a decoder or packet-level problem. It does
+not prove the Opus packets themselves decode correctly. Inspect output from
+the *exact* file produced with the current version of the application.
+
+For separate video-only metrics, you may copy the VP9 stream into a temporary
+MKV without re-encoding, but that does not repair the original WebM audio.
+Never discard audio in production silently.

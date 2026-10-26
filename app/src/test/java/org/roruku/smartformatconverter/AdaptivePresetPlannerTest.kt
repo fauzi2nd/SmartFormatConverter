@@ -51,6 +51,20 @@ class AdaptivePresetPlannerTest {
             source(fps = 60f)).videoKbps > h264.videoKbps)
     }
 
+    @Test fun preventUpscaleUsesOriginalDimensionsForEstimate() {
+        val standard = AdaptivePresetPlanner.plan(
+            VideoAdvancedSettings().applyPreset("High Quality"), source())
+        val rejectedResize = AdaptivePresetPlanner.plan(
+            VideoAdvancedSettings(width = 1920, height = 2160,
+                preventUpscale = true).applyPreset("High Quality"),
+            source(width = 1920, height = 1080))
+        assertEquals(standard.videoKbps, rejectedResize.videoKbps)
+        val downscale = AdaptivePresetPlanner.plan(
+            VideoAdvancedSettings(width = 1280, height = 720,
+                preventUpscale = true).applyPreset("High Quality"), source())
+        assertTrue(downscale.videoKbps < standard.videoKbps)
+    }
+
     @Test fun sourceLimitsAutoButNotExplicitManualTargets() {
         val lowBitrate = source(videoKbps = 1_000)
         val auto = VideoAdvancedSettings().applyPreset("High Quality")

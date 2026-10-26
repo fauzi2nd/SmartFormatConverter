@@ -66,14 +66,11 @@ object AdaptivePresetPlanner {
 
     fun plan(settings: VideoAdvancedSettings, source: VideoSourceProfile): AdaptiveVideoPlan {
         val codec = outputCodec(settings.format, settings.videoCodec)
-        val width = if (settings.width != null && settings.height != null &&
+        val canApplyResize = settings.width != null && settings.height != null &&
             (!settings.preventUpscale || source.width <= 0 ||
-                (settings.width <= source.width && settings.height <= source.height))) {
-            settings.width
-        } else source.width
-        val height = if (width == settings.width && settings.height != null) {
-            settings.height
-        } else source.height
+                (settings.width <= source.width && settings.height <= source.height))
+        val width = if (canApplyResize) settings.width!! else source.width
+        val height = if (canApplyResize) settings.height!! else source.height
         val pixels = width.toLong() * height.toLong()
         val fps = source.frameRate.takeIf { it in 1f..240f }?.toDouble() ?: 30.0
         // 60 FPS needs more bits than 30 FPS, but not a 2x increase.

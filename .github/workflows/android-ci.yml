@@ -144,12 +144,30 @@ jobs:
           print('SUCCESS: All 64-bit native libraries are 100% compliant with Android 15+ 16 KB page-size.')
           "
 
+      - name: Record tested APK version and SHA-256
+        id: apk_identity
+        if: success() && github.ref == 'refs/heads/master'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $apkPath = 'app/build/outputs/apk/debug/app-debug.apk'
+          if (-not (Test-Path $apkPath)) { throw "APK does not exist: $apkPath" }
+          $hash = (Get-FileHash -Path $apkPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $shortSha = $env:GITHUB_SHA.Substring(0, 7)
+          $versionName = "1.0.$env:GITHUB_RUN_NUMBER-debug.$shortSha"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "sha256=$hash" -Encoding ascii
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "version_name=$versionName" -Encoding ascii
+          Write-Host "APK versionName: $versionName"
+          Write-Host "APK versionCode: $env:GITHUB_RUN_NUMBER"
+          Write-Host "Validated commit: $env:GITHUB_SHA"
+          Write-Host "APK SHA-256: $hash"
+
       - name: Publish installable Debug APK to GitHub Releases
         if: success() && github.ref == 'refs/heads/master'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: debug-latest
-          name: Smart Format Converter — Debug APK (latest tested)
+          name: Smart Format Converter — Debug ${{ steps.apk_identity.outputs.version_name }}
           prerelease: true
           make_latest: false
           files: app/build/outputs/apk/debug/app-debug.apk
@@ -157,11 +175,50 @@ jobs:
           overwrite_files: true
           body: |
             Debug APK intended for manual testing, not a Play Store release.
-            Latest validated source commit: ${{ github.sha }}
+            Version: ${{ steps.apk_identity.outputs.version_name }}
+            Version code: ${{ github.run_number }}
+            Validated source commit: ${{ github.sha }}
             Build run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-            Download app-debug.apk under Assets. The release tag is a
-            stable download address; consult the source commit above
-            for the exact version of the attached APK.
+            APK SHA-256: ${{ steps.apk_identity.outputs.sha256 }}
+
+            Download app-debug.apk under Assets. The debug-latest tag is
+            updated only after the validated APK has been published.
+
+      # The release action replaces existing assets but does not move the
+      # existing Git ref. Move this deliberately mutable debug-only tag once
+      # its freshly uploaded APK and source identity have been verified.
+      - name: Point debug-latest tag to validated source commit
+        if: success() && github.ref == 'refs/heads/master'
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_APK_SHA256: ${{ steps.apk_identity.outputs.sha256 }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $apiRoot = "https://api.github.com/repos/$env:GITHUB_REPOSITORY"
+          $release = Invoke-RestMethod -Uri "$apiRoot/releases/tags/debug-latest" -Headers $headers -Method Get
+          if (-not $release.body.Contains($env:GITHUB_SHA)) {
+            throw 'Release notes do not identify the current validated commit.'
+          }
+          $assets = @($release.assets | Where-Object { $_.name -eq 'app-debug.apk' })
+          if ($assets.Count -ne 1 -or $assets[0].size -le 0) {
+            throw 'The rolling release does not contain one non-empty app-debug.apk.'
+          }
+          $expectedDigest = "sha256:$env:EXPECTED_APK_SHA256"
+          if ($assets[0].digest -and $assets[0].digest -ne $expectedDigest) {
+            throw "Release asset digest differs from tested APK: $($assets[0].digest)"
+          }
+          $payload = @{ sha = $env:GITHUB_SHA; force = $true } | ConvertTo-Json -Compress
+          $tag = Invoke-RestMethod -Method Patch -Uri "$apiRoot/git/refs/tags/debug-latest" -Headers $headers -ContentType 'application/json' -Body $payload
+          if ($tag.object.sha -ne $env:GITHUB_SHA) {
+            throw "debug-latest tag did not move to $env:GITHUB_SHA"
+          }
+          Write-Host "Published APK verified; debug-latest now points to $env:GITHUB_SHA"
 
       - name: Print Lint Diagnostics on Failure
         if: failure()

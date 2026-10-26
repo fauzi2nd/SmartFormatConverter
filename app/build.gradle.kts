@@ -6,6 +6,11 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// CI builds get a unique installed version and a source-commit suffix.
+// Locally built APKs retain the development version when outside Actions.
+val ciRunNumber = providers.environmentVariable("GITHUB_RUN_NUMBER").orNull?.toIntOrNull()
+val ciCommitShort = providers.environmentVariable("GITHUB_SHA").orNull?.take(7)
+
 android {
     namespace = "org.roruku.smartformatconverter"
 
@@ -17,8 +22,8 @@ android {
         minSdk = 26
         targetSdk = 37
 
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = ciRunNumber ?: 1
+        versionName = ciRunNumber?.let { "1.0.$it" } ?: "1.0"
 
         testInstrumentationRunner =
             "androidx.test.runner.AndroidJUnitRunner"
@@ -53,6 +58,9 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            versionNameSuffix = "-debug.${ciCommitShort ?: "local"}"
+        }
         release {
             isMinifyEnabled = false
 

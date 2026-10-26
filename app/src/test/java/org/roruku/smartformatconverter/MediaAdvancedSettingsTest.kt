@@ -22,7 +22,7 @@ class MediaAdvancedSettingsTest {
         val video = org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings(format = "webm")
             .applyPreset("High Quality")
         assertEquals("High Quality", video.preset)
-        assertEquals(12000, video.videoBitrateKbps)
+        assertEquals(BitrateSelection.AUTO, video.videoBitrateKbps)
         assertEquals("webm", video.format)
 
         val image = ImageAdvancedSettings(format = "webp").applyPreset("High Quality")
@@ -37,15 +37,15 @@ class MediaAdvancedSettingsTest {
     }
 
     @Test
-    fun converterScreenDefaultsToHighQualityAcrossAllMediaTypes() {
+    fun converterScreenDefaultsToSmartAutoAcrossAllMediaTypes() {
         val state = org.roruku.smartformatconverter.ui.converter.ConverterUiState()
-        assertEquals("High Quality", state.presetName)
-        assertEquals("High Quality", state.videoSettings.preset)
-        assertEquals("High Quality", state.imageSettings.preset)
-        assertEquals("High Quality", state.audioSettings.preset)
-        assertEquals(12000, state.videoSettings.videoBitrateKbps)
-        assertEquals(100, state.imageSettings.webpQuality)
-        assertEquals(320, state.audioSettings.bitrateKbps)
+        assertEquals("Smart Auto", state.presetName)
+        assertEquals("Smart Auto", state.videoSettings.preset)
+        assertEquals("Smart Auto", state.imageSettings.preset)
+        assertEquals("Smart Auto", state.audioSettings.preset)
+        assertEquals(BitrateSelection.AUTO, state.videoSettings.videoBitrateKbps)
+        assertEquals(90, state.imageSettings.webpQuality)
+        assertEquals(BitrateSelection.AUTO, state.audioSettings.bitrateKbps)
     }
     @Test
     fun jpegDefaultRetains444AndNeverUpscales() {

@@ -84,14 +84,13 @@ class EngineUnitTest {
     }
 
     @Test
-    fun testMedia3VideoPresetsMapToActualBitrate() {
+    fun testMedia3VideoPresetsUseAdaptiveTargets() {
         val base = org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings()
-        val high = base.applyPreset("High Quality")
-        val balanced = base.applyPreset("Balanced")
-        val small = base.applyPreset("Small File")
-        assertEquals(12000, high.videoBitrateKbps)
-        assertEquals(6000, balanced.videoBitrateKbps)
-        assertEquals(2500, small.videoBitrateKbps)
+        for (name in listOf("High Quality", "Balanced", "Small File", "Smart Auto")) {
+            val preset = base.applyPreset(name)
+            assertEquals(name, preset.preset)
+            assertEquals(0, preset.videoBitrateKbps)
+        }
     }
 
     @Test

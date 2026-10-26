@@ -58,14 +58,15 @@ class VideoV3Test {
     }
 
     @Test
-    fun presetBitrateIsAppliedNotDeadCrf() {
+    fun presetsDelegateTargetsToAdaptivePlanner() {
         val base = VideoAdvancedSettings()
         assertEquals("vbr", base.rateControl)
-        assertEquals(12000, base.applyPreset("High Quality").videoBitrateKbps)
-        assertEquals(6000, base.applyPreset("Balanced").videoBitrateKbps)
-        assertEquals(2500, base.applyPreset("Small File").videoBitrateKbps)
-        assertEquals(BitrateSelection.AUTO, base.applyPreset("Smart Auto").videoBitrateKbps)
-        assertEquals(BitrateSelection.AUTO, base.applyPreset("Smart Auto").audioBitrateKbps)
+        for (name in listOf("High Quality", "Balanced", "Small File", "Smart Auto")) {
+            val preset = base.applyPreset(name)
+            assertEquals(name, preset.preset)
+            assertEquals(BitrateSelection.AUTO, preset.videoBitrateKbps)
+            assertEquals(BitrateSelection.AUTO, preset.audioBitrateKbps)
+        }
     }
 
     @Test

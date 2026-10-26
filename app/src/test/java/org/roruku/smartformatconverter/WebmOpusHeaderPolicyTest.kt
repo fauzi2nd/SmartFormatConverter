@@ -45,6 +45,14 @@ class WebmOpusHeaderPolicyTest {
         }
     }
 
+    @Test fun exportedHeaderGateRejectsMissingOrZeroChannelCodecPrivate() {
+        assertEquals(null, WebmOpusHeaderPolicy.verifyExportedHeader(header(2), 2))
+        assertTrue(WebmOpusHeaderPolicy.verifyExportedHeader(header(0), 2) != null)
+        assertTrue(WebmOpusHeaderPolicy.verifyExportedHeader(null, 2) != null)
+        assertTrue(WebmOpusHeaderPolicy.verifyExportedHeader(header(2), 0) != null)
+        assertTrue(WebmOpusHeaderPolicy.verifyExportedHeader(header(1), 2) != null)
+    }
+
     @Test fun mismatchedAndInvalidHeadersAreRejected() {
         assertThrows(IllegalArgumentException::class.java) {
             WebmOpusHeaderPolicy.normalize(header(1), 2)

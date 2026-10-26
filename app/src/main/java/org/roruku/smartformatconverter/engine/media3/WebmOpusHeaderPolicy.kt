@@ -9,6 +9,27 @@ package org.roruku.smartformatconverter.engine.media3
 internal object WebmOpusHeaderPolicy {
     data class Result(val header: ByteArray, val channels: Int, val recoveredChannels: Boolean)
 
+    /** A strict post-export gate: never repair or normalize bytes during verification. */
+    fun verifyExportedHeader(opusHead: ByteArray?, extractedChannels: Int): String? {
+        if (opusHead == null) return "Opus codec private header is missing"
+        if (opusHead.size < 19 || !opusHead.copyOfRange(0, 8)
+                .contentEquals("OpusHead".toByteArray(Charsets.US_ASCII))) {
+            return "CodecPrivate does not contain a valid OpusHead"
+        }
+        if (extractedChannels !in 1..2) {
+            return "Android extractor reports $extractedChannels audio channels (expected 1 or 2)"
+        }
+        val result = try {
+            normalize(opusHead, extractedChannels)
+        } catch (error: IllegalArgumentException) {
+            return error.message ?: "OpusHead failed validation"
+        }
+        if (result.recoveredChannels || !opusHead.contentEquals(result.header)) {
+            return "OpusHead stored in file needs repair; it is not valid as written"
+        }
+        return null
+    }
+
     fun normalize(opusHead: ByteArray, encodedFormatChannels: Int, sourceChannels: Int = 0): Result {
         require(opusHead.size >= 19 && opusHead.copyOfRange(0, 8)
             .contentEquals("OpusHead".toByteArray(Charsets.US_ASCII))) {

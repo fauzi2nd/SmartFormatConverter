@@ -75,8 +75,9 @@ jobs:
         # on every push without depending on FFmpeg on the Windows runner.
         shell: cmd
         run: |
-          python -m py_compile tools/benchmark_quality.py
+          python -m py_compile tools/benchmark_quality.py tools/inspect_webm_opus.py
           python tools/benchmark_quality.py --help
+          python tools/inspect_webm_opus.py --help
 
       - name: Build Debug APK
         run: gradlew.bat assembleDebug --no-configuration-cache --warning-mode all --stacktrace

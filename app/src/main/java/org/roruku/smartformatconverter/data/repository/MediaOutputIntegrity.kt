@@ -3,6 +3,7 @@ package org.roruku.smartformatconverter.data.repository
 import android.graphics.BitmapFactory
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import org.roruku.smartformatconverter.engine.media3.WebmOpusHeaderPolicy
 import org.roruku.smartformatconverter.data.db.MediaType
 import java.io.File
 import java.io.FileInputStream
@@ -115,10 +116,33 @@ internal object MediaOutputIntegrity {
                 "Exported track codecs are incompatible with " + extension.uppercase() +
                     " (device reported: " + mimes.joinToString(", ") + ")"
             } else {
+                // Media3/Android may mark a WebM export complete even when its
+                // Opus CodecPrivate declares zero channels. Validate every
+                // written Opus header before publishing the temp file to SAF.
+                if (type == MediaType.VIDEO && extension.equals("webm", ignoreCase = true)) {
+                    for (audioIndex in (0 until extractor.trackCount)) {
+                        val audioFormat = extractor.getTrackFormat(audioIndex)
+                        if (audioFormat.getString(MediaFormat.KEY_MIME) != "audio/opus") continue
+                        val channels = try {
+                            if (audioFormat.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
+                                audioFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                            } else 0
+                        } catch (_: Exception) { 0 }
+                        val opusHeader = try {
+                            audioFormat.getByteBuffer("csd-0")?.duplicate()?.let { buffer ->
+                                val data = ByteArray(buffer.remaining())
+                                buffer.get(data)
+                                data
+                            }
+                        } catch (_: Exception) { null }
+                        val problem = WebmOpusHeaderPolicy.verifyExportedHeader(opusHeader, channels)
+                        if (problem != null) return "Invalid WebM Opus track: $problem"
+                    }
+                }
                 val index = (0 until extractor.trackCount).firstOrNull { index ->
                     extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME).orEmpty()
                         .startsWith(if (type == MediaType.VIDEO) "video/" else "audio/")
-                } ?: return "Expected media track missing"
+                } ?: return "Expected media track missing
                 val track = extractor.getTrackFormat(index)
                 if (track.containsKey(MediaFormat.KEY_DURATION) &&
                     track.getLong(MediaFormat.KEY_DURATION) <= 0L) {

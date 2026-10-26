@@ -33,6 +33,8 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
@@ -106,10 +108,15 @@ import coil.compose.AsyncImage
 import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
 import coil.request.videoFrameMillis
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.Locale
+import org.roruku.smartformatconverter.engine.media.AdaptivePresetPlanner
+import org.roruku.smartformatconverter.engine.media.AdaptiveVideoPlan
+import org.roruku.smartformatconverter.engine.media.VideoSourceProfile
+import org.roruku.smartformatconverter.engine.media3.MediaProbe
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.ImageAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
@@ -761,6 +768,44 @@ fun ConverterPreviewEditor(
     val pager = rememberPagerState(pageCount = { files.size })
     val coroutineScope = rememberCoroutineScope()
     var applyToAll by remember { mutableStateOf(true) }
+    var videoPlans by remember { mutableStateOf<Map<String, AdaptiveVideoPlan>>(emptyMap()) }
+    var previewReady by remember { mutableStateOf(false) }
+    var confirmGrowth by remember { mutableStateOf(false) }
+
+    // Probe all selected source videos off the UI thread; use the exact same
+    // pure planner as the export engine. Do not run codecs in Compose Preview.
+    LaunchedEffect(files, state.videoSettings, state.perFileVideoSettings,
+        state.targetFormat, state.selectedTab, isPreview) {
+        videoPlans = emptyMap()
+        previewReady = false
+        if (state.selectedTab == 0 && !isPreview) {
+            val results = mutableMapOf<String, AdaptiveVideoPlan>()
+            for (file in files) {
+                try {
+                    val source = MediaProbe.probeMedia(context, file.uri)
+                    val settings = (state.perFileVideoSettings[file.uri.toString()]
+                        ?: state.videoSettings).copy(format = state.targetFormat)
+                    val plan = AdaptivePresetPlanner.plan(settings,
+                        VideoSourceProfile(
+                            width = source.videoWidth, height = source.videoHeight,
+                            frameRate = source.frameRate,
+                            videoBitrateKbps = source.videoBitrateKbps,
+                            audioBitrateKbps = source.audioBitrateKbps,
+                            audioChannels = source.audioChannels,
+                            durationMs = source.durationMs, sizeBytes = file.details.fileSize,
+                            hasAudio = source.hasAudio
+                        ))
+                    results[file.uri.toString()] = plan
+                    videoPlans = results.toMap()
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    // Unknown metadata: retain the user's ability to convert.
+                }
+            }
+        }
+        previewReady = true
+    }
 
     LaunchedEffect(files.size) {
         if (files.isNotEmpty() && pager.currentPage >= files.size) {
@@ -778,6 +823,37 @@ fun ConverterPreviewEditor(
     val resolvedAudioSettings = selectedFile?.let { file ->
         state.perFileAudioSettings[file.uri.toString()] ?: state.audioSettings
     } ?: state.audioSettings
+    val currentPlan = selectedFile?.let { videoPlans[it.uri.toString()] }
+    val estimatedTotalBytes = if (videoPlans.size == files.size &&
+        videoPlans.values.all { it.estimatedBytes != null }) {
+        videoPlans.values.sumOf { it.estimatedBytes ?: 0L }
+    } else null
+    val growthRisks = videoPlans.values.count { it.mayGrow }
+
+    if (confirmGrowth) {
+        AlertDialog(
+            onDismissRequest = { confirmGrowth = false },
+            title = { Text("Confirm video export") },
+            text = {
+                Text(
+                    if (growthRisks > 0)
+                        "$growthRisks video(s) could produce a larger file. " +
+                            "The estimate is approximate because device encoder output varies. Continue?"
+                    else
+                        "Some video properties could not be measured. " +
+                            "Estimated size may differ from the final result. Continue?"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { confirmGrowth = false; onStart() }) {
+                    Text("Continue")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmGrowth = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -1016,7 +1092,7 @@ fun ConverterPreviewEditor(
                         // MP4 supports strict stream copy when source codecs and tracks match.
                         val presets = if (state.targetFormat == "mp4") {
                             listOf("Smart Auto", "Original Quality / Remux", "High Quality", "Balanced", "Small File", "Custom")
-                        } else listOf("High Quality", "Balanced", "Small File", "Custom")
+                        } else listOf("Smart Auto", "High Quality", "Balanced", "Small File", "Custom")
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(presets.size) { i ->
                                 val choice = presets[i]
@@ -1061,7 +1137,7 @@ fun ConverterPreviewEditor(
                     if (state.targetFormat != "png") {
                     item {
                         Text(stringResource(R.string.preset), fontWeight = FontWeight.SemiBold)
-                        val presets = listOf("High Quality", "Balanced", "Small File", "Custom")
+                        val presets = listOf("Smart Auto", "High Quality", "Balanced", "Small File", "Custom")
                         val chosenPreset = if (state.selectedTab == 1)
                             resolvedImageSettings.preset else resolvedAudioSettings.preset
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1159,6 +1235,59 @@ fun ConverterPreviewEditor(
                     }
                 }
 
+                if (state.selectedTab == 0) {
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("Adaptive export estimate",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold)
+                                if (currentPlan != null) {
+                                    Text("Video: ${currentPlan.videoKbps} kbps · " +
+                                        "Audio: ${currentPlan.audioKbps?.let { "$it kbps" } ?: "none"}")
+                                    Text("Estimated output: " +
+                                        (currentPlan.estimatedBytes?.let {
+                                            Formatter.formatShortFileSize(context, it)
+                                        } ?: "Unknown duration"))
+                                    currentPlan.lowBytes?.let { low ->
+                                        currentPlan.highBytes?.let { high ->
+                                            Text("Possible range: " +
+                                                Formatter.formatShortFileSize(context, low) +
+                                                " – " +
+                                                Formatter.formatShortFileSize(context, high),
+                                                style = MaterialTheme.typography.bodySmall)
+                                        }
+                                    }
+                                    if (currentPlan.sourceLimited) {
+                                        Text("Source bitrate limits the adaptive target.",
+                                            style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    if (currentPlan.mayGrow) {
+                                        Text("Warning: output may be larger than input.",
+                                            color = MaterialTheme.colorScheme.error,
+                                            style = MaterialTheme.typography.bodySmall)
+                                    }
+                                } else {
+                                    Text(if (previewReady) "Source metadata unavailable; size unknown."
+                                        else "Analyzing selected video…")
+                                }
+                                if (estimatedTotalBytes != null && files.size > 1) {
+                                    Text("Estimated total (${files.size} videos): " +
+                                        Formatter.formatShortFileSize(context, estimatedTotalBytes))
+                                }
+                                Text("Estimate only. Media3 encoder and VBR behavior vary by device.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+
                 item {
                     val outputFolder = OutputPathPolicy.outputDirectory(
                         selectedFile?.relativeFolderPath
@@ -1193,7 +1322,12 @@ fun ConverterPreviewEditor(
             modifier = Modifier.fillMaxWidth()
         ) {
             Button(
-                onClick = onStart,
+                onClick = {
+                    if (state.selectedTab == 0 && (growthRisks > 0 ||
+                            (previewReady && videoPlans.size < files.size))) {
+                        confirmGrowth = true
+                    } else onStart()
+                },
                 enabled = files.isNotEmpty() && !state.isConverting,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)
             ) {

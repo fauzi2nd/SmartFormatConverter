@@ -60,7 +60,7 @@ object Media3TransformerEngine {
             // Do not upscale a smaller source when the user enabled "Prevent upscale".
             // If the source dimensions cannot be read, fail rather than silently
             // violating an explicit quality requirement.
-            val canResize = if (advancedSettings?.preventUpscale == true) {
+            val canResize = if (advancedSettings.preventUpscale) {
                 val input = MediaProbe.probeMedia(context, inputUri)
                 if (input.videoWidth <= 0 || input.videoHeight <= 0) {
                     return@withContext Result.failure(
@@ -237,15 +237,17 @@ object Media3TransformerEngine {
             ExportException.ERROR_CODE_MUXING_FAILED,
             ExportException.ERROR_CODE_MUXING_TIMEOUT ->
                 "Output muxer could not write the encoded tracks"
+            ExportException.ERROR_CODE_FAILED_RUNTIME_CHECK ->
+                "Media3 encountered a failed runtime check (see root cause below)"
             else -> "Media3 could not complete the export"
         }
-        val root = generateSequence(exception as Throwable) { it.cause }
-            .take(6)
-            .mapNotNull { it.message?.trim()?.takeIf(String::isNotBlank) }
-            .lastOrNull()
-        val explanation = root?.takeUnless {
-            it.equals("Unexpected runtime error", ignoreCase = true)
-        }?.take(260)
+        // A runtime-check exception may carry no message (for example a null
+        // track-language assertion). Preserve the root cause class in that case.
+        val causes = generateSequence(exception as Throwable) { it.cause }.take(8).toList()
+        val root = causes.last()
+        val rootMessage = root.message?.trim()?.takeIf { it.isNotBlank() }
+        val explanation = if (root === exception) null else
+            (root.javaClass.simpleName + (rootMessage?.let { ": $it" } ?: "")).take(260)
         val container = if (webmOutput) "WebM VP9/Opus" else "Media"
         val detail = explanation?.let { ": " + it } ?: ""
         return IllegalStateException(

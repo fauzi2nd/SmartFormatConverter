@@ -22,7 +22,7 @@ import com.google.common.collect.ImmutableList
 @OptIn(UnstableApi::class)
 internal class WebmMuxerFactory(private val sourceAudioChannels: Int = 0) : Muxer.Factory {
     override fun create(path: String): Muxer =
-        wrap(WebmMuxer.Builder(SeekableMuxerOutput.of(path)).build())
+        wrap(WebmMuxer.Builder(SeekableMuxerOutput.of(path)).build(), path)
 
     /**
      * Android Opus encoders may return csd-0 in a native AOPUSHDR envelope
@@ -34,7 +34,7 @@ internal class WebmMuxerFactory(private val sourceAudioChannels: Int = 0) : Muxe
      * Transformer also forwards container metadata through addMetadataEntry(),
      * but Media3's WebmMuxer does not implement that method.
      */
-    internal fun wrap(delegate: Muxer): Muxer = object : Muxer by delegate {
+    internal fun wrap(delegate: Muxer, outputPath: String? = null): Muxer = object : Muxer by delegate {
         override fun addTrack(format: Format): Int {
             val normalized = if (format.sampleMimeType == MimeTypes.AUDIO_OPUS) {
                 // This Media3 utility understands both OpusHead and Android's
@@ -71,6 +71,19 @@ internal class WebmMuxerFactory(private val sourceAudioChannels: Int = 0) : Muxe
         override fun addMetadataEntry(metadataEntry: Metadata.Entry) {
             // WebmMuxer.addMetadataEntry is unsupported. Metadata is not encoded
             // in WebM; video/audio sample writing remains delegated unchanged.
+        }
+
+        override fun close() {
+            delegate.close()
+            if (outputPath != null) {
+                // Media3 1.11.1 incorrectly serializes Opus Audio/BitDepth as
+                // float pcmEncoding. Rewrite only the offending metadata
+                // after closing, before the output is validated or published.
+                val repaired = WebmOpusBitDepthRepair.repair(java.io.File(outputPath))
+                if (repaired > 0) android.util.Log.i(
+                    "WebmMuxerFactory", "Neutralized $repaired invalid Opus BitDepth element(s)"
+                )
+            }
         }
     }
 

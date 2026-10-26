@@ -90,6 +90,47 @@ class WebmMuxerFactoryInstrumentedTest {
     }
 
     @Test
+    fun zeroChannelOpusHeadUsesValidEncoderFormatChannelCount() {
+        val opusHead = byteArrayOf(
+            79, 112, 117, 115, 72, 101, 97, 100,
+            1, 0, 56, 1, -128, -69, 0, 0, 0, 0, 0
+        )
+        val delegate = TrackingMuxer()
+        val muxer = WebmMuxerFactory().wrap(delegate)
+        val format = Format.Builder()
+            .setSampleMimeType(MimeTypes.AUDIO_OPUS)
+            .setChannelCount(2)
+            .setSampleRate(48_000)
+            .setInitializationData(listOf(opusHead))
+            .build()
+
+        muxer.addTrack(format)
+        assertEquals(2, delegate.trackFormat!!.channelCount)
+        assertEquals(2, delegate.trackFormat!!.initializationData[0][9].toInt())
+        muxer.close()
+    }
+
+    @Test
+    fun zeroChannelOpusHeadUsesKnownSourceChannelsWhenEncoderOmitsThem() {
+        val opusHead = byteArrayOf(
+            79, 112, 117, 115, 72, 101, 97, 100,
+            1, 0, 56, 1, -128, -69, 0, 0, 0, 0, 0
+        )
+        val delegate = TrackingMuxer()
+        val muxer = WebmMuxerFactory(sourceAudioChannels = 2).wrap(delegate)
+        val format = Format.Builder()
+            .setSampleMimeType(MimeTypes.AUDIO_OPUS)
+            .setSampleRate(48_000)
+            .setInitializationData(listOf(opusHead))
+            .build()
+
+        muxer.addTrack(format)
+        assertEquals(2, delegate.trackFormat!!.channelCount)
+        assertEquals(2, delegate.trackFormat!!.initializationData[0][9].toInt())
+        muxer.close()
+    }
+
+    @Test
     fun malformedOpusHeaderIsRejectedBeforeWritingTrack() {
         val delegate = TrackingMuxer()
         val muxer = WebmMuxerFactory().wrap(delegate)

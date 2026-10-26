@@ -137,6 +137,7 @@ object Media3TransformerEngine {
             videoBitrateKbps = videoBitrate,
             audioBitrateKbps = audioBitrate,
             webmOutput = config.outputFormat == VideoOutputFormat.WEBM,
+            sourceAudioChannels = source.audioChannels,
             onProgress = onProgress
         )
     }
@@ -277,6 +278,7 @@ object Media3TransformerEngine {
         audioBitrateKbps: Int?,
         webmOutput: Boolean = false,
         muxerFactory: Muxer.Factory? = null,
+        sourceAudioChannels: Int = 0,
         onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
     ): Result<File> = suspendCancellableCoroutine { continuation ->
         val encoderFactoryBuilder = DefaultEncoderFactory.Builder(context)
@@ -300,7 +302,8 @@ object Media3TransformerEngine {
 
         val transformerBuilder = Transformer.Builder(context)
             .setEncoderFactory(encoderFactoryBuilder.build())
-        if (webmOutput) transformerBuilder.setMuxerFactory(WebmMuxerFactory())
+        if (webmOutput) transformerBuilder.setMuxerFactory(
+            WebmMuxerFactory(sourceAudioChannels))
         if (muxerFactory != null) transformerBuilder.setMuxerFactory(muxerFactory)
 
         if (videoMimeType != null) {

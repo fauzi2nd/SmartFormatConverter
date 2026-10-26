@@ -37,6 +37,7 @@ object MediaProbe {
         var fr = 0f
         var videoRateKbps = 0
         var audioRateKbps = 0
+        var extractedAudioChannels = 0
 
         val extractor = MediaExtractor()
         try {
@@ -56,6 +57,12 @@ object MediaProbe {
                     hasAudio = true
                     aCodec = mime.removePrefix("audio/")
                     if (audioRateKbps == 0) audioRateKbps = trackBitrateKbps(format)
+                    if (extractedAudioChannels == 0 &&
+                        format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
+                        extractedAudioChannels = try {
+                            format.getInteger(MediaFormat.KEY_CHANNEL_COUNT).takeIf { it > 0 } ?: 0
+                        } catch (_: Exception) { 0 }
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -73,7 +80,8 @@ object MediaProbe {
             videoHeight = details.height,
             frameRate = fr,
             audioCodec = aCodec,
-            audioChannels = details.audioChannels,
+            audioChannels = extractedAudioChannels.takeIf { it > 0 }
+                ?: details.audioChannels,
             audioSampleRate = details.sampleRate,
             hasVideo = hasVideo || details.width > 0,
             hasAudio = hasAudio,

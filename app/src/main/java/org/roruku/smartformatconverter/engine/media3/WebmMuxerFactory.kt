@@ -20,7 +20,7 @@ import com.google.common.collect.ImmutableList
  * "und" means undetermined; never invent a spoken language.
  */
 @OptIn(UnstableApi::class)
-internal class WebmMuxerFactory : Muxer.Factory {
+internal class WebmMuxerFactory(private val sourceAudioChannels: Int = 0) : Muxer.Factory {
     override fun create(path: String): Muxer =
         wrap(WebmMuxer.Builder(SeekableMuxerOutput.of(path)).build())
 
@@ -41,11 +41,22 @@ internal class WebmMuxerFactory : Muxer.Factory {
                 // AOPUSHDR-wrapped csd-0. Do not synthesize missing codec data:
                 // a missing or invalid OpusHead must fail, not produce bad WebM.
                 val opusHead = CodecSpecificDataUtil.getOpusInitializationData(format)
-                require(opusHead.size >= 19 &&
-                    opusHead.copyOfRange(0, 8).contentEquals(OPUS_HEAD_SIGNATURE)) {
-                    "Android Opus encoder provided an invalid OpusHead for WebM"
+                val normalizedHead = WebmOpusHeaderPolicy.normalize(
+                    opusHead, format.channelCount, sourceAudioChannels
+                )
+                if (normalizedHead.recoveredChannels) {
+                    android.util.Log.w(
+                        "WebmMuxerFactory",
+                        "Recovered 0 OpusHead channels from encoded/source track: " +
+                            normalizedHead.channels
+                    )
                 }
-                format.buildUpon().setInitializationData(listOf(opusHead)).build()
+                format.buildUpon()
+                    .setInitializationData(listOf(normalizedHead.header))
+                    .setChannelCount(normalizedHead.channels)
+                    // Opus packets in WebM are sampled at 48 kHz.
+                    .setSampleRate(48_000)
+                    .build()
             } else {
                 format
             }
@@ -61,10 +72,6 @@ internal class WebmMuxerFactory : Muxer.Factory {
             // WebmMuxer.addMetadataEntry is unsupported. Metadata is not encoded
             // in WebM; video/audio sample writing remains delegated unchanged.
         }
-    }
-
-    private companion object {
-        val OPUS_HEAD_SIGNATURE = "OpusHead".toByteArray(Charsets.US_ASCII)
     }
 
     override fun getSupportedSampleMimeTypes(trackType: Int): ImmutableList<String> =

@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from benchmark_quality import probe, vmaf_metric
+from benchmark_quality import probe, vmaf_metric, measured_fps, parse_fps_fraction
 
 
 class BenchmarkQualityTest(unittest.TestCase):
@@ -49,11 +49,24 @@ class BenchmarkQualityTest(unittest.TestCase):
                 }],
                 "format": {"duration": "10.2"}
             })
-            with patch("benchmark_quality.command", return_value=response):
+            with patch("benchmark_quality.command", return_value=response), \\
+                    patch("benchmark_quality.measured_fps", return_value=(29.912, 300)):
                 result = probe(source)
             self.assertEqual((1440, 1080),
                              (result["display_width"], result["display_height"]))
             self.assertEqual(270, result["rotation_degrees"])
+
+    def test_timestamp_fps_is_measured_even_when_avg_fps_missing(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "v.webm"
+            source.write_bytes(b"a")
+            fake_packets = "\\n".join(f"{x / 30:.6f}" for x in range(300))
+            with patch("benchmark_quality.command", return_value=fake_packets):
+                average, frames = measured_fps(source)
+            self.assertEqual(300, frames)
+            self.assertAlmostEqual(30.0, average, places=2)
+        self.assertEqual(None, parse_fps_fraction("0/0"))
+        self.assertEqual(29.97, parse_fps_fraction("30000/1001"))
 
     def test_absent_rotation_preserves_coded_dimensions(self):
         with tempfile.TemporaryDirectory() as directory:

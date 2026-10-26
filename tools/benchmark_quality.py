@@ -11,6 +11,7 @@ import argparse
 import json
 import re
 import shutil
+from fractions import Fraction
 import subprocess
 import sys
 from pathlib import Path
@@ -28,11 +29,48 @@ def command(args: list[str], *, cwd: Path | None = None) -> str:
     return result.stdout + "\n" + result.stderr
 
 
+def measured_fps(path: Path, max_seconds: float = 15.0) -> tuple[float | None, int]:
+    """Measure output cadence from actual presentation timestamps, not
+    r_frame_rate (a nominal timing base) or potentially missing avg_frame_rate.
+    A bounded packet window avoids scanning huge video files.
+    """
+    listing = command([
+        "ffprobe", "-v", "error", "-select_streams", "v:0",
+        "-read_intervals", f"%+{max_seconds}",
+        "-show_entries", "packet=pts_time", "-of", "csv=p=0", str(path)
+    ])
+    times = []
+    for line in listing.splitlines():
+        value = line.strip().strip(",").split(",", 1)[0]
+        if not value or value == "N/A":
+            continue
+        try:
+            times.append(float(value))
+        except ValueError:
+            continue
+    if len(times) < 2:
+        return None, len(times)
+    start, end = min(times), max(times)
+    if end <= start:
+        return None, len(times)
+    return round((len(times) - 1) / (end - start), 4), len(times)
+
+
+def parse_fps_fraction(value: str | None) -> float | None:
+    if not value:
+        return None
+    try:
+        fraction = Fraction(value)
+        return round(float(fraction), 4) if fraction > 0 else None
+    except (ValueError, ZeroDivisionError):
+        return None
+
+
 def probe(path: Path) -> dict:
     try:
         text = command(["ffprobe", "-v", "error", "-select_streams", "v:0",
                         "-show_entries",
-                        "stream=codec_name,width,height,avg_frame_rate,"
+                        "stream=codec_name,width,height,avg_frame_rate,r_frame_rate,"
                         "sample_aspect_ratio,display_aspect_ratio:"
                         "stream_side_data=rotation:stream_tags=rotate:"
                         "format=duration,size",
@@ -77,10 +115,17 @@ def probe(path: Path) -> dict:
         (coded_height, coded_width) if rotation in (90, 270)
         else (coded_width, coded_height)
     )
+    actual_fps, sampled_frames = measured_fps(path)
     return {"codec": video.get("codec_name"),
             "width": coded_width, "height": coded_height,
             "rotation_degrees": rotation,
             "display_width": display_width, "display_height": display_height,
+            "r_frame_rate": video.get("r_frame_rate"),
+            "avg_frame_rate": video.get("avg_frame_rate"),
+            "nominal_fps": parse_fps_fraction(video.get("r_frame_rate")),
+            "container_average_fps": parse_fps_fraction(video.get("avg_frame_rate")),
+            "measured_fps": actual_fps,
+            "fps_frames_sampled": sampled_frames,
             "duration": float(result["format"].get("duration") or 0),
             "size": path.stat().st_size}
 
@@ -174,11 +219,18 @@ def main() -> int:
             "SSIM/PSNR/VMAF would be misleading. Inspect video orientation, "
             "resizing, and cropping before comparing."
         )
+    src_fps, dst_fps = ref["measured_fps"], dist["measured_fps"]
+    fps_difference_pct = (
+        round(abs(dst_fps / src_fps - 1) * 100, 2)
+        if src_fps is not None and dst_fps is not None and src_fps > 0
+        else None
+    )
     score = {
         "source": str(args.source),
         "converted": str(args.converted),
         "source_info": ref, "converted_info": dist,
         "seconds_analyzed": duration, "comparison_fps": args.fps,
+        "measured_fps_difference_pct": fps_difference_pct,
         "size_ratio": round(dist["size"] / ref["size"], 4),
         "ssim": filter_metric(args.source, args.converted, "ssim",
                               ref["display_width"], ref["display_height"], args.fps, duration),
@@ -202,6 +254,13 @@ def main() -> int:
         for name, limit, value in gates
         if limit is not None and (value is None or value < limit)
     ]
+    # Do not silently pass if the export unexpectedly changes temporal
+    # sampling. Tolerance accommodates short clips and timestamp rounding.
+    if fps_difference_pct is not None and fps_difference_pct > 5.0:
+        problems.append(
+            f"Measured FPS changed by {fps_difference_pct}%: "
+            f"source {src_fps} vs converted {dst_fps}"
+        )
     if args.max_size_ratio is not None and score["size_ratio"] > args.max_size_ratio:
         problems.append(f"size ratio above {args.max_size_ratio}: {score['size_ratio']}")
     score["passed"] = not problems

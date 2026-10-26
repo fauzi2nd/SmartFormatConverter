@@ -173,6 +173,12 @@ dependencies {
     )
 }
 
+// sqlite-jdbc is used by JVM unit tests (Room migration tests). JDK 25
+// requires an explicit native-access grant when its JNI library is loaded.
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+}
+
 // Persist current Room schema for future migration tests.
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")

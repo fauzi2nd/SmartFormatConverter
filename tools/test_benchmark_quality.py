@@ -49,7 +49,7 @@ class BenchmarkQualityTest(unittest.TestCase):
                 }],
                 "format": {"duration": "10.2"}
             })
-            with patch("benchmark_quality.command", return_value=response), \\
+            with patch("benchmark_quality.command", return_value=response), \
                     patch("benchmark_quality.measured_fps", return_value=(29.912, 300)):
                 result = probe(source)
             self.assertEqual((1440, 1080),
@@ -60,7 +60,7 @@ class BenchmarkQualityTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder) / "v.webm"
             source.write_bytes(b"a")
-            fake_packets = "\\n".join(f"{x / 30:.6f}" for x in range(300))
+            fake_packets = "\n".join(f"{x / 30:.6f}" for x in range(300))
             with patch("benchmark_quality.command", return_value=fake_packets):
                 average, frames = measured_fps(source)
             self.assertEqual(300, frames)
@@ -76,7 +76,8 @@ class BenchmarkQualityTest(unittest.TestCase):
                 "streams": [{"codec_name": "hevc", "width": 1080, "height": 1440}],
                 "format": {"duration": "10.2"}
             })
-            with patch("benchmark_quality.command", return_value=response):
+            with patch("benchmark_quality.command", return_value=response), \
+                    patch("benchmark_quality.measured_fps", return_value=(29.912, 300)):
                 result = probe(source)
             self.assertEqual((1080, 1440),
                              (result["display_width"], result["display_height"]))

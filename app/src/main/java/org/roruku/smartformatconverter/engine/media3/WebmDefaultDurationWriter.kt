@@ -216,7 +216,7 @@ internal object WebmDefaultDurationWriter {
             if (!changedAudio || !changedVideo) return false
             val newTracks = element(TRACKS, table.sizeWidth, join(newEntries))
                 ?: return false
-            if (newTracks.size != table.end - table.start) return false
+            if (newTracks.size.toLong() != table.end - table.start) return false
             // Write once and only after all checks. Cluster offsets, SeekHead,
             // Cues, compressed frame bytes and global file size are unchanged.
             access.seek(table.start.toLong())

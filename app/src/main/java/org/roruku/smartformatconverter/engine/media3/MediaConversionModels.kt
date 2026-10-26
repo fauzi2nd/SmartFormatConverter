@@ -19,7 +19,7 @@ enum class AudioOutputFormat(val extension: String, val mimeType: String) {
 
 enum class VideoPreset(val displayName: String, val targetBitrateKbps: Int) {
     REMUX("Original Quality / Remux", 0),
-    SMART_AUTO("Smart Auto", 6000),
+    SMART_AUTO("Smart Auto", 0),
     HIGH_QUALITY("High Quality", 12000),
     BALANCED("Balanced", 6000),
     SMALL_FILE("Small File", 2500),

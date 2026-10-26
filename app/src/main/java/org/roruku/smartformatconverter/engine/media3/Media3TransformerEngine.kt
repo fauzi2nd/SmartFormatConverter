@@ -28,6 +28,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import org.roruku.smartformatconverter.engine.media.AdaptiveAudioPlanner
+import org.roruku.smartformatconverter.engine.media.AdaptivePresetPlanner
+import org.roruku.smartformatconverter.engine.media.VideoSourceProfile
 import org.roruku.smartformatconverter.engine.media.BitrateSelection
 import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
@@ -98,23 +101,32 @@ object Media3TransformerEngine {
             else -> MimeTypes.AUDIO_AAC
         }
 
-        val videoChoice = advancedSettings?.videoBitrateKbps
-            ?: config.bitrateKbps ?: BitrateSelection.AUTO
-        val audioChoice = advancedSettings?.audioBitrateKbps ?: config.audioBitrateKbps
-        val sourceRates = if (videoChoice == BitrateSelection.SOURCE ||
-            audioChoice == BitrateSelection.SOURCE) {
-            MediaProbe.probeMedia(context, inputUri)
-        } else null
-        val videoBitrate = BitrateSelection.videoTargetKbps(
-            videoChoice, sourceRates?.videoBitrateKbps)
-        val audioBitrate = if (advancedSettings?.audioCodec == "none") null else
-            BitrateSelection.audioTargetKbps(
-                audioChoice, sourceRates?.audioBitrateKbps,
-                BitrateSelection.audioRecommendedKbps(
-                    opus = config.outputFormat == VideoOutputFormat.WEBM,
-                    channels = sourceRates?.audioChannels ?: 2
-                )
+        // Source probe drives both adaptive quality and estimated resource demand.
+        // A saved manual bitrate continues to override the planner.
+        val source = MediaProbe.probeMedia(context, inputUri)
+        val effectiveSettings = advancedSettings ?: VideoAdvancedSettings(
+            format = config.outputFormat.extension,
+            preset = "Smart Auto",
+            videoBitrateKbps = config.bitrateKbps ?: BitrateSelection.AUTO,
+            audioBitrateKbps = BitrateSelection.AUTO
+        )
+        val plan = AdaptivePresetPlanner.plan(effectiveSettings,
+            VideoSourceProfile(
+                width = source.videoWidth, height = source.videoHeight,
+                frameRate = source.frameRate,
+                videoBitrateKbps = source.videoBitrateKbps,
+                audioBitrateKbps = source.audioBitrateKbps,
+                audioChannels = source.audioChannels,
+                durationMs = source.durationMs,
+                sizeBytes = source.sizeBytes,
+                hasAudio = source.hasAudio
             )
+        )
+        Log.d(TAG, "Video export preset=${effectiveSettings.preset} codec=$videoMime " +
+            "video=${plan.videoKbps}kbps audio=${plan.audioKbps}kbps " +
+            "estimatedBytes=${plan.estimatedBytes}")
+        val videoBitrate = plan.videoKbps
+        val audioBitrate = plan.audioKbps
 
         executeTransformation(
             context = context,
@@ -155,13 +167,12 @@ object Media3TransformerEngine {
             audioChoice == BitrateSelection.AUTO) {
             MediaProbe.probeMedia(context, inputUri)
         } else null
-        val targetAudioBitrate = BitrateSelection.audioTargetKbps(
-            audioChoice,
-            sourceRates?.audioBitrateKbps,
-            BitrateSelection.audioRecommendedKbps(
-                opus = config.outputFormat == AudioOutputFormat.OGG,
-                channels = sourceRates?.audioChannels ?: 2
-            )
+        val targetAudioBitrate = AdaptiveAudioPlanner.targetKbps(
+            selection = audioChoice,
+            sourceRateKbps = sourceRates?.audioBitrateKbps ?: 0,
+            channels = sourceRates?.audioChannels ?: 2,
+            opus = config.outputFormat == AudioOutputFormat.OGG,
+            preset = advancedSettings?.preset ?: "Smart Auto"
         )
         if (config.outputFormat in setOf(AudioOutputFormat.M4A, AudioOutputFormat.AAC, AudioOutputFormat.OGG)) {
             val nativeResult = PlatformCompressedAudioExportEngine.export(

@@ -21,6 +21,8 @@ data class ImageAdvancedSettings(
     val preset: String = "Custom",
 ) {
     fun applyPreset(name: String): ImageAdvancedSettings = when (name) {
+        "Smart Auto" -> copy(preset = name, jpegQuality = 95, jpegSubsampling = "444",
+            webpQuality = 90, webpLossless = false)
         "High Quality" -> copy(preset = name, jpegQuality = 100, jpegSubsampling = "444",
             webpQuality = 100, webpLossless = false)
         "Balanced" -> copy(preset = name, jpegQuality = 95, jpegSubsampling = "444",
@@ -94,6 +96,7 @@ data class AudioAdvancedSettings(
     val preset: String = "Custom",
 ) {
     fun applyPreset(name: String): AudioAdvancedSettings = when (name) {
+        "Smart Auto" -> copy(preset = name, bitrateKbps = BitrateSelection.AUTO)
         "High Quality" -> copy(preset = name, bitrateKbps = 320)
         "Balanced" -> copy(preset = name, bitrateKbps = 192)
         "Small File" -> copy(preset = name, bitrateKbps = 96)

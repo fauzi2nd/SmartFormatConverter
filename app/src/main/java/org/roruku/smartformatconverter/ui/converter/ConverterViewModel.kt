@@ -48,10 +48,10 @@ data class ConverterUiState(
     val selectedTab: Int = 0,
     val selectedFiles: List<SelectedMediaFile> = emptyList(),
     val targetFormat: String = "mp4",
-    val presetName: String = "High Quality",
-    val videoSettings: VideoAdvancedSettings = VideoAdvancedSettings().applyPreset("High Quality"),
-    val imageSettings: ImageAdvancedSettings = ImageAdvancedSettings().applyPreset("High Quality"),
-    val audioSettings: AudioAdvancedSettings = AudioAdvancedSettings().applyPreset("High Quality"),
+    val presetName: String = "Smart Auto",
+    val videoSettings: VideoAdvancedSettings = VideoAdvancedSettings().applyPreset("Smart Auto"),
+    val imageSettings: ImageAdvancedSettings = ImageAdvancedSettings().applyPreset("Smart Auto"),
+    val audioSettings: AudioAdvancedSettings = AudioAdvancedSettings().applyPreset("Smart Auto"),
     val isEditorOpen: Boolean = false,
     val perFileVideoSettings: Map<String, VideoAdvancedSettings> = emptyMap(),
     val perFileImageSettings: Map<String, ImageAdvancedSettings> = emptyMap(),
@@ -68,15 +68,15 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
     private val _uiState = MutableStateFlow(ConverterUiState())
     val uiState: StateFlow<ConverterUiState> = _uiState.asStateFlow()
 
-    /** Fresh format selections use High Quality; advanced edits switch to Custom. */
-    private fun highQualityVideo(format: String) =
-        VideoAdvancedSettings(format = format).applyPreset("High Quality")
+    /** Fresh selections use source-aware Smart Auto; manual edits become Custom. */
+    private fun defaultVideo(format: String) =
+        VideoAdvancedSettings(format = format).applyPreset("Smart Auto")
 
-    private fun highQualityImage(format: String) =
-        ImageAdvancedSettings(format = format).applyPreset("High Quality")
+    private fun defaultImage(format: String) =
+        ImageAdvancedSettings(format = format).applyPreset("Smart Auto")
 
-    private fun highQualityAudio(format: String) =
-        AudioAdvancedSettings(format = format).applyPreset("High Quality")
+    private fun defaultAudio(format: String) =
+        AudioAdvancedSettings(format = format).applyPreset("Smart Auto")
 
     fun selectTab(tabIndex: Int) {
         if (tabIndex !in 0..2 || _uiState.value.selectedTab == tabIndex) return
@@ -89,10 +89,10 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
             it.copy(
                 selectedTab = tabIndex,
                 targetFormat = defaultFormat,
-                presetName = "High Quality",
-                videoSettings = highQualityVideo("mp4"),
-                imageSettings = highQualityImage("jpg"),
-                audioSettings = highQualityAudio("m4a"),
+                presetName = "Smart Auto",
+                videoSettings = defaultVideo("mp4"),
+                imageSettings = defaultImage("jpg"),
+                audioSettings = defaultAudio("m4a"),
                 selectedFiles = emptyList(),
                 perFileVideoSettings = emptyMap(),
                 perFileImageSettings = emptyMap(),
@@ -117,12 +117,12 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 perFileVideoSettings = emptyMap(),
                 perFileImageSettings = emptyMap(),
                 perFileAudioSettings = emptyMap(),
-                presetName = "High Quality",
-                videoSettings = if (tabIndex == 0) highQualityVideo(normalizedFormat)
+                presetName = "Smart Auto",
+                videoSettings = if (tabIndex == 0) defaultVideo(normalizedFormat)
                     else state.videoSettings,
-                imageSettings = if (tabIndex == 1) highQualityImage(normalizedFormat)
+                imageSettings = if (tabIndex == 1) defaultImage(normalizedFormat)
                     else state.imageSettings,
-                audioSettings = if (tabIndex == 2) highQualityAudio(normalizedFormat)
+                audioSettings = if (tabIndex == 2) defaultAudio(normalizedFormat)
                     else state.audioSettings,
                 message = null
             )

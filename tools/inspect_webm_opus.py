@@ -36,7 +36,7 @@ def element_id(data: bytes, offset: int) -> tuple[int, int]:
     lead = data[offset]
     if lead == 0:
         raise EbmlError(f"Zero/invalid EBML ID byte at offset {offset}")
-    length = next((n for n in range(1, 5) if lead & (0x80 >> n)), None)
+    length = next((n for n in range(1, 5) if lead & (0x80 >> (n - 1))), None)
     if length is None or offset + length > len(data):
         raise EbmlError(f"Invalid/truncated EBML ID at offset {offset}")
     return int.from_bytes(data[offset:offset+length], "big"), length
@@ -48,7 +48,7 @@ def element_size(data: bytes, offset: int) -> tuple[int | None, int]:
     lead = data[offset]
     if lead == 0:
         raise EbmlError(f"Invalid EBML size at offset {offset}")
-    length = next((n for n in range(1, 9) if lead & (0x80 >> n)), None)
+    length = next((n for n in range(1, 9) if lead & (0x80 >> (n - 1))), None)
     if length is None or offset + length > len(data):
         raise EbmlError(f"Invalid/truncated EBML size at offset {offset}")
     val = int.from_bytes(data[offset:offset+length], "big")

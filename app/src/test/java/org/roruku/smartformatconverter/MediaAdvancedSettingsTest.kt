@@ -18,6 +18,36 @@ import kotlinx.coroutines.Job
 
 class MediaAdvancedSettingsTest {
     @Test
+    fun highQualityConfigurationsAreRealPresetsRatherThanCustomLabels() {
+        val video = org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings(format = "webm")
+            .applyPreset("High Quality")
+        assertEquals("High Quality", video.preset)
+        assertEquals(12000, video.videoBitrateKbps)
+        assertEquals("webm", video.format)
+
+        val image = ImageAdvancedSettings(format = "webp").applyPreset("High Quality")
+        assertEquals("High Quality", image.preset)
+        assertEquals(100, image.webpQuality)
+        assertEquals("webp", image.format)
+
+        val audio = AudioAdvancedSettings(format = "ogg").applyPreset("High Quality")
+        assertEquals("High Quality", audio.preset)
+        assertEquals(320, audio.bitrateKbps)
+        assertEquals("ogg", audio.format)
+    }
+
+    @Test
+    fun converterScreenDefaultsToHighQualityAcrossAllMediaTypes() {
+        val state = org.roruku.smartformatconverter.ui.converter.ConverterUiState()
+        assertEquals("High Quality", state.presetName)
+        assertEquals("High Quality", state.videoSettings.preset)
+        assertEquals("High Quality", state.imageSettings.preset)
+        assertEquals("High Quality", state.audioSettings.preset)
+        assertEquals(12000, state.videoSettings.videoBitrateKbps)
+        assertEquals(100, state.imageSettings.webpQuality)
+        assertEquals(320, state.audioSettings.bitrateKbps)
+    }
+    @Test
     fun jpegDefaultRetains444AndNeverUpscales() {
         val settings = ImageAdvancedSettings()
         assertEquals("jpg", settings.format)

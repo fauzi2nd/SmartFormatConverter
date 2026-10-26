@@ -141,7 +141,7 @@ jobs:
 
       - name: Publish installable Debug APK to GitHub Releases
         if: success() && github.ref == 'refs/heads/master'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: debug-latest
           name: Smart Format Converter — Debug APK (latest tested)

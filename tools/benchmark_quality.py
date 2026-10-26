@@ -28,11 +28,30 @@ def command(args: list[str]) -> str:
 
 
 def probe(path: Path) -> dict:
-    text = command(["ffprobe", "-v", "error", "-select_streams", "v:0",
-                    "-show_entries",
-                    "stream=codec_name,width,height,avg_frame_rate:"
-                    "format=duration,size",
-                    "-of", "json", str(path)])
+    try:
+        text = command(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                        "-show_entries",
+                        "stream=codec_name,width,height,avg_frame_rate:"
+                        "format=duration,size",
+                        "-of", "json", str(path)])
+    except RuntimeError as error:
+        message = str(error)
+        if "Error parsing Ogg extradata" in message:
+            # A malformed Opus header can abort ffprobe even when the VP9
+            # video stream is decodable. Never silently claim the audio is OK.
+            video_only = path.with_name(path.stem + "_video_only.mkv")
+            raise RuntimeError(
+                f"ffprobe failed while reading Opus audio extradata in: {path}\\n"
+                "No PSNR/SSIM/VMAF was computed. Test audio separately; the "
+                "media may have an incompatible or malformed Opus header.\\n"
+                "To benchmark VIDEO ONLY (no re-encoding), run:\\n"
+                f'  ffmpeg -i "{path}" -map 0:v:0 -c:v copy -an "{video_only}"\\n'
+                "Then rerun this benchmark with the resulting MKV in place "
+                "of the affected file. Check ffmpeg's exit status and output "
+                "before using the MKV. Keep the original file for diagnosis.\\n"
+                f"Original ffprobe error:\\n{message}"
+            ) from error
+        raise RuntimeError(f"ffprobe could not inspect {path}: {message}") from error
     result = json.loads(text)
     video = (result.get("streams") or [{}])[0]
     if not video.get("width") or not video.get("height"):

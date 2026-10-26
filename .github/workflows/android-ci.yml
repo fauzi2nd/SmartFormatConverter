@@ -31,6 +31,11 @@ jobs:
     timeout-minutes: 90
     env:
       ANDROID_HOME: C:\Users\space\AppData\Local\Android\Sdk
+      # Git for Windows otherwise fails to delete deeply nested Kotlin class
+      # files during actions/checkout clean. Scope the setting to this job.
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.longpaths
+      GIT_CONFIG_VALUE_0: 'true'
 
     steps:
       - name: Checkout Repository

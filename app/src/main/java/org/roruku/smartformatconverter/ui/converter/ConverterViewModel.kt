@@ -48,10 +48,10 @@ data class ConverterUiState(
     val selectedTab: Int = 0,
     val selectedFiles: List<SelectedMediaFile> = emptyList(),
     val targetFormat: String = "mp4",
-    val presetName: String = "Custom",
-    val videoSettings: VideoAdvancedSettings = VideoAdvancedSettings(),
-    val imageSettings: ImageAdvancedSettings = ImageAdvancedSettings(),
-    val audioSettings: AudioAdvancedSettings = AudioAdvancedSettings(),
+    val presetName: String = "High Quality",
+    val videoSettings: VideoAdvancedSettings = VideoAdvancedSettings().applyPreset("High Quality"),
+    val imageSettings: ImageAdvancedSettings = ImageAdvancedSettings().applyPreset("High Quality"),
+    val audioSettings: AudioAdvancedSettings = AudioAdvancedSettings().applyPreset("High Quality"),
     val isEditorOpen: Boolean = false,
     val perFileVideoSettings: Map<String, VideoAdvancedSettings> = emptyMap(),
     val perFileImageSettings: Map<String, ImageAdvancedSettings> = emptyMap(),
@@ -68,6 +68,16 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
     private val _uiState = MutableStateFlow(ConverterUiState())
     val uiState: StateFlow<ConverterUiState> = _uiState.asStateFlow()
 
+    /** Fresh format selections use High Quality; advanced edits switch to Custom. */
+    private fun highQualityVideo(format: String) =
+        VideoAdvancedSettings(format = format).applyPreset("High Quality")
+
+    private fun highQualityImage(format: String) =
+        ImageAdvancedSettings(format = format).applyPreset("High Quality")
+
+    private fun highQualityAudio(format: String) =
+        AudioAdvancedSettings(format = format).applyPreset("High Quality")
+
     fun selectTab(tabIndex: Int) {
         if (tabIndex !in 0..2 || _uiState.value.selectedTab == tabIndex) return
         val defaultFormat = when (tabIndex) {
@@ -79,6 +89,10 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
             it.copy(
                 selectedTab = tabIndex,
                 targetFormat = defaultFormat,
+                presetName = "High Quality",
+                videoSettings = highQualityVideo("mp4"),
+                imageSettings = highQualityImage("jpg"),
+                audioSettings = highQualityAudio("m4a"),
                 selectedFiles = emptyList(),
                 perFileVideoSettings = emptyMap(),
                 perFileImageSettings = emptyMap(),
@@ -93,25 +107,23 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
     /** A Format Factory tile sets the output category before launching SAF. */
     fun selectFormat(tabIndex: Int, format: String) {
         if (tabIndex !in 0..2) return
+        val normalizedFormat = format.lowercase()
         _uiState.update { state ->
             state.copy(
                 selectedTab = tabIndex,
-                targetFormat = format.lowercase(),
+                targetFormat = normalizedFormat,
                 selectedFiles = emptyList(),
                 isEditorOpen = false,
                 perFileVideoSettings = emptyMap(),
                 perFileImageSettings = emptyMap(),
                 perFileAudioSettings = emptyMap(),
-                presetName = "Custom",
-                videoSettings = if (tabIndex == 0) {
-                    state.videoSettings.copy(format = format.lowercase(), videoCodec = "auto", audioCodec = "auto")
-                } else state.videoSettings,
-                imageSettings = if (tabIndex == 1) {
-                    state.imageSettings.copy(format = format.lowercase(), preset = "Custom")
-                } else state.imageSettings,
-                audioSettings = if (tabIndex == 2) {
-                    state.audioSettings.copy(format = format.lowercase(), preset = "Custom")
-                } else state.audioSettings,
+                presetName = "High Quality",
+                videoSettings = if (tabIndex == 0) highQualityVideo(normalizedFormat)
+                    else state.videoSettings,
+                imageSettings = if (tabIndex == 1) highQualityImage(normalizedFormat)
+                    else state.imageSettings,
+                audioSettings = if (tabIndex == 2) highQualityAudio(normalizedFormat)
+                    else state.audioSettings,
                 message = null
             )
         }

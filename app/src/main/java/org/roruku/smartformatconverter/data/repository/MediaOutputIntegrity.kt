@@ -142,7 +142,7 @@ internal object MediaOutputIntegrity {
                 val index = (0 until extractor.trackCount).firstOrNull { index ->
                     extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME).orEmpty()
                         .startsWith(if (type == MediaType.VIDEO) "video/" else "audio/")
-                } ?: return "Expected media track missing
+                } ?: return "Expected media track missing"
                 val track = extractor.getTrackFormat(index)
                 if (track.containsKey(MediaFormat.KEY_DURATION) &&
                     track.getLong(MediaFormat.KEY_DURATION) <= 0L) {

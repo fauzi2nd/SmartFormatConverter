@@ -70,6 +70,14 @@ jobs:
           Set-Content -Path local.properties -Value "sdk.dir=$sdk" -Encoding ascii -NoNewline
           Write-Host "SDK property: $(Get-Content local.properties)"
 
+      - name: Validate offline objective-quality benchmark
+        # Corpus-based PSNR/SSIM/VMAF runs separately; check CLI syntax
+        # on every push without depending on FFmpeg on the Windows runner.
+        shell: cmd
+        run: |
+          python -m py_compile tools/benchmark_quality.py
+          python tools/benchmark_quality.py --help
+
       - name: Build Debug APK
         run: gradlew.bat assembleDebug --no-configuration-cache --warning-mode all --stacktrace
         shell: cmd

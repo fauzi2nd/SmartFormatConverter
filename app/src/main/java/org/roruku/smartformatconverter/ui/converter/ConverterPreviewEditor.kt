@@ -1318,28 +1318,40 @@ fun ConverterPreviewEditor(
                         val presets = listOf("Smart Auto", "High Quality", "Balanced", "Small File", "Custom")
                         val chosenPreset = if (state.selectedTab == 1)
                             resolvedImageSettings.preset else resolvedAudioSettings.preset
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(presets.size) { i ->
-                                val choice = presets[i]
-                                val choose: () -> Unit = {
-                                    if (state.selectedTab == 1) {
-                                        if (applyToAll) onUpdateImagePreset(choice)
-                                        else selectedFile?.let { file ->
-                                            onUpdateImageFileSettings(file.uri,
-                                                resolvedImageSettings.applyPreset(choice))
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            presets.chunked(2).forEach { rowPresets ->
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    rowPresets.forEach { choice ->
+                                        val choose: () -> Unit = {
+                                            if (state.selectedTab == 1) {
+                                                if (applyToAll) onUpdateImagePreset(choice)
+                                                else selectedFile?.let { file ->
+                                                    onUpdateImageFileSettings(file.uri,
+                                                        resolvedImageSettings.applyPreset(choice))
+                                                }
+                                            } else {
+                                                if (applyToAll) onUpdateAudioPreset(choice)
+                                                else selectedFile?.let { file ->
+                                                    onUpdateAudioFileSettings(file.uri,
+                                                        resolvedAudioSettings.applyPreset(choice))
+                                                }
+                                            }
                                         }
-                                    } else {
-                                        if (applyToAll) onUpdateAudioPreset(choice)
-                                        else selectedFile?.let { file ->
-                                            onUpdateAudioFileSettings(file.uri,
-                                                resolvedAudioSettings.applyPreset(choice))
+                                        if (chosenPreset == choice) {
+                                            Button(onClick = {}, modifier = Modifier.weight(1f),
+                                                contentPadding = PaddingValues(horizontal = 6.dp)) {
+                                                Text(presetDisplayName(choice), maxLines = 2,
+                                                    style = MaterialTheme.typography.labelSmall)
+                                            }
+                                        } else {
+                                            OutlinedButton(onClick = choose, modifier = Modifier.weight(1f),
+                                                contentPadding = PaddingValues(horizontal = 6.dp)) {
+                                                Text(presetDisplayName(choice), maxLines = 2,
+                                                    style = MaterialTheme.typography.labelSmall)
+                                            }
                                         }
                                     }
-                                }
-                                if (chosenPreset == choice) Button(onClick = {}) {
-                                    Text(presetDisplayName(choice))
-                                } else OutlinedButton(onClick = choose) {
-                                    Text(presetDisplayName(choice))
+                                    if (rowPresets.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
                         }

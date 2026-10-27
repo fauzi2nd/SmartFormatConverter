@@ -34,8 +34,14 @@ class EngineUnitTest {
             VideoAdvancedSettings().applyPreset("Original Quality / Remux")))
         assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
             VideoAdvancedSettings(format = "webm").applyPreset("Original Quality / Remux")))
-        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+        assertNull(Media3OutputPolicy.unsupportedVideoSettings(
             VideoAdvancedSettings(encoder = "software")))
+        assertNull(Media3OutputPolicy.unsupportedVideoSettings(
+            VideoAdvancedSettings(encoder = "hardware")))
+        assertNull(Media3OutputPolicy.unsupportedVideoSettings(
+            VideoAdvancedSettings(format = "webm", videoCodec = "vp8", encoder = "software")))
+        assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
+            VideoAdvancedSettings(encoder = "invalid")))
         assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
             VideoAdvancedSettings(fps = "60")))
         assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(

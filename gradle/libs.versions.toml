@@ -35,7 +35,7 @@ heifwriter = "1.1.0"
 sqliteJdbc = "3.53.4.0"
 jsonTest = "20260814"
 roborazzi = "1.77.0"
-robolectric = "4.16.1"
+robolectric = "4.17"
 
 
 [libraries]

@@ -1,53 +1,30 @@
-# Roborazzi — UI preview from terminal
+# Roborazzi screenshots from terminal (without Gradle plugin)
 
-Roborazzi runs screenshot tests on the JVM with Robolectric, **without an Android emulator or APK installation**. It scans the existing Jetpack Compose `@Preview` functions and exports PNG previews. The preview media uses sample placeholders; it does not decode actual videos.
+AGP 9.x does not expose the legacy TestedExtension expected by older Roborazzi Gradle plugins. This project uses **the Roborazzi library directly**, a Robolectric JVM test and Compose TestRule. No emulator is needed.
+
+## Windows / PowerShell
+
+From the project root:
+
+```powershell
+git pull origin master
+.\gradlew.bat :app:testDebugUnitTest --tests "org.roruku.smartformatconverter.ComposePreviewScreenshotTest" --rerun-tasks
+```
+
+Screenshots are written to **app/preview/** as PNG files:
+- video-preview.png
+- webm-two-files.png
+- image-preview.png
+- audio-preview.png
+
+These tests take Compose design-state snapshots. They do **not** play real media, test encoders, or validate the entire scrollable screen below the viewport. The tests currently capture the first 393dp × 840dp viewport.
 
 ## Requirements
 
-- JDK 17+ and configured Android SDK (`local.properties` or `ANDROID_HOME`).
-- Gradle wrapper shipped with this repository.
-- Internet connection the first time, to resolve Robolectric and Roborazzi test dependencies.
+- Android SDK and a compatible JDK configured for Gradle.
+- Network access to download test dependencies on first run.
+- The `testDebugUnitTest` task must compile and pass. Check the test report in `app/build/reports/tests/testDebugUnitTest/` if it fails.
 
-## Windows PowerShell (project root)
+No `org.gradle.java.home` was added: that absolute Windows installation path differs between systems. Set `JAVA_HOME` in your terminal if Gradle is using the wrong JDK.
 
-```powershell
-.\gradlew.bat :app:recordRoborazziDebug
-```
-
-Linux / macOS / terminal:
-
-```bash
-./gradlew :app:recordRoborazziDebug
-```
-
-Screenshots: `app/build/outputs/roborazzi/`
-
-HTML report: `app/build/reports/roborazzi/index.html`
-
-The generated previews include `ConverterWebmTwoFilesPreview`, the requested two-file WEBM flow.
-
-To compare an updated UI against screenshots already recorded:
-
-```powershell
-.\gradlew.bat :app:compareRoborazziDebug
-```
-
-To verify that the rendered UI matches existing screenshots:
-
-```powershell
-.\gradlew.bat :app:verifyRoborazziDebug
-```
-
-To run normal app build only:
-
-```powershell
-.\gradlew.bat :app:assembleDebug
-```
-
-Roborazzi's screenshot tests are **opt-in**: APK builds do not need to run the `recordRoborazziDebug` task.
-
-## Notes
-
-- Rendered Previews are design-state screenshots, not actual ExoPlayer playback or device encoder capability checks.
-- Roborazzi's generated Compose Preview testing is experimental. If an upstream AGP/Kotlin incompatibility occurs, check the Gradle failure logs before changing dependency versions.
-- The first record command creates or updates reference images. The verify command uses the recorded images as baselines.
+The old `recordRoborazziDebug`, `compareRoborazziDebug`, and `verifyRoborazziDebug` tasks are **not available** in library-only mode. Use the JVM screenshot test command above.

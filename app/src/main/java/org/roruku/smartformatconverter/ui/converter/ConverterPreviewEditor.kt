@@ -1649,6 +1649,36 @@ fun ConverterAudioEditorPreview() {
     PreviewEditorSample(tab = 2)
 }
 
+@Preview(name = "Preview & Convert - WEBM (2 files)", showBackground = true, widthDp = 393, heightDp = 840)
+@Composable
+fun ConverterWebmTwoFilesPreview() {
+    SmartFormatConverterTheme {
+        ConverterPreviewEditor(
+            state = ConverterUiState(
+                selectedTab = 0,
+                selectedFiles = previewFiles(0).take(2),
+                targetFormat = "webm",
+                videoSettings = VideoAdvancedSettings(format = "webm").applyPreset("High Quality")
+            ),
+            onBack = {},
+            onStart = {},
+            onRemove = {},
+            onRename = { _, _ -> },
+            onUpdatePreset = {},
+            onUpdateVideoSettings = {},
+            onUpdateVideoFileSettings = { _, _ -> },
+            onClearVideoFileSettings = {},
+            onUpdateImageSettings = {},
+            onUpdateAudioSettings = {},
+            onUpdateImagePreset = {},
+            onUpdateAudioPreset = {},
+            onUpdateImageFileSettings = { _, _ -> },
+            onUpdateAudioFileSettings = { _, _ -> },
+            onClearMediaSettingsOverride = {}
+        )
+    }
+}
+
 @Preview(name = "Preview & Convert - Empty", showBackground = true, widthDp = 393, heightDp = 840)
 @Composable
 fun ConverterEmptyEditorPreview() {

@@ -875,8 +875,10 @@ fun ConverterPreviewEditor(
             }
     }
     // Discover real encoder support per output codec and implementation type.
-    val availableCodecEncoders by produceState<Map<String, Pair<Boolean, Boolean>>>(
-        emptyMap(), state.targetFormat, isPreview
+    // Null means detection is still running. Discover capabilities on EACH device,
+    // and refresh when the output container changes.
+    val availableCodecEncoders by produceState<Map<String, Pair<Boolean, Boolean>>?>(
+        null, state.targetFormat, isPreview
     ) {
         value = if (isPreview) emptyMap() else withContext(Dispatchers.Default) {
             val codecs = if (state.targetFormat == "webm") listOf("vp9")
@@ -1223,67 +1225,71 @@ fun ConverterPreviewEditor(
                             SectionTitle("Video Settings", Icons.Default.Movie)
                             val hardwarePresent = deviceEncoders.any { it.hardware }
                             val softwarePresent = deviceEncoders.any { !it.hardware }
-                            val selectedCodecId = if (state.targetFormat == "webm") "vp9"
-                                else resolvedVideoSettings.videoCodec.takeUnless { it == "auto" } ?: "h264"
-                            val codecCandidates = if (state.targetFormat == "webm") listOf("vp9")
-                                else listOf("h264", "h265")
+                            val codecCandidates = if (state.targetFormat == "webm")
+                                listOf("vp9") else listOf("h264", "h265")
                             val mode = resolvedVideoSettings.encoder.takeIf {
                                 it in setOf(VideoEncoderSelection.AUTO,
                                     VideoEncoderSelection.HARDWARE, VideoEncoderSelection.SOFTWARE)
                             } ?: VideoEncoderSelection.AUTO
+                            val detected = availableCodecEncoders
+                            fun supported(codec: String, encoderMode: String): Boolean {
+                                val capability = detected?.get(codec) ?: return false
+                                return when (encoderMode) {
+                                    VideoEncoderSelection.HARDWARE -> capability.first
+                                    VideoEncoderSelection.SOFTWARE -> capability.second
+                                    else -> capability.first || capability.second
+                                }
+                            }
                             val encoderChoices = listOf(
                                 VideoEncoderSelection.AUTO to "Auto",
                                 VideoEncoderSelection.HARDWARE to "Hardware",
                                 VideoEncoderSelection.SOFTWARE to "Software"
                             )
                             CompactSettingChoice("Video encoder", mode, encoderChoices) { selectedMode ->
-                                val selectedSupported = availableCodecEncoders[selectedCodecId]
-                                val supported = when (selectedMode) {
-                                    VideoEncoderSelection.HARDWARE -> selectedSupported?.first == true
-                                    VideoEncoderSelection.SOFTWARE -> selectedSupported?.second == true
-                                    else -> true
-                                }
-                                val alternative = codecCandidates.firstOrNull { codec ->
-                                    val capability = availableCodecEncoders[codec]
-                                    when (selectedMode) {
-                                        VideoEncoderSelection.HARDWARE -> capability?.first == true
-                                        VideoEncoderSelection.SOFTWARE -> capability?.second == true
-                                        else -> true
+                                if (isPreview || detected == null) {
+                                    update(resolvedVideoSettings.copy(encoder = selectedMode, preset = "Custom"))
+                                } else {
+                                    val valid = codecCandidates.filter { supported(it, selectedMode) }
+                                    if (valid.isNotEmpty()) {
+                                        val current = if (state.targetFormat == "webm") "vp9"
+                                            else resolvedVideoSettings.videoCodec.takeUnless { it == "auto" } ?: "h264"
+                                        update(resolvedVideoSettings.copy(
+                                            encoder = selectedMode,
+                                            videoCodec = if (current in valid) resolvedVideoSettings.videoCodec
+                                                else valid.first(),
+                                            preset = "Custom"
+                                        ))
                                     }
                                 }
-                                update(resolvedVideoSettings.copy(
-                                    encoder = selectedMode,
-                                    videoCodec = if (supported || alternative == null)
-                                        resolvedVideoSettings.videoCodec else alternative,
-                                    preset = "Custom"
-                                ))
                             }
-                            // Only show codecs backed by a real device encoder for the
-                            // selected mode. Auto delegates implementation selection to Media3.
-                            val supportedCodecs = codecCandidates.filter { codec ->
-                                val capability = availableCodecEncoders[codec]
-                                when (mode) {
-                                    VideoEncoderSelection.HARDWARE -> capability?.first == true
-                                    VideoEncoderSelection.SOFTWARE -> capability?.second == true
-                                    else -> capability?.first == true || capability?.second == true
-                                }
-                            }
-                            val visibleCodecs = if (isPreview) codecCandidates else supportedCodecs
-                            val codecLabels = mapOf(
-                                "vp9" to "VP9",
-                                "h264" to "H.264 / AVC",
-                                "h265" to "H.265 / HEVC"
-                            )
+                            val codecLabels = mapOf("vp9" to "VP9",
+                                "h264" to "H.264 / AVC", "h265" to "H.265 / HEVC")
+                            val supportedCodecs = codecCandidates.filter { supported(it, mode) }
                             val codecs = buildList {
-                                add("auto" to "Auto (recommended)")
-                                visibleCodecs.forEach { codec ->
+                                if (supportedCodecs.isNotEmpty() || isPreview)
+                                    add("auto" to "Auto (recommended)")
+                                (if (isPreview) codecCandidates else supportedCodecs).forEach { codec ->
                                     add(codec to codecLabels.getValue(codec))
                                 }
                             }
-                            CompactSettingChoice("Video codec", resolvedVideoSettings.videoCodec.takeIf {
-                                chosen -> codecs.any { it.first == chosen }
-                            } ?: "auto", codecs) {
-                                update(resolvedVideoSettings.copy(videoCodec = it, preset = "Custom"))
+                            if (!isPreview && detected == null) {
+                                Text("Checking device video encoders…",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodySmall)
+                            } else if (!isPreview && supportedCodecs.isEmpty()) {
+                                Text("No compatible ${VideoEncoderSelection.displayName(mode)} encoder " +
+                                    "for ${state.targetFormat.uppercase()} on this device. " +
+                                    "Select another encoder mode or output format.",
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
+                            if (codecs.isNotEmpty()) {
+                                CompactSettingChoice("Video codec",
+                                    resolvedVideoSettings.videoCodec.takeIf { chosen ->
+                                        codecs.any { it.first == chosen }
+                                    } ?: codecs.first().first, codecs) { chosen ->
+                                    update(resolvedVideoSettings.copy(videoCodec = chosen, preset = "Custom"))
+                                }
                             }
                             CompactSettingChoice("Pixel format", resolvedVideoSettings.pixelFormat,
                                 listOf("auto" to "Auto (recommended)",

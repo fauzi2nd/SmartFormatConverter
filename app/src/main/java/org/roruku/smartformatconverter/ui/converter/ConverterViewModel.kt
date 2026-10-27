@@ -328,7 +328,7 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
     fun renameSelectedFile(uri: Uri, newBaseName: String) {
         val requested = newBaseName.trim()
         if (requested.isEmpty() || requested == "." || requested == ".." ||
-            requested.any { it in "/\\\\:*?\\"<>|" || it.code < 32 }) {
+            requested.any { it == '/' || it == '\\' || it == ':' || it == '*' || it == '?' || it == '"' || it == '<' || it == '>' || it == '|' || it.code < 32 }) {
             _uiState.update { it.copy(message = "Invalid filename") }
             return
         }

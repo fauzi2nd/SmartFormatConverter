@@ -175,6 +175,7 @@ fun ConverterScreen(
             onBack = viewModel::closeEditor,
             onStart = viewModel::startConversion,
             onRemove = viewModel::removeSelectedFile,
+            onRename = viewModel::renameSelectedFile,
             onUpdatePreset = viewModel::updatePreset,
             onUpdateVideoSettings = viewModel::updateVideoSettings,
             onUpdateVideoFileSettings = viewModel::updateVideoSettingsForFile,

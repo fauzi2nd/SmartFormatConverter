@@ -88,6 +88,11 @@ jobs:
       # APK remains on the trusted self-hosted runner. GitHub artifact uploads
       # are disabled while the account's Actions storage quota is exhausted.
 
+      - name: Clear stale Compose preview screenshots
+        shell: powershell
+        run: |
+          if (Test-Path 'app/preview') { Remove-Item 'app/preview' -Recurse -Force }
+
       - name: Run Unit Tests
         run: gradlew.bat testDebugUnitTest --no-configuration-cache --warning-mode all --stacktrace
         shell: cmd

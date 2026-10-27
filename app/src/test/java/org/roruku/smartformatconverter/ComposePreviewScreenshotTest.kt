@@ -3,6 +3,9 @@ package org.roruku.smartformatconverter
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.RoborazziTaskType
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -17,7 +20,6 @@ import org.roruku.smartformatconverter.ui.converter.ConverterCatalogPreview
 import org.roruku.smartformatconverter.ui.converter.ConverterMediaPickerPreview
 import org.roruku.smartformatconverter.ui.converter.ConverterWebmTwoFilesPreview
 import org.roruku.smartformatconverter.ui.converter.PreviewEditorSample
-import org.roruku.smartformatconverter.ui.converter.VideoAdvancedExpandedPreview
 import org.roruku.smartformatconverter.ui.previews.DownloaderEmptyStatePreview
 import org.roruku.smartformatconverter.ui.previews.DownloaderLoadingStatePreview
 import org.roruku.smartformatconverter.ui.previews.HomeEmptyStatePreview
@@ -96,9 +98,40 @@ class ComposePreviewScreenshotTest {
         ConverterWebmTwoFilesPreview()
     }
 
+    /**
+     * Render the actual editor at successive vertical scroll positions.
+     * A single viewport capture only shows the player, so it cannot verify
+     * the preset cards, inline settings or final Output Summary.
+     */
+    private fun screenshotEditorSections(prefix: String, content: @Composable () -> Unit) {
+        composeRule.setContent(content)
+        composeRule.waitForIdle()
+        fun capture(section: String) {
+            val output = File("preview/$prefix-$section.png")
+            output.parentFile?.mkdirs()
+            composeRule.onRoot().captureRoboImage(
+                filePath = output.absolutePath,
+                roborazziOptions = recordOptions
+            )
+        }
+        capture("top")
+        repeat(3) { step ->
+            composeRule.onNodeWithTag("converter_editor_scroll").performTouchInput {
+                swipeUp()
+            }
+            composeRule.waitForIdle()
+            capture("scroll-${step + 1}")
+        }
+    }
+
     @Test
-    fun converterSheetVideoAdvanced() = screenshot("sheet-video-advanced") {
-        VideoAdvancedExpandedPreview()
+    fun converterEditorVideoSections() = screenshotEditorSections("converter-editor-video") {
+        PreviewEditorSample(tab = 0)
+    }
+
+    @Test
+    fun converterEditorWebmBatchSections() = screenshotEditorSections("converter-editor-webm-batch") {
+        ConverterWebmTwoFilesPreview()
     }
 
     // --- 4. Downloader Screen ---

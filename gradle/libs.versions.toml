@@ -35,8 +35,7 @@ heifwriter = "1.1.0"
 sqliteJdbc = "3.53.4.0"
 jsonTest = "20260814"
 roborazzi = "1.77.0"
-robolectric = "4.14.1"
-previewScanner = "0.9.3"
+robolectric = "4.16.1"
 
 
 [libraries]
@@ -53,8 +52,9 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 
 # Robolectric screenshot testing (local JVM, no emulator)
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
-roborazzi-compose-preview = { module = "io.github.takahirom.roborazzi:roborazzi-compose-preview-scanner-support", version.ref = "roborazzi" }
-preview-scanner = { module = "io.github.sergio-sastre.ComposablePreviewScanner:android", version.ref = "previewScanner" }
+roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = "roborazzi" }
+roborazzi-compose = { module = "io.github.takahirom.roborazzi:roborazzi-compose", version.ref = "roborazzi" }
+androidx-test-core = { module = "androidx.test:core", version = "1.7.0" }
 
 # Lifecycle
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
@@ -121,9 +121,6 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 
 # Kotlin Compose compiler
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-
-# Screenshot test plugin
-roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 
 # Kotlin Symbol Processing
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

@@ -1391,9 +1391,9 @@ fun ConverterPreviewEditor(
 
                 item {
                     val outputFolder = OutputPathPolicy.outputDirectory(selectedFile?.relativeFolderPath)
-                    val outputName = selectedFile?.details?.fileName
-                        ?.substringBeforeLast('.', selectedFile.details.fileName)
-                        ?.plus(".${state.targetFormat}") ?: "—"
+                    val outputName = selectedFile?.details?.fileName?.let { name ->
+                        name.substringBeforeLast('.', name) + ".${state.targetFormat}"
+                    } ?: "—"
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),

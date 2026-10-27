@@ -881,8 +881,7 @@ fun ConverterPreviewEditor(
         null, state.targetFormat, isPreview
     ) {
         value = if (isPreview) emptyMap() else withContext(Dispatchers.Default) {
-            val codecs = if (state.targetFormat == "webm") listOf("vp9")
-                else listOf("h264", "h265")
+            val codecs = VideoEncoderCatalog.supportedCodecs(state.targetFormat)
             codecs.associateWith { codec ->
                 val mime = VideoEncoderCatalog.mimeType(state.targetFormat, codec)
                 val available = runCatching { VideoEncoderCatalog.describe(mime) }
@@ -1225,8 +1224,7 @@ fun ConverterPreviewEditor(
                             SectionTitle("Video Settings", Icons.Default.Movie)
                             val hardwarePresent = deviceEncoders.any { it.hardware }
                             val softwarePresent = deviceEncoders.any { !it.hardware }
-                            val codecCandidates = if (state.targetFormat == "webm")
-                                listOf("vp9") else listOf("h264", "h265")
+                            val codecCandidates = VideoEncoderCatalog.supportedCodecs(state.targetFormat)
                             val mode = resolvedVideoSettings.encoder.takeIf {
                                 it in setOf(VideoEncoderSelection.AUTO,
                                     VideoEncoderSelection.HARDWARE, VideoEncoderSelection.SOFTWARE)
@@ -1251,8 +1249,8 @@ fun ConverterPreviewEditor(
                                 } else {
                                     val valid = codecCandidates.filter { supported(it, selectedMode) }
                                     if (valid.isNotEmpty()) {
-                                        val current = if (state.targetFormat == "webm") "vp9"
-                                            else resolvedVideoSettings.videoCodec.takeUnless { it == "auto" } ?: "h264"
+                                        val current = resolvedVideoSettings.videoCodec.takeUnless { it == "auto" }
+                                            ?: if (state.targetFormat == "webm") "vp9" else "h264"
                                         update(resolvedVideoSettings.copy(
                                             encoder = selectedMode,
                                             videoCodec = if (current in valid) resolvedVideoSettings.videoCodec
@@ -1262,7 +1260,7 @@ fun ConverterPreviewEditor(
                                     }
                                 }
                             }
-                            val codecLabels = mapOf("vp9" to "VP9",
+                            val codecLabels = mapOf("vp8" to "VP8", "vp9" to "VP9",
                                 "h264" to "H.264 / AVC", "h265" to "H.265 / HEVC")
                             val supportedCodecs = codecCandidates.filter { supported(it, mode) }
                             val codecs = buildList {

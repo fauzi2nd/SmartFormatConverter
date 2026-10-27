@@ -1,11 +1,11 @@
 package org.roruku.smartformatconverter
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performScrollToNode
 import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.RoborazziTaskType
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -33,6 +33,7 @@ import java.io.File
  * Render Compose design states on the JVM. No emulator or Roborazzi Gradle plugin required.
  * Output is written to app/preview/ with clear module and state prefixes.
  */
+@OptIn(com.github.takahirom.roborazzi.ExperimentalRoborazziApi::class)
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w393dp-h840dp-xxhdpi")
@@ -99,9 +100,8 @@ class ComposePreviewScreenshotTest {
     }
 
     /**
-     * Render the actual editor at successive vertical scroll positions.
-     * A single viewport capture only shows the player, so it cannot verify
-     * the preset cards, inline settings or final Output Summary.
+     * Capture explicit sections of the production LazyColumn, not a sequence
+     * of swipes that can all land at the same bottom position.
      */
     private fun screenshotEditorSections(prefix: String, content: @Composable () -> Unit) {
         composeRule.setContent(content)
@@ -115,12 +115,15 @@ class ComposePreviewScreenshotTest {
             )
         }
         capture("top")
-        repeat(6) { step ->
-            composeRule.onNodeWithTag("converter_editor_scroll").performTouchInput {
-                swipeUp()
-            }
+        listOf(
+            "preset" to "editor_preset",
+            "settings" to "editor_video_settings",
+            "summary" to "editor_output_summary"
+        ).forEach { (section, tag) ->
+            composeRule.onNodeWithTag("converter_editor_scroll")
+                .performScrollToNode(hasTestTag(tag))
             composeRule.waitForIdle()
-            capture("scroll-${step + 1}")
+            capture(section)
         }
     }
 

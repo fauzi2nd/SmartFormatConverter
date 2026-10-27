@@ -44,8 +44,10 @@ data class VideoAdvancedSettings(
         "Smart Auto" -> copy(preset = name, rateControl = "vbr",
             videoBitrateKbps = BitrateSelection.AUTO,
             audioBitrateKbps = BitrateSelection.AUTO,
-            // Only WebM needs encoder downscaling on restricted VP9 devices.
-            allowEncoderDownscale = format.equals("webm", ignoreCase = true))
+            // Smart Auto may choose bitrate/codec, but must not silently
+            // reduce frame dimensions or change source display orientation.
+            // Resolution fallback is an explicit opt-in setting.
+            allowEncoderDownscale = false)
         // Media3 uses encoder target bitrate, not libx264 CRF. Presets must
         // adjust the setting actually consumed by the runtime.
         "High Quality", "Balanced", "Small File" ->

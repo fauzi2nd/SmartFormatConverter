@@ -855,13 +855,15 @@ fun ConverterPreviewEditor(
     } ?: state.audioSettings
     val currentPlan = selectedFile?.let { videoPlans[it.uri.toString()] }
     val selectedSource = selectedFile?.let { probedVideos[it.uri.toString()] }
-    val encoderMime = VideoEncoderCatalog.mimeType(
-        state.targetFormat, resolvedVideoSettings.videoCodec
-    )
+    // Encoder discovery applies only to the video editor. Image/audio output
+    // formats are not video containers and must never be passed to this mapper.
+    val encoderMime = if (state.selectedTab == 0) {
+        VideoEncoderCatalog.mimeType(state.targetFormat, resolvedVideoSettings.videoCodec)
+    } else null
     val deviceEncoders by produceState<List<VideoEncoderCatalog.Entry>>(
-        emptyList(), encoderMime, selectedSource, isPreview
+        emptyList(), encoderMime, selectedSource, isPreview, state.selectedTab
     ) {
-        value = if (isPreview) emptyList()
+        value = if (isPreview || encoderMime == null) emptyList()
             else withContext(Dispatchers.Default) {
                 runCatching {
                     VideoEncoderCatalog.describe(
@@ -878,9 +880,9 @@ fun ConverterPreviewEditor(
     // Null means detection is still running. Discover capabilities on EACH device,
     // and refresh when the output container changes.
     val availableCodecEncoders by produceState<Map<String, Pair<Boolean, Boolean>>?>(
-        null, state.targetFormat, isPreview
+        null, state.targetFormat, isPreview, state.selectedTab
     ) {
-        value = if (isPreview) emptyMap() else withContext(Dispatchers.Default) {
+        value = if (isPreview || state.selectedTab != 0) emptyMap() else withContext(Dispatchers.Default) {
             val codecs = VideoEncoderCatalog.supportedCodecs(state.targetFormat)
             codecs.associateWith { codec ->
                 val mime = VideoEncoderCatalog.mimeType(state.targetFormat, codec)

@@ -1,6 +1,7 @@
 package org.roruku.smartformatconverter.ui.queue
 
 import org.roruku.smartformatconverter.data.repository.SourceFormatLabels
+import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 
 import android.text.format.Formatter
 import androidx.compose.animation.animateContentSize
@@ -277,11 +278,14 @@ fun JobCardItem(
     }
 
     val canOpenResult = job.status == JobStatus.COMPLETED && !job.outputUri.isNullOrBlank()
+    val alreadyAllowed = runCatching {
+        job.customParamsJson?.let(VideoAdvancedSettings::fromJson)?.allowEncoderDownscale == true
+    }.getOrDefault(false)
     val canOfferCompatibleRetry =
         job.status == JobStatus.FAILED && job.mediaType == MediaType.VIDEO &&
         job.outputFormat.equals("webm", ignoreCase = true) &&
         job.errorMessage.orEmpty().contains("4003") &&
-        !job.customParamsJson.orEmpty().contains("\\"allowEncoderDownscale\\":true")
+        !alreadyAllowed
     var confirmCompatibleRetry by remember(job.id) { mutableStateOf(false) }
     if (confirmCompatibleRetry) {
         AlertDialog(

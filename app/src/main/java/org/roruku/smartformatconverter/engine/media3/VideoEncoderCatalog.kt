@@ -30,6 +30,11 @@ internal object VideoEncoderCatalog {
     }
 
     fun mimeType(format: String, codec: String): String = when (codec.lowercase()) {
+        "auto" -> when (format.lowercase()) {
+            "webm" -> MimeTypes.VIDEO_VP9
+            "mp4" -> MimeTypes.VIDEO_H264
+            else -> throw IllegalArgumentException("Unsupported video output format: $format")
+        }
         "vp8" -> MimeTypes.VIDEO_VP8
         "vp9" -> MimeTypes.VIDEO_VP9
         "h264", "avc" -> MimeTypes.VIDEO_H264

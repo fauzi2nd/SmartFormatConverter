@@ -43,6 +43,7 @@ import org.roruku.smartformatconverter.R
 import org.roruku.smartformatconverter.engine.media.BitrateSelection
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.VideoSettingsValidator
+import org.roruku.smartformatconverter.engine.media.VideoEncoderSelection
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 
 /**
@@ -96,6 +97,13 @@ fun VideoAdvancedSettingsControl(
                 else -> stringResource(R.string.advanced_rate_kbps, settings.videoBitrateKbps)
             }
         ),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MaterialTheme.typography.bodySmall
+    )
+
+    Text(
+        text = stringResource(R.string.video_selected_encoder_summary,
+            VideoEncoderSelection.displayName(settings.encoder)),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         style = MaterialTheme.typography.bodySmall
     )
@@ -219,8 +227,13 @@ fun VideoAdvancedSettingsControl(
                     "h265" to stringResource(R.string.video_option_h265_hevc)
                 )
                 ChoiceField(stringResource(R.string.video_setting_video_codec), draft.videoCodec, videoChoices) {
-                    draft = draft.copy(videoCodec = it)
+                    draft = draft.copy(videoCodec = it, encoder = "auto")
                 }
+                Text(
+                    stringResource(R.string.video_encoder_picker_in_preview),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
 
                 ChoiceField(
                     label = stringResource(R.string.video_bitrate_choice),

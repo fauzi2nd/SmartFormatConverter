@@ -17,7 +17,7 @@ import androidx.media3.transformer.AudioEncoderSettings
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EncoderSelector
-import androidx.media3.transformer.EncoderUtil
+import org.roruku.smartformatconverter.engine.media.VideoEncoderSelection
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.Effects
 import androidx.media3.transformer.ExportException
@@ -147,6 +147,7 @@ object Media3TransformerEngine {
             webmOutput = config.outputFormat == VideoOutputFormat.WEBM,
             sourceAudioChannels = source.audioChannels,
             allowEncoderDownscale = effectiveSettings.allowEncoderDownscale,
+            selectedVideoEncoder = effectiveSettings.encoder,
             expectedDisplaySize = if (shouldPreserveResolution &&
                 source.videoWidth > 0 && source.videoHeight > 0
             ) VideoGeometryPolicy.displaySize(
@@ -300,20 +301,35 @@ object Media3TransformerEngine {
         muxerFactory: Muxer.Factory? = null,
         sourceAudioChannels: Int = 0,
         allowEncoderDownscale: Boolean = false,
+        selectedVideoEncoder: String = VideoEncoderSelection.AUTO,
         expectedDisplaySize: VideoGeometryPolicy.Size? = null,
         onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
     ): Result<File> = suspendCancellableCoroutine { continuation ->
+        if (videoMimeType != null &&
+            VideoEncoderCatalog.selected(videoMimeType, selectedVideoEncoder).isEmpty()
+        ) {
+            val selectedName = VideoEncoderSelection.displayName(selectedVideoEncoder)
+            continuation.resume(Result.failure(IllegalStateException(
+                "Encoder '$selectedName' is not available for " +
+                    "$videoMimeType on this device. Select Auto or another listed encoder."
+            )))
+            return@suspendCancellableCoroutine
+        }
+        Log.i(TAG, "Requested video encoder=$selectedVideoEncoder codec=$videoMimeType")
         val encoderFactoryBuilder = DefaultEncoderFactory.Builder(context)
             .setEnableFallback(true)
-        if (webmOutput) {
-            // Media3 EncoderSelector.DEFAULT excludes ALL software encoders if
-            // any hardware VP9 encoder is present, even when hardware can only
-            // produce 1080x810 from a 1440x1080 source. Include both kinds.
+        if (videoMimeType != null) {
+            // The persisted encoder choice must be enforced: hardware-only,
+            // software-only or an exact device codec cannot silently switch.
+            // Auto retains Media3's full hardware/software candidate list.
             encoderFactoryBuilder.setVideoEncoderSelector(
-                EncoderSelector { mimeType -> EncoderUtil.getSupportedEncoders(mimeType) }
+                EncoderSelector { mimeType ->
+                    VideoEncoderCatalog.selected(mimeType, selectedVideoEncoder)
+                        .let { com.google.common.collect.ImmutableList.copyOf(it) }
+                }
             )
-            // Keep bitrate/profile fallback but prohibit resolution fallback
-            // unless the user explicitly enabled it in Advanced Settings.
+        }
+        if (webmOutput) {
             encoderFactoryBuilder.setEnableFormatFallback(allowEncoderDownscale)
         }
 

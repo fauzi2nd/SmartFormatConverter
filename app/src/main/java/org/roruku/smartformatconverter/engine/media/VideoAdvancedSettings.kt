@@ -161,7 +161,7 @@ object VideoSettingsValidator {
                 s.fps.toDouble() !in 1.0..240.0)) return "Invalid FPS"
         if (s.rateControl !in setOf("crf", "vbr", "cbr")) return "Invalid bitrate mode"
         if (s.crf !in 0..51) return "Invalid legacy CRF field"
-        if (s.encoder !in setOf("auto", "software", "hardware")) return "Invalid encoder"
+        if (!VideoEncoderSelection.isValid(s.encoder)) return "Invalid encoder choice"
         if (s.volumePercent !in 0..200) return "Invalid volume"
         if (s.audioStream !in setOf("first", "second", "all", "none")) return "Invalid audio route"
         if (s.subtitleMode !in setOf("auto", "copy", "none")) return "Invalid subtitle mode"

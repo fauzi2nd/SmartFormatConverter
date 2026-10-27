@@ -410,4 +410,18 @@
     <string name="queue_output_display_only">Output resolution: %1$d×%2$d</string>
     <string name="queue_output_display_preserved">Output resolution: %1$d×%2$d (preserved)</string>
     <string name="queue_output_display_changed">Resolution: %1$d×%2$d → %3$d×%4$d (resized)</string>
+    <string name="video_encoder_title">Video encoder</string>
+    <string name="video_encoder_auto">Auto (recommended)</string>
+    <string name="video_encoder_hardware">Hardware only</string>
+    <string name="video_encoder_software">Software only</string>
+    <string name="video_encoder_unavailable">No encoders reported for this format on this device.</string>
+    <string name="video_encoder_available">Detected device encoders</string>
+    <string name="video_encoder_hw_tag">Hardware</string>
+    <string name="video_encoder_sw_tag">Software</string>
+    <string name="video_encoder_source_supported">Source size/FPS supported (reported)</string>
+    <string name="video_encoder_source_unsupported">Source size/FPS unsupported (reported)</string>
+    <string name="video_encoder_source_unknown">Source compatibility unknown</string>
+    <string name="video_encoder_capability_note">Device capability reports are estimates, not guarantees. Software encoders can be slower. The selected encoder is saved with this job.</string>
+    <string name="video_encoder_picker_in_preview">Select the hardware, software or exact device encoder on Preview &amp; Convert. This setting is saved for each conversion job.</string>
+    <string name="video_selected_encoder_summary">Encoder: %1$s</string>
 </resources>

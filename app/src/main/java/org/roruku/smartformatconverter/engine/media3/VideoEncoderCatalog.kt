@@ -1,7 +1,6 @@
 package org.roruku.smartformatconverter.engine.media3
 
 import android.media.MediaCodecInfo
-import android.os.Build
 import androidx.annotation.OptIn
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi

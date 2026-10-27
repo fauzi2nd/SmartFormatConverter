@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
@@ -746,6 +747,7 @@ fun ConverterPreviewEditor(
     onBack: () -> Unit,
     onStart: () -> Unit,
     onRemove: (SelectedMediaFile) -> Unit,
+    onRename: (Uri, String) -> Unit,
     onUpdatePreset: (String) -> Unit,
     onUpdateVideoSettings: (VideoAdvancedSettings) -> Unit,
     onUpdateVideoFileSettings: (Uri, VideoAdvancedSettings) -> Unit,
@@ -778,6 +780,8 @@ fun ConverterPreviewEditor(
     var probedVideos by remember { mutableStateOf<Map<String, MediaProbeDetails>>(emptyMap()) }
     var previewReady by remember { mutableStateOf(false) }
     var confirmGrowth by remember { mutableStateOf(false) }
+    var renameFile by remember { mutableStateOf<SelectedMediaFile?>(null) }
+    var renameDraft by remember { mutableStateOf("") }
 
     // Probe all selected source videos off the UI thread; use the exact same
     // pure planner as the export engine. Do not run codecs in Compose Preview.
@@ -886,6 +890,29 @@ fun ConverterPreviewEditor(
         )
     }
 
+    renameFile?.let { file ->
+        AlertDialog(
+            onDismissRequest = { renameFile = null },
+            title = { Text("Rename output file") },
+            text = {
+                androidx.compose.material3.OutlinedTextField(
+                    value = renameDraft,
+                    onValueChange = { renameDraft = it },
+                    label = { Text("File name (without extension)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onRename(file.uri, renameDraft)
+                    renameFile = null
+                }, enabled = renameDraft.isNotBlank()) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = { renameFile = null }) { Text("Cancel") } }
+        )
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
@@ -978,6 +1005,14 @@ fun ConverterPreviewEditor(
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                }
+                                OutlinedButton(onClick = {
+                                    renameFile = media
+                                    renameDraft = media.details.fileName.substringBeforeLast('.', media.details.fileName)
+                                }) {
+                                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Rename")
                                 }
                                 IconButton(onClick = { onRemove(media) }) {
                                     Icon(Icons.Default.Close, contentDescription = stringResource(R.string.remove_from_list))
@@ -1091,32 +1126,6 @@ fun ConverterPreviewEditor(
                         }
                     }
                 }
-                item {
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.Description, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.width(10.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(stringResource(R.string.output_format), style = MaterialTheme.typography.labelMedium)
-                                Text(
-                                    state.targetFormat.uppercase(),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                            Text(stringResource(R.string.chosen_in_catalog), style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
-
                 if (state.selectedTab == 0) {
                     item {
                         Text(stringResource(R.string.preset), fontWeight = FontWeight.SemiBold)
@@ -1380,81 +1389,49 @@ fun ConverterPreviewEditor(
                     }
                 }
 
-                if (state.selectedTab == 0) {
-                    item {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("Adaptive export estimate",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold)
-                                if (currentPlan != null) {
-                                    Text("Video: ${currentPlan.videoKbps} kbps · " +
-                                        "Audio: ${currentPlan.audioKbps?.let { "$it kbps" } ?: "none"}")
-                                    Text("Estimated output: " +
-                                        (currentPlan.estimatedBytes?.let {
-                                            Formatter.formatShortFileSize(context, it)
-                                        } ?: "Unknown duration"))
-                                    currentPlan.lowBytes?.let { low ->
-                                        currentPlan.highBytes?.let { high ->
-                                            Text("Possible range: " +
-                                                Formatter.formatShortFileSize(context, low) +
-                                                " – " +
-                                                Formatter.formatShortFileSize(context, high),
-                                                style = MaterialTheme.typography.bodySmall)
-                                        }
-                                    }
-                                    if (currentPlan.sourceLimited) {
-                                        Text("Source bitrate limits the adaptive target.",
-                                            style = MaterialTheme.typography.bodySmall)
-                                    }
-                                    if (currentPlan.mayGrow) {
-                                        Text("Warning: output may be larger than input.",
+                item {
+                    val outputFolder = OutputPathPolicy.outputDirectory(selectedFile?.relativeFolderPath)
+                    val outputName = selectedFile?.details?.fileName
+                        ?.substringBeforeLast('.', selectedFile.details.fileName)
+                        ?.plus(".${state.targetFormat}") ?: "—"
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Output Summary", fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium)
+                            HorizontalDivider()
+                            SummaryRow("Format", state.targetFormat.uppercase())
+                            SummaryRow("Container", state.targetFormat.uppercase())
+                            SummaryRow("Output Folder", outputFolder)
+                            SummaryRow("File Name", outputName)
+                            if (state.selectedTab == 0) {
+                                SummaryRow("Estimated Size", currentPlan?.estimatedBytes?.let {
+                                    Formatter.formatShortFileSize(context, it)
+                                } ?: if (previewReady) "Unknown" else "Analyzing…")
+                                currentPlan?.let { plan ->
+                                    Text("Video: ${plan.videoKbps} kbps · Audio: " +
+                                        (plan.audioKbps?.let { "$it kbps" } ?: "none"),
+                                        style = MaterialTheme.typography.bodySmall)
+                                    if (plan.mayGrow) {
+                                        Text("Output may be larger than source.",
                                             color = MaterialTheme.colorScheme.error,
                                             style = MaterialTheme.typography.bodySmall)
                                     }
-                                } else {
-                                    Text(if (previewReady) "Source metadata unavailable; size unknown."
-                                        else "Analyzing selected video…")
                                 }
                                 if (estimatedTotalBytes != null && files.size > 1) {
-                                    Text("Estimated total (${files.size} videos): " +
+                                    SummaryRow("Total (${files.size} files)",
                                         Formatter.formatShortFileSize(context, estimatedTotalBytes))
                                 }
-                                Text("Estimate only. Media3 encoder and VBR behavior vary by device.",
+                                Text("Size is an estimate; actual encoder output may vary.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                        }
-                    }
-                }
-
-                item {
-                    val outputFolder = OutputPathPolicy.outputDirectory(
-                        selectedFile?.relativeFolderPath
-                    )
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(Modifier.padding(14.dp)) {
-                            Text(stringResource(R.string.output_location), style = MaterialTheme.typography.labelMedium)
-                            Text(
-                                stringResource(R.string.parent_output_location, outputFolder),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                stringResource(R.string.original_filename_preserved, state.targetFormat),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodySmall
-                            )
                         }
                     }
                 }
@@ -1484,6 +1461,16 @@ fun ConverterPreviewEditor(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SummaryRow(label: String, value: String) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium)
     }
 }
 

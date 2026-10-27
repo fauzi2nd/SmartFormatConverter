@@ -52,12 +52,14 @@ internal object VideoEncoderCatalog {
                         val caps = info.getCapabilitiesForType(mimeType).videoCapabilities
                         // Codec size information is only a preliminary filter:
                         // frame rotation and vendor-specific alignment can differ.
-                        val sizeOkay = caps.isSizeSupported(target.width, target.height)
-                        if (fps > 0f && fps.isFinite()) {
-                            sizeOkay && caps.areSizeAndRateSupported(
-                                target.width, target.height, fps.toDouble()
-                            )
-                        } else sizeOkay
+                        if (caps == null) null else {
+                            val sizeOkay = caps.isSizeSupported(target.width, target.height)
+                            if (fps > 0f && fps.isFinite()) {
+                                sizeOkay && caps.areSizeAndRateSupported(
+                                    target.width, target.height, fps.toDouble()
+                                )
+                            } else sizeOkay
+                        }
                     } catch (_: Exception) {
                         null
                     }

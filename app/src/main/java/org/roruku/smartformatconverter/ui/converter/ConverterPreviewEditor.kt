@@ -58,6 +58,7 @@ import org.roruku.smartformatconverter.R
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -109,6 +110,8 @@ import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
 import coil.request.videoFrameMillis
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -117,6 +120,9 @@ import org.roruku.smartformatconverter.engine.media.AdaptivePresetPlanner
 import org.roruku.smartformatconverter.engine.media.AdaptiveVideoPlan
 import org.roruku.smartformatconverter.engine.media.VideoSourceProfile
 import org.roruku.smartformatconverter.engine.media3.MediaProbe
+import org.roruku.smartformatconverter.engine.media3.MediaProbeDetails
+import org.roruku.smartformatconverter.engine.media3.VideoEncoderCatalog
+import org.roruku.smartformatconverter.engine.media.VideoEncoderSelection
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.ImageAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
@@ -769,6 +775,7 @@ fun ConverterPreviewEditor(
     val coroutineScope = rememberCoroutineScope()
     var applyToAll by remember { mutableStateOf(true) }
     var videoPlans by remember { mutableStateOf<Map<String, AdaptiveVideoPlan>>(emptyMap()) }
+    var probedVideos by remember { mutableStateOf<Map<String, MediaProbeDetails>>(emptyMap()) }
     var previewReady by remember { mutableStateOf(false) }
     var confirmGrowth by remember { mutableStateOf(false) }
 
@@ -777,12 +784,16 @@ fun ConverterPreviewEditor(
     LaunchedEffect(files, state.videoSettings, state.perFileVideoSettings,
         state.targetFormat, state.selectedTab, isPreview) {
         videoPlans = emptyMap()
+        probedVideos = emptyMap()
         previewReady = false
         if (state.selectedTab == 0 && !isPreview) {
             val results = mutableMapOf<String, AdaptiveVideoPlan>()
+            val probed = mutableMapOf<String, MediaProbeDetails>()
             for (file in files) {
                 try {
                     val source = MediaProbe.probeMedia(context, file.uri)
+                    probed[file.uri.toString()] = source
+                    probedVideos = probed.toMap()
                     val settings = (state.perFileVideoSettings[file.uri.toString()]
                         ?: state.videoSettings).copy(format = state.targetFormat)
                     val plan = AdaptivePresetPlanner.plan(settings,
@@ -824,6 +835,26 @@ fun ConverterPreviewEditor(
         state.perFileAudioSettings[file.uri.toString()] ?: state.audioSettings
     } ?: state.audioSettings
     val currentPlan = selectedFile?.let { videoPlans[it.uri.toString()] }
+    val selectedSource = selectedFile?.let { probedVideos[it.uri.toString()] }
+    val encoderMime = VideoEncoderCatalog.mimeType(
+        state.targetFormat, resolvedVideoSettings.videoCodec
+    )
+    val deviceEncoders by produceState<List<VideoEncoderCatalog.Entry>>(
+        emptyList(), encoderMime, selectedSource, isPreview
+    ) {
+        value = if (isPreview) emptyList()
+            else withContext(Dispatchers.Default) {
+                runCatching {
+                    VideoEncoderCatalog.describe(
+                        encoderMime,
+                        selectedSource?.videoWidth ?: 0,
+                        selectedSource?.videoHeight ?: 0,
+                        selectedSource?.videoRotation ?: 0,
+                        selectedSource?.frameRate ?: 0f
+                    )
+                }.getOrDefault(emptyList())
+            }
+    }
     val estimatedTotalBytes = if (videoPlans.size == files.size &&
         videoPlans.values.all { it.estimatedBytes != null }) {
         videoPlans.values.sumOf { it.estimatedBytes ?: 0L }
@@ -1110,6 +1141,60 @@ fun ConverterPreviewEditor(
                                 }) { Text(presetDisplayName(choice)) }
                             }
                         }
+                    }
+                    item {
+                        Text(stringResource(R.string.video_encoder_title),
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleSmall)
+                        val encoderOptions = buildList {
+                            add(VideoEncoderSelection.AUTO to
+                                stringResource(R.string.video_encoder_auto))
+                            if (deviceEncoders.any { it.hardware }) {
+                                add(VideoEncoderSelection.HARDWARE to
+                                    stringResource(R.string.video_encoder_hardware))
+                            }
+                            if (deviceEncoders.any { !it.hardware }) {
+                                add(VideoEncoderSelection.SOFTWARE to
+                                    stringResource(R.string.video_encoder_software))
+                            }
+                            deviceEncoders.forEach { entry ->
+                                val category = if (entry.hardware)
+                                    stringResource(R.string.video_encoder_hw_tag)
+                                else stringResource(R.string.video_encoder_sw_tag)
+                                val supported = when (entry.reportedSourceSupported) {
+                                    true -> " · " + stringResource(R.string.video_encoder_source_supported)
+                                    false -> " · " + stringResource(R.string.video_encoder_source_unsupported)
+                                    null -> ""
+                                }
+                                add(VideoEncoderSelection.specific(entry.name) to
+                                    "$category · ${entry.name}$supported")
+                            }
+                            if (none { it.first == resolvedVideoSettings.encoder }) {
+                                add(resolvedVideoSettings.encoder to
+                                    (VideoEncoderSelection.displayName(resolvedVideoSettings.encoder) +
+                                        " · " + stringResource(R.string.video_encoder_source_unknown)))
+                            }
+                        }
+                        ChoiceField(
+                            label = stringResource(R.string.video_encoder_title),
+                            value = resolvedVideoSettings.encoder,
+                            options = encoderOptions,
+                            onChange = { selection ->
+                                val updated = resolvedVideoSettings.copy(
+                                    encoder = selection, preset = "Custom"
+                                )
+                                if (applyToAll) onUpdateVideoSettings(updated)
+                                else selectedFile?.let { onUpdateVideoFileSettings(it.uri, updated) }
+                            }
+                        )
+                        if (deviceEncoders.isEmpty() && !isPreview) {
+                            Text(stringResource(R.string.video_encoder_unavailable),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall)
+                        }
+                        Text(stringResource(R.string.video_encoder_capability_note),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall)
                     }
                     item {
                         Text(stringResource(R.string.video_audio_subtitle),

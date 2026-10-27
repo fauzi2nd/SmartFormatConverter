@@ -34,6 +34,8 @@ import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -83,6 +85,7 @@ fun QueueScreen(
             onPauseJob = {},
             onResumeJob = {},
             onRetryJob = {},
+            onRetryWithResolutionFallback = {},
             onDeleteJob = {},
         )
     } else {
@@ -96,6 +99,7 @@ fun QueueScreen(
             onPauseJob = { viewModel.pauseJob(it) },
             onResumeJob = { viewModel.resumeJob(it) },
             onRetryJob = { viewModel.retryJob(it) },
+            onRetryWithResolutionFallback = { viewModel.retryWithCompatibleResolution(it) },
             onDeleteJob = { viewModel.deleteJob(it) },
         )
     }
@@ -110,6 +114,7 @@ fun QueueScreenContent(
     onPauseJob: (String) -> Unit,
     onResumeJob: (String) -> Unit,
     onRetryJob: (String) -> Unit,
+    onRetryWithResolutionFallback: (String) -> Unit,
     onDeleteJob: (ConversionJobEntity) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -235,6 +240,9 @@ fun QueueScreenContent(
                         onPause = { onPauseJob(job.id) },
                         onResume = { onResumeJob(job.id) },
                         onRetry = { onRetryJob(job.id) },
+                        onRetryWithResolutionFallback = {
+                            onRetryWithResolutionFallback(job.id)
+                        },
                         onDelete = { onDeleteJob(job) },
                         onOpenResult = { selectedOutput = job },
                         thumbnailLoader = thumbnailLoader
@@ -255,6 +263,7 @@ fun JobCardItem(
     onPause: () -> Unit,
     onResume: () -> Unit,
     onRetry: () -> Unit,
+    onRetryWithResolutionFallback: () -> Unit = {},
     onDelete: () -> Unit,
     onOpenResult: () -> Unit = {},
     thumbnailLoader: ImageLoader? = null,
@@ -268,6 +277,30 @@ fun JobCardItem(
     }
 
     val canOpenResult = job.status == JobStatus.COMPLETED && !job.outputUri.isNullOrBlank()
+    val canOfferCompatibleRetry =
+        job.status == JobStatus.FAILED && job.mediaType == MediaType.VIDEO &&
+        job.outputFormat.equals("webm", ignoreCase = true) &&
+        job.errorMessage.orEmpty().contains("4003") &&
+        !job.customParamsJson.orEmpty().contains("\\"allowEncoderDownscale\\":true")
+    var confirmCompatibleRetry by remember(job.id) { mutableStateOf(false) }
+    if (confirmCompatibleRetry) {
+        AlertDialog(
+            onDismissRequest = { confirmCompatibleRetry = false },
+            title = { Text(stringResource(R.string.queue_compatible_retry_title)) },
+            text = { Text(stringResource(R.string.queue_compatible_retry_explanation)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmCompatibleRetry = false
+                    onRetryWithResolutionFallback()
+                }) { Text(stringResource(R.string.queue_compatible_retry_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmCompatibleRetry = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -398,6 +431,13 @@ fun JobCardItem(
                             }
                         }
                     }
+                }
+            }
+
+            if (canOfferCompatibleRetry) {
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = { confirmCompatibleRetry = true }) {
+                    Text(stringResource(R.string.queue_compatible_retry_button))
                 }
             }
 

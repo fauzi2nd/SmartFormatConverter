@@ -109,6 +109,26 @@ class ConversionRepository(
         dao.updateJob(retriedJob)
     }
 
+    /** Invoked only after Queue confirms that lower output resolution is acceptable. */
+    suspend fun retryJobWithResolutionFallback(jobId: String): Boolean {
+        val job = dao.getJobById(jobId) ?: return false
+        if (job.mediaType != MediaType.VIDEO ||
+            !job.outputFormat.equals("webm", ignoreCase = true) ||
+            job.status != JobStatus.FAILED ||
+            !job.errorMessage.orEmpty().contains("4003")
+        ) return false
+        val previous = try {
+            job.customParamsJson?.takeIf(String::isNotBlank)
+                ?.let(VideoAdvancedSettings::fromJson)
+                ?: VideoAdvancedSettings(format = "webm", preset = job.presetName)
+        } catch (_: Exception) {
+            return false
+        }
+        if (previous.allowEncoderDownscale) return false
+        val revised = previous.copy(allowEncoderDownscale = true).toJson()
+        return dao.retryFailedWebmWithDownscale(job.id, job.executionToken, revised) > 0
+    }
+
     suspend fun deleteJob(job: ConversionJobEntity) {
         ActiveConversionJobs.prune(job.id)
         dao.deleteJob(job)

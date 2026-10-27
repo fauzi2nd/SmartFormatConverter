@@ -41,13 +41,18 @@ data class VideoAdvancedSettings(
 
     fun applyPreset(name: String): VideoAdvancedSettings = when (name) {
         "Original Quality / Remux" -> copy(preset = name)
-        "Smart Auto" -> copy(preset = name, rateControl = "vbr", videoBitrateKbps = BitrateSelection.AUTO, audioBitrateKbps = BitrateSelection.AUTO)
+        "Smart Auto" -> copy(preset = name, rateControl = "vbr",
+            videoBitrateKbps = BitrateSelection.AUTO,
+            audioBitrateKbps = BitrateSelection.AUTO,
+            // Only WebM needs encoder downscaling on restricted VP9 devices.
+            allowEncoderDownscale = format.equals("webm", ignoreCase = true))
         // Media3 uses encoder target bitrate, not libx264 CRF. Presets must
         // adjust the setting actually consumed by the runtime.
         "High Quality", "Balanced", "Small File" ->
             copy(preset = name, rateControl = "vbr",
                 videoBitrateKbps = BitrateSelection.AUTO,
-                audioBitrateKbps = BitrateSelection.AUTO)
+                audioBitrateKbps = BitrateSelection.AUTO,
+                allowEncoderDownscale = false)
         else -> copy(preset = "Custom")
     }
 

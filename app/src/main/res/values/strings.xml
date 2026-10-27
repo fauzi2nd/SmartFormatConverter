@@ -402,4 +402,9 @@
     <string name="bitrate_mode_explanation">Auto uses an encoder-recommended bitrate. Source tries to match the source track bitrate when available, otherwise falls back to Auto. Source is not lossless unless using Remux.</string>
     <string name="video_setting_allow_encoder_downscale">Allow encoder resolution fallback</string>
     <string name="video_setting_allow_encoder_downscale_desc">Off: keep original resolution and try available hardware/software encoders. On: if necessary, allow the encoder to use a smaller resolution (reduces detail). The output format stays unchanged.</string>
+    <string name="video_smart_auto_resolution_notice">Smart Auto WebM: uses the highest resolution supported by the selected device encoder. If the original resolution is unsupported, detail may be reduced. Choose High Quality to require original resolution.</string>
+    <string name="queue_compatible_retry_button">Retry with compatible resolution</string>
+    <string name="queue_compatible_retry_title">Allow lower WebM resolution?</string>
+    <string name="queue_compatible_retry_explanation">The device cannot encode VP9 at the original resolution. Retry using a compatible resolution; image detail may decrease. The source file remains unchanged.</string>
+    <string name="queue_compatible_retry_confirm">Allow and retry</string>
 </resources>

@@ -56,6 +56,17 @@ interface ConversionJobDao {
     @Query("UPDATE conversion_jobs SET status = :status, errorMessage = :errorMessage, speed = NULL, eta = NULL WHERE id = :jobId AND (executionToken = :executionToken OR :executionToken = 0) AND status IN ('PENDING', 'PREPARING', 'RUNNING')")
     suspend fun markFailed(jobId: String, errorMessage: String, status: JobStatus = JobStatus.FAILED, executionToken: Long = 0L): Int
 
+    /** Update a failed job's immutable video snapshot only with user consent. */
+    @Query("UPDATE conversion_jobs SET customParamsJson = :snapshot, status = 'PENDING', " +
+        "executionToken = executionToken + 1, progress = 0, speed = NULL, eta = NULL, " +
+        "errorMessage = NULL, outputUri = NULL, outputFileSize = 0, completedAt = NULL, " +
+        "retryCount = retryCount + 1 " +
+        "WHERE id = :jobId AND status = 'FAILED' AND mediaType = 'VIDEO' " +
+        "AND lower(outputFormat) = 'webm' AND executionToken = :oldToken")
+    suspend fun retryFailedWebmWithDownscale(
+        jobId: String, oldToken: Long, snapshot: String
+    ): Int
+
     @Query("UPDATE conversion_jobs SET status = 'PENDING', executionToken = executionToken + 1 WHERE status IN ('RUNNING', 'PREPARING')")
     suspend fun resetStuckJobsToPending()
 

@@ -103,6 +103,14 @@ class QueueViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun retryWithCompatibleResolution(jobId: String) {
+        viewModelScope.launch {
+            if (repository.retryJobWithResolutionFallback(jobId)) {
+                MediaConversionService.startService(getApplication())
+            }
+        }
+    }
+
     fun deleteJob(job: ConversionJobEntity) {
         viewModelScope.launch { repository.deleteJob(job) }
     }

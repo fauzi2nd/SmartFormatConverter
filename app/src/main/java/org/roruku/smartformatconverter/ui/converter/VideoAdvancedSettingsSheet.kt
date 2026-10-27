@@ -100,6 +100,14 @@ fun VideoAdvancedSettingsControl(
         style = MaterialTheme.typography.bodySmall
     )
 
+    if (settings.format == "webm" && settings.allowEncoderDownscale) {
+        Text(
+            stringResource(R.string.video_smart_auto_resolution_notice),
+            color = MaterialTheme.colorScheme.tertiary,
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+
     if (!open) return
 
     // Reuse the real Advanced form in design-time Preview without a window-level

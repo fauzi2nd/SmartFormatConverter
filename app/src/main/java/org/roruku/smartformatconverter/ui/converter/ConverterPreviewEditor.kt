@@ -35,6 +35,18 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.filled.Balance
+import androidx.compose.material.icons.filled.Eco
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.VideoSettings
+import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.NetworkCheck
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.SurroundSound
+import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -1162,8 +1174,7 @@ fun ConverterPreviewEditor(
                                                 modifier = Modifier.weight(1f),
                                                 contentPadding = PaddingValues(horizontal = 6.dp)
                                             ) {
-                                                Text(presetDisplayName(choice), maxLines = 2,
-                                                    style = MaterialTheme.typography.labelSmall)
+                                                PresetLabel(choice)
                                             }
                                         } else {
                                             OutlinedButton(
@@ -1171,8 +1182,7 @@ fun ConverterPreviewEditor(
                                                 modifier = Modifier.weight(1f),
                                                 contentPadding = PaddingValues(horizontal = 6.dp)
                                             ) {
-                                                Text(presetDisplayName(choice), maxLines = 2,
-                                                    style = MaterialTheme.typography.labelSmall)
+                                                PresetLabel(choice)
                                             }
                                         }
                                     }
@@ -1349,14 +1359,12 @@ fun ConverterPreviewEditor(
                                         if (chosenPreset == choice) {
                                             Button(onClick = {}, modifier = Modifier.weight(1f),
                                                 contentPadding = PaddingValues(horizontal = 6.dp)) {
-                                                Text(presetDisplayName(choice), maxLines = 2,
-                                                    style = MaterialTheme.typography.labelSmall)
+                                                PresetLabel(choice)
                                             }
                                         } else {
                                             OutlinedButton(onClick = choose, modifier = Modifier.weight(1f),
                                                 contentPadding = PaddingValues(horizontal = 6.dp)) {
-                                                Text(presetDisplayName(choice), maxLines = 2,
-                                                    style = MaterialTheme.typography.labelSmall)
+                                                PresetLabel(choice)
                                             }
                                         }
                                     }
@@ -1518,6 +1526,38 @@ private fun SectionTitle(title: String, icon: androidx.compose.ui.graphics.vecto
     }
 }
 
+private fun presetIcon(name: String): androidx.compose.ui.graphics.vector.ImageVector = when (name) {
+    "Smart Auto" -> Icons.Default.AutoAwesome
+    "High Quality" -> Icons.Default.WorkspacePremium
+    "Balanced" -> Icons.Default.Balance
+    "Small File" -> Icons.Default.Eco
+    "Original Quality / Remux" -> Icons.Default.HighQuality
+    else -> Icons.Default.Tune
+}
+
+private fun settingIcon(label: String): androidx.compose.ui.graphics.vector.ImageVector = when (label) {
+    "Video encoder" -> Icons.Default.Memory
+    "Video codec", "Audio codec" -> Icons.Default.VideoSettings
+    "Pixel format" -> Icons.Default.Layers
+    "Resolution" -> Icons.Default.AspectRatio
+    "Frame rate (FPS)" -> Icons.Default.Speed
+    "Video bitrate", "Audio bitrate" -> Icons.Default.NetworkCheck
+    "Sample rate" -> Icons.Default.GraphicEq
+    "Channels" -> Icons.Default.SurroundSound
+    else -> Icons.Default.Tune
+}
+
+@Composable
+private fun PresetLabel(choice: String) {
+    Row(verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        Icon(presetIcon(choice), contentDescription = null,
+            modifier = Modifier.size(16.dp))
+        Text(presetDisplayName(choice), maxLines = 2,
+            style = MaterialTheme.typography.labelSmall)
+    }
+}
+
 @Composable
 private fun CompactSettingChoice(
     label: String,
@@ -1532,9 +1572,14 @@ private fun CompactSettingChoice(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(label, modifier = Modifier.weight(0.38f),
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 2)
+            Row(modifier = Modifier.weight(0.38f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Icon(settingIcon(label), contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp))
+                Text(label, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+            }
             Box(Modifier.weight(0.62f)) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().clickable { expanded = true },

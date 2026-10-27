@@ -71,7 +71,7 @@ internal class WebmMuxerFactory(private val sourceAudioChannels: Int = 0) : Muxe
                 normalized
             }
             val id = delegate.addTrack(safeFormat)
-            if (safeFormat.sampleMimeType == MimeTypes.VIDEO_VP9) {
+            if (safeFormat.sampleMimeType == MimeTypes.VIDEO_VP9 || safeFormat.sampleMimeType == MimeTypes.VIDEO_VP8) {
                 videoTrackId = id
             }
             return id
@@ -107,7 +107,7 @@ internal class WebmMuxerFactory(private val sourceAudioChannels: Int = 0) : Muxe
                         java.io.File(outputPath), durationNs
                     )
                     android.util.Log.i(
-                        "WebmMuxerFactory", "VP9 DefaultDuration updated=$updated ns=$durationNs"
+                        "WebmMuxerFactory", "WebM DefaultDuration updated=$updated ns=$durationNs"
                     )
                 } else {
                     android.util.Log.i(
@@ -120,7 +120,7 @@ internal class WebmMuxerFactory(private val sourceAudioChannels: Int = 0) : Muxe
 
     override fun getSupportedSampleMimeTypes(trackType: Int): ImmutableList<String> =
         when (trackType) {
-            C.TRACK_TYPE_VIDEO -> ImmutableList.of(MimeTypes.VIDEO_VP9)
+            C.TRACK_TYPE_VIDEO -> ImmutableList.of(MimeTypes.VIDEO_VP8, MimeTypes.VIDEO_VP9)
             C.TRACK_TYPE_AUDIO -> ImmutableList.of(MimeTypes.AUDIO_OPUS)
             else -> ImmutableList.of()
         }

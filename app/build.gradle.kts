@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.roborazzi)
 }
 
 // CI builds get a unique installed version and a source-commit suffix.
@@ -93,6 +94,10 @@ android {
         includeInBundle = true
     }
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
     lint {
         abortOnError = true
         // Treat project lint warnings as regressions instead of silently
@@ -155,6 +160,11 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.sqlite.jdbc)
     testImplementation(libs.test.json)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi.compose.preview)
+    testImplementation(libs.preview.scanner)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
 
     // Android Instrumentation Tests
     // The Compose BOM is required separately for the androidTest classpath.
@@ -190,4 +200,12 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
 // Persist current Room schema for future migration tests.
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+// Screenshot tests are generated automatically from the existing @Preview composables.
+roborazzi {
+    generateComposePreviewRobolectricTests {
+        enable = true
+        packages = listOf("org.roruku.smartformatconverter")
+    }
 }

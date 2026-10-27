@@ -1,6 +1,11 @@
 package org.roruku.smartformatconverter
 
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
+import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithTag
@@ -46,7 +51,12 @@ class ComposePreviewScreenshotTest {
     )
 
     private fun screenshot(name: String, content: @Composable () -> Unit) {
-        composeRule.setContent(content)
+        composeRule.setContent {
+            SmartFormatConverterTheme(darkTheme = true) {
+                Surface(modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background) { content() }
+            }
+        }
         composeRule.waitForIdle()
         val output = File("preview/$name.png")
         output.parentFile?.mkdirs()
@@ -104,7 +114,12 @@ class ComposePreviewScreenshotTest {
      * of swipes that can all land at the same bottom position.
      */
     private fun screenshotEditorSections(prefix: String, content: @Composable () -> Unit) {
-        composeRule.setContent(content)
+        composeRule.setContent {
+            SmartFormatConverterTheme(darkTheme = true) {
+                Surface(modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background) { content() }
+            }
+        }
         composeRule.waitForIdle()
         fun capture(section: String) {
             val output = File("preview/$prefix-$section.png")

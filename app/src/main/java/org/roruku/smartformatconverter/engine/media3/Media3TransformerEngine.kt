@@ -15,6 +15,7 @@ import androidx.media3.muxer.Muxer
 import androidx.media3.effect.Presentation
 import androidx.media3.transformer.AudioEncoderSettings
 import androidx.media3.transformer.Composition
+import androidx.media3.transformer.DefaultDecoderFactory
 import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EncoderSelector
 import org.roruku.smartformatconverter.engine.media.VideoEncoderSelection
@@ -350,6 +351,9 @@ object Media3TransformerEngine {
         }
 
         val transformerBuilder = Transformer.Builder(context)
+            .setDecoderFactory(DefaultDecoderFactory.Builder(context)
+                .setEnableDecoderFallback(true)
+                .build())
             .setEncoderFactory(encoderFactoryBuilder.build())
         if (webmOutput) transformerBuilder.setMuxerFactory(
             WebmMuxerFactory(sourceAudioChannels))

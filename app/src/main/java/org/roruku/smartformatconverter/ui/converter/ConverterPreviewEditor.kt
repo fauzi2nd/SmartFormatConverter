@@ -1143,78 +1143,138 @@ fun ConverterPreviewEditor(
                         }
                     }
                     item {
-                        Text(stringResource(R.string.video_encoder_title),
-                            fontWeight = FontWeight.SemiBold,
-                            style = MaterialTheme.typography.titleSmall)
-                        val encoderOptions = buildList {
-                            add(VideoEncoderSelection.AUTO to
-                                stringResource(R.string.video_encoder_auto))
-                            if (deviceEncoders.any { it.hardware }) {
-                                add(VideoEncoderSelection.HARDWARE to
-                                    stringResource(R.string.video_encoder_hardware))
-                            }
-                            if (deviceEncoders.any { !it.hardware }) {
-                                add(VideoEncoderSelection.SOFTWARE to
-                                    stringResource(R.string.video_encoder_software))
-                            }
-                            deviceEncoders.forEach { entry ->
-                                val category = if (entry.hardware)
-                                    stringResource(R.string.video_encoder_hw_tag)
-                                else stringResource(R.string.video_encoder_sw_tag)
-                                val supported = when (entry.reportedSourceSupported) {
-                                    true -> " · " + stringResource(R.string.video_encoder_source_supported)
-                                    false -> " · " + stringResource(R.string.video_encoder_source_unsupported)
-                                    null -> ""
-                                }
-                                add(VideoEncoderSelection.specific(entry.name) to
-                                    "$category · ${entry.name}$supported")
-                            }
-                            if (none { it.first == resolvedVideoSettings.encoder }) {
-                                add(resolvedVideoSettings.encoder to
-                                    (VideoEncoderSelection.displayName(resolvedVideoSettings.encoder) +
-                                        " · " + stringResource(R.string.video_encoder_source_unknown)))
+                        val update: (VideoAdvancedSettings) -> Unit = { settings ->
+                            val error = org.roruku.smartformatconverter.engine.media.VideoSettingsValidator.validate(settings)
+                            if (error == null) {
+                                if (applyToAll) onUpdateVideoSettings(settings)
+                                else selectedFile?.let { onUpdateVideoFileSettings(it.uri, settings) }
                             }
                         }
-                        ChoiceField(
-                            label = stringResource(R.string.video_encoder_title),
-                            value = resolvedVideoSettings.encoder,
-                            options = encoderOptions,
-                            onChange = { selection ->
-                                val updated = resolvedVideoSettings.copy(
-                                    encoder = selection, preset = "Custom"
-                                )
-                                if (applyToAll) onUpdateVideoSettings(updated)
-                                else selectedFile?.let { onUpdateVideoFileSettings(it.uri, updated) }
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text("Video Settings", style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold)
+                            val hardwarePresent = deviceEncoders.any { it.hardware }
+                            val softwarePresent = deviceEncoders.any { !it.hardware }
+                            val encoderChoices = buildList {
+                                add(VideoEncoderSelection.AUTO to "Auto")
+                                if (hardwarePresent) add(VideoEncoderSelection.HARDWARE to "Hardware")
+                                if (softwarePresent) add(VideoEncoderSelection.SOFTWARE to "Software")
                             }
-                        )
-                        if (deviceEncoders.isEmpty() && !isPreview) {
-                            Text(stringResource(R.string.video_encoder_unavailable),
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall)
-                        }
-                        Text(stringResource(R.string.video_encoder_capability_note),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall)
-                    }
-                    item {
-                        Text(stringResource(R.string.video_audio_subtitle),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold)
-                        VideoAdvancedSettingsControl(
-                            settings = resolvedVideoSettings.copy(format = state.targetFormat),
-                            onApply = { changed ->
-                                if (applyToAll) onUpdateVideoSettings(changed)
-                                else selectedFile?.let {
-                                    onUpdateVideoFileSettings(
-                                        it.uri, changed.copy(preset = "Custom"))
+                            ChoiceField("Video encoder", resolvedVideoSettings.encoder.takeIf {
+                                chosen -> encoderChoices.any { it.first == chosen }
+                            } ?: VideoEncoderSelection.AUTO, encoderChoices) {
+                                update(resolvedVideoSettings.copy(encoder = it, preset = "Custom"))
+                            }
+                            val codecs = if (state.targetFormat == "webm")
+                                listOf("auto" to "Auto (VP9)", "vp9" to "VP9")
+                            else listOf("auto" to "Auto (H.264)", "h264" to "H.264 / AVC",
+                                "h265" to "H.265 / HEVC")
+                            ChoiceField("Video codec", resolvedVideoSettings.videoCodec, codecs) {
+                                update(resolvedVideoSettings.copy(videoCodec = it, encoder = "auto",
+                                    preset = "Custom"))
+                            }
+                            ChoiceField("Pixel format", resolvedVideoSettings.pixelFormat,
+                                listOf("auto" to "Auto (recommended)",
+                                    "yuv420p" to "YUV 4:2:0 (8-bit)")) {
+                                update(resolvedVideoSettings.copy(pixelFormat = it, preset = "Custom"))
+                            }
+                            val sourceWidth = selectedSource?.videoWidth ?: selectedFile?.details?.width ?: 0
+                            val sourceHeight = selectedSource?.videoHeight ?: selectedFile?.details?.height ?: 0
+                            val resolutionOptions = buildList {
+                                add("source" to if (sourceWidth > 0 && sourceHeight > 0)
+                                    "Source (${sourceWidth}×${sourceHeight})" else "Source")
+                                listOf(1920 to 1080, 1280 to 720, 854 to 480).forEach { (w,h) ->
+                                    add("${w}x${h}" to "${w}×${h}")
+                                }
+                                if (resolvedVideoSettings.width != null && resolvedVideoSettings.height != null) {
+                                    val id = "${resolvedVideoSettings.width}x${resolvedVideoSettings.height}"
+                                    if (none { it.first == id }) add(id to id)
                                 }
                             }
-                        )
-                        if (!applyToAll && selectedFile != null &&
-                            state.perFileVideoSettings.containsKey(selectedFile.uri.toString())) {
-                            OutlinedButton(
-                                onClick = { onClearVideoFileSettings(selectedFile.uri) }
-                            ) { Text(stringResource(R.string.back_to_all_settings)) }
+                            val resolutionId = if (resolvedVideoSettings.width == null) "source"
+                                else "${resolvedVideoSettings.width}x${resolvedVideoSettings.height}"
+                            ChoiceField("Resolution", resolutionId, resolutionOptions) { id ->
+                                val parts = id.split('x')
+                                update(resolvedVideoSettings.copy(
+                                    width = parts.getOrNull(0)?.toIntOrNull(),
+                                    height = parts.getOrNull(1)?.toIntOrNull(),
+                                    preset = "Custom"))
+                            }
+                            ChoiceField("Frame rate (FPS)", resolvedVideoSettings.fps ?: "source",
+                                buildList {
+                                    add("source" to "Source")
+                                    listOf("24", "25", "30", "60").forEach { add(it to "$it FPS") }
+                                    resolvedVideoSettings.fps?.let { fps ->
+                                        if (none { it.first == fps }) add(fps to "$fps FPS")
+                                    }
+                                }) {
+                                update(resolvedVideoSettings.copy(
+                                    fps = it.takeUnless { fps -> fps == "source" }, preset = "Custom"))
+                            }
+                            ChoiceField("Video bitrate", resolvedVideoSettings.videoBitrateKbps.toString(),
+                                bitrateMenuOptions(resolvedVideoSettings.videoBitrateKbps,
+                                    org.roruku.smartformatconverter.engine.media.BitrateSelection.videoStandardsKbps)) {
+                                update(resolvedVideoSettings.copy(
+                                    videoBitrateKbps = it.toInt(), preset = "Custom"))
+                            }
+                            HorizontalDivider()
+                            Text("Audio Settings", style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold)
+                            val audioChoices = if (state.targetFormat == "webm")
+                                listOf("auto" to "Auto (Opus)", "opus" to "Opus", "none" to "No audio")
+                            else listOf("auto" to "Auto (AAC)", "aac" to "AAC", "none" to "No audio")
+                            ChoiceField("Audio codec", resolvedVideoSettings.audioCodec, audioChoices) {
+                                update(resolvedVideoSettings.copy(audioCodec = it, preset = "Custom"))
+                            }
+                            if (resolvedVideoSettings.audioCodec != "none") {
+                                ChoiceField("Audio bitrate", resolvedVideoSettings.audioBitrateKbps.toString(),
+                                    bitrateMenuOptions(resolvedVideoSettings.audioBitrateKbps,
+                                        org.roruku.smartformatconverter.engine.media.BitrateSelection.audioStandardsKbps)) {
+                                    update(resolvedVideoSettings.copy(audioBitrateKbps = it.toInt(),
+                                        preset = "Custom"))
+                                }
+                                ChoiceField("Sample rate", resolvedVideoSettings.sampleRate?.toString() ?: "source",
+                                    listOf("source" to "Source", "32000" to "32 kHz",
+                                        "44100" to "44.1 kHz", "48000" to "48 kHz")) {
+                                    update(resolvedVideoSettings.copy(sampleRate = it.toIntOrNull(),
+                                        preset = "Custom"))
+                                }
+                                ChoiceField("Channels", resolvedVideoSettings.channels?.toString() ?: "source",
+                                    listOf("source" to "Source", "1" to "Mono", "2" to "Stereo")) {
+                                    update(resolvedVideoSettings.copy(channels = it.toIntOrNull(),
+                                        preset = "Custom"))
+                                }
+                            }
+                            HorizontalDivider()
+                            Text("Advanced Options", style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Prevent upscaling", modifier = Modifier.weight(1f))
+                                androidx.compose.material3.Switch(
+                                    checked = resolvedVideoSettings.preventUpscale,
+                                    onCheckedChange = { update(resolvedVideoSettings.copy(
+                                        preventUpscale = it, preset = "Custom")) })
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Allow encoder resolution fallback", modifier = Modifier.weight(1f))
+                                androidx.compose.material3.Switch(
+                                    checked = resolvedVideoSettings.allowEncoderDownscale,
+                                    onCheckedChange = { update(resolvedVideoSettings.copy(
+                                        allowEncoderDownscale = it, preset = "Custom")) })
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Keep metadata", modifier = Modifier.weight(1f))
+                                androidx.compose.material3.Switch(
+                                    checked = resolvedVideoSettings.preserveMetadata,
+                                    onCheckedChange = { update(resolvedVideoSettings.copy(
+                                        preserveMetadata = it, preset = "Custom")) })
+                            }
+                            if (!applyToAll && selectedFile != null &&
+                                state.perFileVideoSettings.containsKey(selectedFile.uri.toString())) {
+                                OutlinedButton(onClick = { onClearVideoFileSettings(selectedFile.uri) }) {
+                                    Text(stringResource(R.string.back_to_all_settings))
+                                }
+                            }
                         }
                     }
                 } else {

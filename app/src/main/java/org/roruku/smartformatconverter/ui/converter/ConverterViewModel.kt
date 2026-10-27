@@ -325,6 +325,31 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    fun renameSelectedFile(uri: Uri, newBaseName: String) {
+        val requested = newBaseName.trim()
+        if (requested.isEmpty() || requested == "." || requested == ".." ||
+            requested.any { it in "/\\\\:*?\\"<>|" || it.code < 32 }) {
+            _uiState.update { it.copy(message = "Invalid filename") }
+            return
+        }
+        _uiState.update { state ->
+            val original = state.selectedFiles.firstOrNull { it.uri == uri }
+                ?: return@update state
+            val extension = original.details.fileName.substringAfterLast('.', "")
+            val outputName = if (extension.isBlank()) requested else "$requested.$extension"
+            if (state.selectedFiles.any { it.uri != uri &&
+                    it.details.fileName.equals(outputName, ignoreCase = true) &&
+                    it.relativeFolderPath == original.relativeFolderPath }) {
+                state.copy(message = "Another selected file already uses this name")
+            } else {
+                state.copy(selectedFiles = state.selectedFiles.map { file ->
+                    if (file.uri == uri) file.copy(details = file.details.copy(fileName = outputName))
+                    else file
+                })
+            }
+        }
+    }
+
     fun removeSelectedFile(file: SelectedMediaFile) {
         _uiState.update { current ->
             current.copy(

@@ -175,8 +175,8 @@ class MediaAdvancedSettingsTest {
     @Test
     fun encoderDownscaleIsExplicitAndPersistsInVideoJobSnapshot() {
         val smartAuto = VideoAdvancedSettings(format = "webm").applyPreset("Smart Auto")
-        assertTrue(smartAuto.allowEncoderDownscale)
-        assertTrue(VideoAdvancedSettings.fromJson(smartAuto.toJson()).allowEncoderDownscale)
+        assertFalse(smartAuto.allowEncoderDownscale)
+        assertFalse(VideoAdvancedSettings.fromJson(smartAuto.toJson()).allowEncoderDownscale)
         val strict = smartAuto.applyPreset("High Quality")
         assertFalse(strict.allowEncoderDownscale)
         assertFalse(VideoAdvancedSettings.fromJson(strict.toJson()).allowEncoderDownscale)

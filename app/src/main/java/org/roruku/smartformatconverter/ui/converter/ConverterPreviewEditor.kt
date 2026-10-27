@@ -1159,7 +1159,7 @@ fun ConverterPreviewEditor(
                                 else selectedFile?.let { onUpdateVideoFileSettings(it.uri, settings) }
                             }
                         }
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                             Text("Video Settings", style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold)
                             val hardwarePresent = deviceEncoders.any { it.hardware }
@@ -1169,7 +1169,7 @@ fun ConverterPreviewEditor(
                                 if (hardwarePresent) add(VideoEncoderSelection.HARDWARE to "Hardware")
                                 if (softwarePresent) add(VideoEncoderSelection.SOFTWARE to "Software")
                             }
-                            ChoiceField("Video encoder", resolvedVideoSettings.encoder.takeIf {
+                            CompactSettingChoice("Video encoder", resolvedVideoSettings.encoder.takeIf {
                                 chosen -> encoderChoices.any { it.first == chosen }
                             } ?: VideoEncoderSelection.AUTO, encoderChoices) {
                                 update(resolvedVideoSettings.copy(encoder = it, preset = "Custom"))
@@ -1178,11 +1178,11 @@ fun ConverterPreviewEditor(
                                 listOf("auto" to "Auto (VP9)", "vp9" to "VP9")
                             else listOf("auto" to "Auto (H.264)", "h264" to "H.264 / AVC",
                                 "h265" to "H.265 / HEVC")
-                            ChoiceField("Video codec", resolvedVideoSettings.videoCodec, codecs) {
+                            CompactSettingChoice("Video codec", resolvedVideoSettings.videoCodec, codecs) {
                                 update(resolvedVideoSettings.copy(videoCodec = it, encoder = "auto",
                                     preset = "Custom"))
                             }
-                            ChoiceField("Pixel format", resolvedVideoSettings.pixelFormat,
+                            CompactSettingChoice("Pixel format", resolvedVideoSettings.pixelFormat,
                                 listOf("auto" to "Auto (recommended)",
                                     "yuv420p" to "YUV 4:2:0 (8-bit)")) {
                                 update(resolvedVideoSettings.copy(pixelFormat = it, preset = "Custom"))
@@ -1202,14 +1202,14 @@ fun ConverterPreviewEditor(
                             }
                             val resolutionId = if (resolvedVideoSettings.width == null) "source"
                                 else "${resolvedVideoSettings.width}x${resolvedVideoSettings.height}"
-                            ChoiceField("Resolution", resolutionId, resolutionOptions) { id ->
+                            CompactSettingChoice("Resolution", resolutionId, resolutionOptions) { id ->
                                 val parts = id.split('x')
                                 update(resolvedVideoSettings.copy(
                                     width = parts.getOrNull(0)?.toIntOrNull(),
                                     height = parts.getOrNull(1)?.toIntOrNull(),
                                     preset = "Custom"))
                             }
-                            ChoiceField("Frame rate (FPS)", resolvedVideoSettings.fps ?: "source",
+                            CompactSettingChoice("Frame rate (FPS)", resolvedVideoSettings.fps ?: "source",
                                 buildList {
                                     add("source" to "Source")
                                     listOf("24", "25", "30", "60").forEach { add(it to "$it FPS") }
@@ -1220,7 +1220,7 @@ fun ConverterPreviewEditor(
                                 update(resolvedVideoSettings.copy(
                                     fps = it.takeUnless { fps -> fps == "source" }, preset = "Custom"))
                             }
-                            ChoiceField("Video bitrate", resolvedVideoSettings.videoBitrateKbps.toString(),
+                            CompactSettingChoice("Video bitrate", resolvedVideoSettings.videoBitrateKbps.toString(),
                                 bitrateMenuOptions(resolvedVideoSettings.videoBitrateKbps,
                                     org.roruku.smartformatconverter.engine.media.BitrateSelection.videoStandardsKbps)) {
                                 update(resolvedVideoSettings.copy(
@@ -1232,23 +1232,23 @@ fun ConverterPreviewEditor(
                             val audioChoices = if (state.targetFormat == "webm")
                                 listOf("auto" to "Auto (Opus)", "opus" to "Opus", "none" to "No audio")
                             else listOf("auto" to "Auto (AAC)", "aac" to "AAC", "none" to "No audio")
-                            ChoiceField("Audio codec", resolvedVideoSettings.audioCodec, audioChoices) {
+                            CompactSettingChoice("Audio codec", resolvedVideoSettings.audioCodec, audioChoices) {
                                 update(resolvedVideoSettings.copy(audioCodec = it, preset = "Custom"))
                             }
                             if (resolvedVideoSettings.audioCodec != "none") {
-                                ChoiceField("Audio bitrate", resolvedVideoSettings.audioBitrateKbps.toString(),
+                                CompactSettingChoice("Audio bitrate", resolvedVideoSettings.audioBitrateKbps.toString(),
                                     bitrateMenuOptions(resolvedVideoSettings.audioBitrateKbps,
                                         org.roruku.smartformatconverter.engine.media.BitrateSelection.audioStandardsKbps)) {
                                     update(resolvedVideoSettings.copy(audioBitrateKbps = it.toInt(),
                                         preset = "Custom"))
                                 }
-                                ChoiceField("Sample rate", resolvedVideoSettings.sampleRate?.toString() ?: "source",
+                                CompactSettingChoice("Sample rate", resolvedVideoSettings.sampleRate?.toString() ?: "source",
                                     listOf("source" to "Source", "32000" to "32 kHz",
                                         "44100" to "44.1 kHz", "48000" to "48 kHz")) {
                                     update(resolvedVideoSettings.copy(sampleRate = it.toIntOrNull(),
                                         preset = "Custom"))
                                 }
-                                ChoiceField("Channels", resolvedVideoSettings.channels?.toString() ?: "source",
+                                CompactSettingChoice("Channels", resolvedVideoSettings.channels?.toString() ?: "source",
                                     listOf("source" to "Source", "1" to "Mono", "2" to "Stereo")) {
                                     update(resolvedVideoSettings.copy(channels = it.toIntOrNull(),
                                         preset = "Custom"))
@@ -1459,6 +1459,56 @@ fun ConverterPreviewEditor(
                     if (state.isConverting) stringResource(R.string.preparing_queue)
                     else stringResource(R.string.start_conversion_count, files.size)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactSettingChoice(
+    label: String,
+    value: String,
+    options: List<Pair<String, String>>,
+    onChange: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(label, modifier = Modifier.weight(0.38f),
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2)
+            Box(Modifier.weight(0.62f)) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().clickable { expanded = true },
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text(options.firstOrNull { it.first == value }?.second ?: value,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall)
+                        Text("▾", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                androidx.compose.material3.DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    options.forEach { (id, title) ->
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(title) },
+                            onClick = { expanded = false; onChange(id) }
+                        )
+                    }
+                }
             }
         }
     }

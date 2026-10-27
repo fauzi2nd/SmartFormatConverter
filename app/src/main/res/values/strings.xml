@@ -407,4 +407,7 @@
     <string name="queue_compatible_retry_title">Allow lower WebM resolution?</string>
     <string name="queue_compatible_retry_explanation">The device cannot encode VP9 at the original resolution. Retry using a compatible resolution; image detail may decrease. The source file remains unchanged.</string>
     <string name="queue_compatible_retry_confirm">Allow and retry</string>
+    <string name="queue_output_display_only">Output resolution: %1$d×%2$d</string>
+    <string name="queue_output_display_preserved">Output resolution: %1$d×%2$d (preserved)</string>
+    <string name="queue_output_display_changed">Resolution: %1$d×%2$d → %3$d×%4$d (resized)</string>
 </resources>

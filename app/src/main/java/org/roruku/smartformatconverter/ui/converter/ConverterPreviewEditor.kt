@@ -1133,21 +1133,45 @@ fun ConverterPreviewEditor(
                         val presets = if (state.targetFormat == "mp4") {
                             listOf("Smart Auto", "Original Quality / Remux", "High Quality", "Balanced", "Small File", "Custom")
                         } else listOf("Smart Auto", "High Quality", "Balanced", "Small File", "Custom")
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(presets.size) { i ->
-                                val choice = presets[i]
-                                val chosen = resolvedVideoSettings.preset == choice
-                                if (chosen) Button(onClick = {}) { Text(presetDisplayName(choice)) }
-                                else OutlinedButton(onClick = {
-                                    if (applyToAll) {
-                                        onUpdatePreset(choice)
-                                    } else {
-                                        selectedFile?.let {
-                                             onUpdateVideoFileSettings(
-                                                it.uri, resolvedVideoSettings.applyPreset(choice))
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            presets.chunked(2).forEach { rowPresets ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    rowPresets.forEach { choice ->
+                                        val chosen = resolvedVideoSettings.preset == choice
+                                        val choose: () -> Unit = {
+                                            if (applyToAll) onUpdatePreset(choice)
+                                            else selectedFile?.let { file ->
+                                                onUpdateVideoFileSettings(
+                                                    file.uri,
+                                                    resolvedVideoSettings.applyPreset(choice)
+                                                )
+                                            }
+                                        }
+                                        if (chosen) {
+                                            Button(
+                                                onClick = {},
+                                                modifier = Modifier.weight(1f),
+                                                contentPadding = PaddingValues(horizontal = 6.dp)
+                                            ) {
+                                                Text(presetDisplayName(choice), maxLines = 2,
+                                                    style = MaterialTheme.typography.labelSmall)
+                                            }
+                                        } else {
+                                            OutlinedButton(
+                                                onClick = choose,
+                                                modifier = Modifier.weight(1f),
+                                                contentPadding = PaddingValues(horizontal = 6.dp)
+                                            ) {
+                                                Text(presetDisplayName(choice), maxLines = 2,
+                                                    style = MaterialTheme.typography.labelSmall)
+                                            }
                                         }
                                     }
-                                }) { Text(presetDisplayName(choice)) }
+                                    if (rowPresets.size == 1) Spacer(Modifier.weight(1f))
+                                }
                             }
                         }
                     }

@@ -1246,21 +1246,22 @@ fun ConverterPreviewEditor(
                                 VideoEncoderSelection.SOFTWARE to "Software"
                             )
                             CompactSettingChoice("Video encoder", mode, encoderChoices) { selectedMode ->
-                                if (isPreview || detected == null) {
-                                    update(resolvedVideoSettings.copy(encoder = selectedMode, preset = "Custom"))
-                                } else {
-                                    val valid = codecCandidates.filter { supported(it, selectedMode) }
-                                    if (valid.isNotEmpty()) {
-                                        val current = resolvedVideoSettings.videoCodec.takeUnless { it == "auto" }
-                                            ?: if (state.targetFormat == "webm") "vp9" else "h264"
-                                        update(resolvedVideoSettings.copy(
-                                            encoder = selectedMode,
-                                            videoCodec = if (current in valid) resolvedVideoSettings.videoCodec
-                                                else valid.first(),
-                                            preset = "Custom"
-                                        ))
-                                    }
+                                // A mode switch must never be blocked by a codec selected in
+                                // the previous mode. Reconcile the codec with capabilities
+                                // and keep Auto when the new mode has no usable codec.
+                                val compatible = codecCandidates.filter { supported(it, selectedMode) }
+                                val current = resolvedVideoSettings.videoCodec
+                                val nextCodec = when {
+                                    current == "auto" -> "auto"
+                                    current in compatible -> current
+                                    compatible.isNotEmpty() -> compatible.first()
+                                    else -> "auto"
                                 }
+                                update(resolvedVideoSettings.copy(
+                                    encoder = selectedMode,
+                                    videoCodec = nextCodec,
+                                    preset = "Custom"
+                                ))
                             }
                             val codecLabels = mapOf("vp8" to "VP8", "vp9" to "VP9",
                                 "h264" to "H.264 / AVC", "h265" to "H.265 / HEVC")

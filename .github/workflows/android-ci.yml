@@ -103,6 +103,29 @@ jobs:
         run: gradlew.bat testDebugUnitTest --no-configuration-cache --warning-mode all --stacktrace
         shell: cmd
 
+      - name: Print failed JUnit test cases
+        if: failure()
+        shell: powershell
+        run: |
+          $reports = @(Get-ChildItem 'app/build/test-results/testDebugUnitTest' -Filter 'TEST-*.xml' -Recurse -File -ErrorAction SilentlyContinue)
+          foreach ($report in $reports) {
+            try {
+              [xml]$xml = Get-Content $report.FullName -Raw
+              foreach ($case in @($xml.testsuite.testcase)) {
+                foreach ($failure in @($case.failure) + @($case.error)) {
+                  if ($null -ne $failure) {
+                    Write-Host "FAILED TEST: $($case.classname).$($case.name)"
+                    Write-Host "MESSAGE: $($failure.message)"
+                    Write-Host ($failure.'#text' | Out-String)
+                  }
+                }
+              }
+            } catch {
+              Write-Warning "Cannot read $($report.FullName): $_"
+            }
+          }
+          if ($reports.Count -eq 0) { Write-Host 'No JUnit XML results were generated.' }
+
       - name: Compile On-Device Smoke Tests
         # Device execution is a separate release gate. This verifies that
         # AndroidJUnit4/Media3 test sources compile on every trusted push.

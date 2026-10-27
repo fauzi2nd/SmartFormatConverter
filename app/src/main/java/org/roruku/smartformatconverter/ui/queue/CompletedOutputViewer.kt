@@ -7,6 +7,7 @@ import android.content.ClipData
 import android.provider.OpenableColumns
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -210,20 +211,14 @@ fun CompletedOutputViewer(job: ConversionJobEntity, onDismiss: () -> Unit) {
     var resultName by remember(job.id, job.outputUri) { mutableStateOf(job.fileName) }
     var readState by remember(job.id, job.outputUri) { mutableStateOf<Boolean?>(null) }
     var externalError by remember(job.id) { mutableStateOf(false) }
-    val resolutionDetails by produceState<String?>(null, job.outputUri, job.inputUri, inspection) {
+    val resolutionDetails by produceState<Pair<VideoGeometryPolicy.Size?, VideoGeometryPolicy.Size>?>(
+        null, job.outputUri, job.inputUri, inspection
+    ) {
         value = if (inspection || kind != CompletedMediaKind.VIDEO || outputUri == null) null
             else withContext(Dispatchers.IO) {
                 val out = renderedVideoSize(context, outputUri) ?: return@withContext null
-                val original = renderedVideoSize(context, Uri.parse(job.inputUri))
-                if (original == null) {
-                    context.getString(R.string.queue_output_display_only, out.width, out.height)
-                } else if (original == out) {
-                    context.getString(R.string.queue_output_display_preserved,
-                        out.width, out.height)
-                } else {
-                    context.getString(R.string.queue_output_display_changed,
-                        original.width, original.height, out.width, out.height)
-                }
+                val original = renderedVideoSize(context, job.inputUri.toUri())
+                original to out
             }
     }
     LaunchedEffect(job.outputUri, inspection) {
@@ -272,8 +267,17 @@ fun CompletedOutputViewer(job: ConversionJobEntity, onDismiss: () -> Unit) {
                             color = MaterialTheme.colorScheme.primary)
                         Text(resultName, fontWeight = FontWeight.SemiBold,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        resolutionDetails?.let { sizeSummary ->
-                            Text(sizeSummary,
+                        resolutionDetails?.let { (sourceSize, outSize) ->
+                            val summary = when {
+                                sourceSize == null -> stringResource(
+                                    R.string.queue_output_display_only, outSize.width, outSize.height)
+                                sourceSize == outSize -> stringResource(
+                                    R.string.queue_output_display_preserved, outSize.width, outSize.height)
+                                else -> stringResource(
+                                    R.string.queue_output_display_changed,
+                                    sourceSize.width, sourceSize.height, outSize.width, outSize.height)
+                            }
+                            Text(summary,
                                 color = MaterialTheme.colorScheme.tertiary,
                                 style = MaterialTheme.typography.labelSmall)
                         }

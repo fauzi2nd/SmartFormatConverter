@@ -84,6 +84,7 @@ fun QueueEmptyStatePreview() {
             onPauseJob = {},
             onResumeJob = {},
             onRetryJob = {},
+            onRetryWithResolutionFallback = {},
             onDeleteJob = {}
         )
     }
@@ -126,6 +127,7 @@ fun QueueActiveStatePreview() {
             onPauseJob = {},
             onResumeJob = {},
             onRetryJob = {},
+            onRetryWithResolutionFallback = {},
             onDeleteJob = {}
         )
     }

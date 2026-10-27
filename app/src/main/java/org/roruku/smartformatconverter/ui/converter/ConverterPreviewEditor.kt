@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
@@ -1319,7 +1318,7 @@ fun ConverterPreviewEditor(
                     // PNG compression is lossless; a quality preset would be misleading.
                     if (state.targetFormat != "png") {
                     item {
-                        Text(stringResource(R.string.preset), fontWeight = FontWeight.SemiBold)
+                        SectionTitle("Preset", Icons.Default.Layers)
                         val presets = listOf("Smart Auto", "High Quality", "Balanced", "Small File", "Custom")
                         val chosenPreset = if (state.selectedTab == 1)
                             resolvedImageSettings.preset else resolvedAudioSettings.preset

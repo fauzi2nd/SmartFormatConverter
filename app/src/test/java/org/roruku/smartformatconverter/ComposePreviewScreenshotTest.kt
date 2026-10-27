@@ -115,7 +115,7 @@ class ComposePreviewScreenshotTest {
             )
         }
         capture("top")
-        repeat(3) { step ->
+        repeat(6) { step ->
             composeRule.onNodeWithTag("converter_editor_scroll").performTouchInput {
                 swipeUp()
             }

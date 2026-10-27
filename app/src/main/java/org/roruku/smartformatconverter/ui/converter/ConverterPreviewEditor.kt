@@ -916,7 +916,7 @@ fun ConverterPreviewEditor(
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -1136,7 +1136,7 @@ fun ConverterPreviewEditor(
                         val presets = if (state.targetFormat == "mp4") {
                             listOf("Smart Auto", "Original Quality / Remux", "High Quality", "Balanced", "Small File", "Custom")
                         } else listOf("Smart Auto", "High Quality", "Balanced", "Small File", "Custom")
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(modifier = Modifier.testTag("editor_preset"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             presets.chunked(2).forEach { rowPresets ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -1189,7 +1189,7 @@ fun ConverterPreviewEditor(
                         Surface(shape = RoundedCornerShape(16.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            modifier = Modifier.fillMaxWidth()) {
+                            modifier = Modifier.fillMaxWidth().testTag("editor_video_settings")) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                             SectionTitle("Video Settings", Icons.Default.Movie)
                             val hardwarePresent = deviceEncoders.any { it.hardware }
@@ -1436,7 +1436,7 @@ fun ConverterPreviewEditor(
                         name.substringBeforeLast('.', name) + ".${state.targetFormat}"
                     } ?: "—"
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().testTag("editor_output_summary"),
                         shape = RoundedCornerShape(16.dp),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         colors = CardDefaults.cardColors(

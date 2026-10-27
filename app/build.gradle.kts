@@ -4,7 +4,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.roborazzi)
 }
 
 // CI builds get a unique installed version and a source-commit suffix.
@@ -161,8 +160,9 @@ dependencies {
     testImplementation(libs.sqlite.jdbc)
     testImplementation(libs.test.json)
     testImplementation(libs.robolectric)
-    testImplementation(libs.roborazzi.compose.preview)
-    testImplementation(libs.preview.scanner)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.androidx.test.core)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
 
@@ -202,10 +202,3 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
-// Screenshot tests are generated automatically from the existing @Preview composables.
-roborazzi {
-    generateComposePreviewRobolectricTests {
-        enable = true
-        packages = listOf("org.roruku.smartformatconverter")
-    }
-}

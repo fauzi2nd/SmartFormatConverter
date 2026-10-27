@@ -33,6 +33,9 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -1128,7 +1131,7 @@ fun ConverterPreviewEditor(
                 }
                 if (state.selectedTab == 0) {
                     item {
-                        Text(stringResource(R.string.preset), fontWeight = FontWeight.SemiBold)
+                        SectionTitle("Preset", Icons.Default.Layers)
                         // MP4 supports strict stream copy when source codecs and tracks match.
                         val presets = if (state.targetFormat == "mp4") {
                             listOf("Smart Auto", "Original Quality / Remux", "High Quality", "Balanced", "Small File", "Custom")
@@ -1183,9 +1186,12 @@ fun ConverterPreviewEditor(
                                 else selectedFile?.let { onUpdateVideoFileSettings(it.uri, settings) }
                             }
                         }
-                        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                            Text("Video Settings", style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold)
+                        Surface(shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            SectionTitle("Video Settings", Icons.Default.Movie)
                             val hardwarePresent = deviceEncoders.any { it.hardware }
                             val softwarePresent = deviceEncoders.any { !it.hardware }
                             val encoderChoices = buildList {
@@ -1251,8 +1257,7 @@ fun ConverterPreviewEditor(
                                     videoBitrateKbps = it.toInt(), preset = "Custom"))
                             }
                             HorizontalDivider()
-                            Text("Audio Settings", style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold)
+                            SectionTitle("Audio Settings", Icons.Default.Audiotrack)
                             val audioChoices = if (state.targetFormat == "webm")
                                 listOf("auto" to "Auto (Opus)", "opus" to "Opus", "none" to "No audio")
                             else listOf("auto" to "Auto (AAC)", "aac" to "AAC", "none" to "No audio")
@@ -1279,8 +1284,7 @@ fun ConverterPreviewEditor(
                                 }
                             }
                             HorizontalDivider()
-                            Text("Advanced Options", style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold)
+                            SectionTitle("Advanced Options", Icons.Default.Tune)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Prevent upscaling", modifier = Modifier.weight(1f))
                                 androidx.compose.material3.Switch(
@@ -1308,6 +1312,7 @@ fun ConverterPreviewEditor(
                                     Text(stringResource(R.string.back_to_all_settings))
                                 }
                             }
+                        }
                         }
                     }
                 } else {
@@ -1439,8 +1444,7 @@ fun ConverterPreviewEditor(
                     ) {
                         Column(Modifier.fillMaxWidth().padding(14.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Output Summary", fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleMedium)
+                            SectionTitle("Output Summary", Icons.Default.Description)
                             HorizontalDivider()
                             SummaryRow("Format", state.targetFormat.uppercase())
                             SummaryRow("Container", state.targetFormat.uppercase())
@@ -1497,6 +1501,16 @@ fun ConverterPreviewEditor(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SectionTitle(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Row(verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 

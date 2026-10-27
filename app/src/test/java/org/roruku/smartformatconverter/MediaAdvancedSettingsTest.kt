@@ -171,6 +171,18 @@ class MediaAdvancedSettingsTest {
     }
 
     @Test
+    fun encoderDownscaleIsExplicitAndPersistsInVideoJobSnapshot() {
+        val strict = VideoAdvancedSettings(format = "webm").applyPreset("Smart Auto")
+        assertFalse(strict.allowEncoderDownscale)
+        assertFalse(VideoAdvancedSettings.fromJson(strict.toJson()).allowEncoderDownscale)
+
+        val optedIn = strict.copy(allowEncoderDownscale = true)
+        assertTrue(VideoAdvancedSettings.fromJson(optedIn.toJson()).allowEncoderDownscale)
+        assertTrue(optedIn.applyPreset("High Quality").allowEncoderDownscale)
+        assertNull(VideoSettingsValidator.validate(optedIn))
+    }
+
+    @Test
     fun onlyImplementedAudioOutputIsValid() {
         for (supported in listOf("m4a", "aac", "ogg", "wav", "flac")) {
             assertNull(AudioSettingsValidator.validate(AudioAdvancedSettings(format = supported)))

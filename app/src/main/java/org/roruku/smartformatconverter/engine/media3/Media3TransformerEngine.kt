@@ -250,9 +250,15 @@ object Media3TransformerEngine {
     ): IllegalStateException {
         val stage = when (exception.errorCode) {
             ExportException.ERROR_CODE_ENCODER_INIT_FAILED ->
-                "Device encoder could not start for the selected resolution/codec"
+                if (webmOutput) "VP9 encoder could not initialize at the requested resolution. " +
+                    "If the device lacks a full-resolution VP9 encoder, enable " +
+                    "'Allow encoder resolution fallback' in Advanced Settings."
+                else "Device encoder could not start for the selected resolution/codec"
             ExportException.ERROR_CODE_ENCODING_FORMAT_UNSUPPORTED ->
-                "Requested output codec/profile is not supported by the device"
+                if (webmOutput) "No available VP9 encoder can encode this resolution. " +
+                    "Enable 'Allow encoder resolution fallback' in Advanced Settings " +
+                    "to permit lower output resolution, or choose MP4."
+                else "Requested output codec/profile is not supported by the device"
             ExportException.ERROR_CODE_ENCODING_FAILED ->
                 "Device encoder failed while processing media"
             ExportException.ERROR_CODE_DECODER_INIT_FAILED,

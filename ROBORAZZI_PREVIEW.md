@@ -8,7 +8,7 @@ From the project root:
 
 ```powershell
 git pull origin master
-.\gradlew.bat :app:testDebugUnitTest --tests "org.roruku.smartformatconverter.ComposePreviewScreenshotTest" --rerun-tasks
+.\gradlew.bat :app:testDebugUnitTest --tests "org.roruku.smartformatconverter.ComposePreviewScreenshotTest" -Proborazzi.test.record=true --rerun-tasks
 ```
 
 Screenshots are written to **app/preview/** as PNG files:
@@ -28,3 +28,5 @@ These tests take Compose design-state snapshots. They do **not** play real media
 No `org.gradle.java.home` was added: that absolute Windows installation path differs between systems. Set `JAVA_HOME` in your terminal if Gradle is using the wrong JDK.
 
 The old `recordRoborazziDebug`, `compareRoborazziDebug`, and `verifyRoborazziDebug` tasks are **not available** in library-only mode. Use the JVM screenshot test command above.
+
+> Important: without `-Proborazzi.test.record=true`, the tests can succeed without writing any PNG because recording is disabled by default.

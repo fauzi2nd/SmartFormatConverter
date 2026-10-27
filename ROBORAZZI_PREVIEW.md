@@ -12,10 +12,12 @@ git pull origin master
 ```
 
 Screenshots are written to **app/preview/** as PNG files:
-- video-preview.png
-- webm-two-files.png
-- image-preview.png
-- audio-preview.png
+- **Home:** `home-screen.png`
+- **Converter Catalog & Pickers:** `converter-catalog.png`, `converter-picker-video.png`, `converter-picker-audio.png`
+- **Converter Editor & Sheets:** `converter-editor-video.png`, `converter-editor-image.png`, `converter-editor-audio.png`, `converter-editor-webm-batch.png`, `sheet-video-advanced.png`
+- **Downloader:** `downloader-empty.png`, `downloader-loading.png`
+- **Queue:** `queue-empty.png`, `queue-active.png`
+- **Settings:** `settings-default.png`, `settings-custom-naming.png`
 
 These tests take Compose design-state snapshots. They do **not** play real media, test encoders, or validate the entire scrollable screen below the viewport. The tests currently capture the first 393dp × 840dp viewport.
 

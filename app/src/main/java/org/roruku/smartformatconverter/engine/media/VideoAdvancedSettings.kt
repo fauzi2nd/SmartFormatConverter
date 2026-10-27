@@ -124,14 +124,14 @@ object VideoSettingsValidator {
     fun validate(s: VideoAdvancedSettings): String? {
         if (s.schemaVersion != 1) return "Unsupported configuration version"
         if (s.format !in setOf("mp4", "webm")) return "Unsupported video output container"
-        if (s.videoCodec !in setOf("auto", "h264", "h265", "hevc", "vp9")) {
+        if (s.videoCodec !in setOf("auto", "h264", "h265", "hevc", "vp8", "vp9")) {
             return "Unsupported output video codec"
         }
         if (s.audioCodec !in setOf("auto", "aac", "opus", "none")) {
             return "Unsupported output audio codec"
         }
-        if (s.format == "webm" && s.videoCodec !in setOf("auto", "vp9")) {
-            return "WebM requires VP9 video"
+        if (s.format == "webm" && s.videoCodec !in setOf("auto", "vp8", "vp9")) {
+            return "WebM requires VP8 or VP9 video"
         }
         if (s.format == "webm" && s.audioCodec !in setOf("auto", "opus", "none")) {
             return "WebM requires Opus audio or no audio"

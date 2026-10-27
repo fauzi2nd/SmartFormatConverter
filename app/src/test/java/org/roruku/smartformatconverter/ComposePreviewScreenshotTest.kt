@@ -23,12 +23,19 @@ import java.io.File
 class ComposePreviewScreenshotTest {
     @get:Rule val composeRule = createComposeRule()
 
+    private val recordOptions = com.github.takahirom.roborazzi.RoborazziOptions(
+        taskType = com.github.takahirom.roborazzi.RoborazziTaskType.Record
+    )
+
     private fun screenshot(name: String, content: @androidx.compose.runtime.Composable () -> Unit) {
         composeRule.setContent(content)
         composeRule.waitForIdle()
         val output = File("preview/$name.png")
         output.parentFile?.mkdirs()
-        composeRule.onRoot().captureRoboImage(filePath = output.absolutePath)
+        composeRule.onRoot().captureRoboImage(
+            filePath = output.absolutePath,
+            roborazziOptions = recordOptions
+        )
     }
 
     @Test fun videoPreview() = screenshot("video-preview") { PreviewEditorSample(tab = 0) }

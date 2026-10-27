@@ -231,6 +231,24 @@ jobs:
           }
           Write-Host "Published APK verified; debug-latest now points to $env:GITHUB_SHA"
 
+      # Screenshot outputs are distributed as a rolling Release asset instead of
+      # actions/upload-artifact because the account's Actions artifact quota is exhausted.
+      # Publish only on validated master builds, never on untrusted PRs.
+      - name: Publish Compose preview screenshots
+        if: success() && github.ref == 'refs/heads/master'
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pngs = @(Get-ChildItem 'app/preview' -Filter '*.png' -File -ErrorAction SilentlyContinue)
+          if ($pngs.Count -eq 0) { throw 'Roborazzi created no PNG previews in app/preview.' }
+          $zip = Join-Path $env:RUNNER_TEMP 'compose-ui-previews.zip'
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path $pngs.FullName -DestinationPath $zip -CompressionLevel Optimal
+          gh release upload debug-latest $zip --repo $env:GITHUB_REPOSITORY --clobber
+          Write-Host "Published $($pngs.Count) PNG previews to debug-latest."
+
       - name: Print Lint Diagnostics on Failure
         if: failure()
         shell: powershell

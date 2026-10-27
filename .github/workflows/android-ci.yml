@@ -3,8 +3,14 @@ name: Android CI Build & Test
 on:
   push:
     branches: [ "master" ]
+    paths-ignore:
+      - "**/*.md"
+      - "app/preview/**"
   pull_request:
     branches: [ "master" ]
+    paths-ignore:
+      - "**/*.md"
+      - "app/preview/**"
   workflow_dispatch:
 
 # PR code is untrusted; do not expose write-scoped tokens to build jobs.
@@ -236,10 +242,10 @@ jobs:
           }
           Write-Host "Published APK verified; debug-latest now points to $env:GITHUB_SHA"
 
-      # Screenshot outputs are distributed as a rolling Release asset instead of
-      # actions/upload-artifact because the account's Actions artifact quota is exhausted.
-      # Publish only on validated master builds, never on untrusted PRs.
-      - name: Publish Compose preview screenshots
+      # Commit screenshots to the repository only after every build/release gate
+      # passes. A GITHUB_TOKEN push does not trigger another Actions workflow;
+      # paths-ignore also suppresses screenshot-only and documentation-only pushes.
+      - name: Commit generated Compose previews to master
         if: success() && github.ref == 'refs/heads/master'
         shell: powershell
         env:
@@ -247,12 +253,31 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $pngs = @(Get-ChildItem 'app/preview' -Filter '*.png' -File -ErrorAction SilentlyContinue)
-          if ($pngs.Count -eq 0) { throw 'Roborazzi created no PNG previews in app/preview.' }
-          $zip = Join-Path $env:RUNNER_TEMP 'compose-ui-previews.zip'
-          if (Test-Path $zip) { Remove-Item $zip -Force }
-          Compress-Archive -Path $pngs.FullName -DestinationPath $zip -CompressionLevel Optimal
-          gh release upload debug-latest $zip --repo $env:GITHUB_REPOSITORY --clobber
-          Write-Host "Published $($pngs.Count) PNG previews to debug-latest."
+          if ($pngs.Count -eq 0) { throw 'Roborazzi generated no PNG files in app/preview.' }
+          git add -A -- app/preview
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host 'Preview screenshots are unchanged; no commit needed.'
+            exit 0
+          }
+          if ($LASTEXITCODE -ne 1) { throw 'Failed to check staged preview changes.' }
+          # Do not overwrite a newer master commit made while CI was running.
+          git fetch origin master
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to fetch master before preview commit.' }
+          $headSha = (git rev-parse origin/master).Trim()
+          if ($headSha -ne $env:GITHUB_SHA) {
+            Write-Warning "master changed while this build ran; skipping preview publication. Run CI on the newer commit."
+            exit 0
+          }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore(preview): refresh Roborazzi screenshots [skip ci]'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to create preview commit.' }
+          $token = [Convert]::ToBase64String(
+            [Text.Encoding]::ASCII.GetBytes("x-access-token:$env:GH_TOKEN"))
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $token" push origin HEAD:master
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to publish preview commit.' }
+          Write-Host "Committed $($pngs.Count) preview screenshots to app/preview."
 
       - name: Print Lint Diagnostics on Failure
         if: failure()

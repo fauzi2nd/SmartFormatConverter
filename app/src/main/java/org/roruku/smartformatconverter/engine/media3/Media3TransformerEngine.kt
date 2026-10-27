@@ -91,16 +91,15 @@ object Media3TransformerEngine {
             editedItemBuilder.setRemoveAudio(true)
         }
 
-        val videoMime = when (config.outputFormat) {
-            VideoOutputFormat.WEBM -> MimeTypes.VIDEO_VP9
-            else -> {
-                if (advancedSettings?.videoCodec == "h265" || advancedSettings?.videoCodec == "hevc") {
-                    MimeTypes.VIDEO_H265
-                } else {
-                    MimeTypes.VIDEO_H264
-                }
-            }
+        val selectedCodec = advancedSettings?.videoCodec?.lowercase()?.takeUnless { it == "auto" }
+            ?: if (config.outputFormat == VideoOutputFormat.WEBM) "vp9" else "h264"
+        if (selectedCodec !in VideoEncoderCatalog.supportedCodecs(config.outputFormat.extension) &&
+            !(config.outputFormat != VideoOutputFormat.WEBM && selectedCodec == "hevc")) {
+            return@withContext Result.failure(IllegalArgumentException(
+                "Video codec '$selectedCodec' is not supported in ${config.outputFormat.extension.uppercase()}."
+            ))
         }
+        val videoMime = VideoEncoderCatalog.mimeType(config.outputFormat.extension, selectedCodec)
 
         val audioMime = when (config.outputFormat) {
             VideoOutputFormat.WEBM -> MimeTypes.AUDIO_OPUS

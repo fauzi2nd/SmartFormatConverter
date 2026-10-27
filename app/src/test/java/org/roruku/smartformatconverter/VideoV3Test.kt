@@ -67,6 +67,15 @@ class VideoV3Test {
     }
 
     @Test
+    fun smartAutoNeverSilentlyDownscalesWebm() {
+        val webm = VideoAdvancedSettings(format = "webm",
+            allowEncoderDownscale = true).applyPreset("Smart Auto")
+        assertEquals(false, webm.allowEncoderDownscale)
+        assertNull(webm.width)
+        assertNull(webm.height)
+    }
+
+    @Test
     fun presetsDelegateTargetsToAdaptivePlanner() {
         val base = VideoAdvancedSettings()
         assertEquals("vbr", base.rateControl)

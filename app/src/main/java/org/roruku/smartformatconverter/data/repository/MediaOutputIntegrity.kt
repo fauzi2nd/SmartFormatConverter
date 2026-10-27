@@ -59,7 +59,7 @@ internal object MediaOutputIntegrity {
             MediaType.VIDEO -> when (extension.lowercase()) {
                 "mp4" -> trackMimes.any { it in setOf("video/avc", "video/hevc") } &&
                     trackMimes.filter { it.startsWith("audio/") }.all { it == "audio/mp4a-latm" }
-                "webm" -> trackMimes.any { it == "video/x-vnd.on2.vp9" } &&
+                "webm" -> trackMimes.any { it in setOf("video/x-vnd.on2.vp8", "video/x-vnd.on2.vp9") } &&
                     trackMimes.filter { it.startsWith("audio/") }.all { it == "audio/opus" }
                 else -> false
             }

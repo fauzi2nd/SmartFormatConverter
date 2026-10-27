@@ -1106,37 +1106,40 @@ fun ConverterPreviewEditor(
                 }
 
                 item {
-                    HorizontalDivider()
-                    Text(
-                        stringResource(R.string.output_settings),
-                        fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(top = 10.dp)
-                    )
-                }
-                run {
-                    item {
-                        val allFilesText = stringResource(R.string.all_files)
-                        val thisFileOnlyText = stringResource(R.string.this_file_only)
-                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            listOf(allFilesText, thisFileOnlyText).forEachIndexed { i, label ->
-                                SegmentedButton(
-                                    selected = applyToAll == (i == 0),
-                                    onClick = { applyToAll = i == 0 },
-                                    shape = SegmentedButtonDefaults.itemShape(index = i, count = 2)
-                                ) { Text(label, maxLines = 1) }
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            SectionTitle("Output Settings", Icons.Default.Tune)
+                            val allFilesText = stringResource(R.string.all_files)
+                            val thisFileOnlyText = stringResource(R.string.this_file_only)
+                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                listOf(allFilesText, thisFileOnlyText).forEachIndexed { i, label ->
+                                    SegmentedButton(
+                                        selected = applyToAll == (i == 0),
+                                        onClick = { applyToAll = i == 0 },
+                                        shape = SegmentedButtonDefaults.itemShape(index = i, count = 2)
+                                    ) { Text(label, maxLines = 1) }
+                                }
                             }
                         }
                     }
                 }
                 if (state.selectedTab == 0) {
                     item {
-                        SectionTitle("Preset", Icons.Default.Layers)
                         // MP4 supports strict stream copy when source codecs and tracks match.
                         val presets = if (state.targetFormat == "mp4") {
                             listOf("Smart Auto", "Original Quality / Remux", "High Quality", "Balanced", "Small File", "Custom")
                         } else listOf("Smart Auto", "High Quality", "Balanced", "Small File", "Custom")
-                        Column(modifier = Modifier.testTag("editor_preset"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Surface(modifier = Modifier.fillMaxWidth().testTag("editor_preset"),
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SectionTitle("Preset", Icons.Default.Layers)
                             presets.chunked(2).forEach { rowPresets ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -1176,6 +1179,7 @@ fun ConverterPreviewEditor(
                                     if (rowPresets.size == 1) Spacer(Modifier.weight(1f))
                                 }
                             }
+                        }
                         }
                     }
                     item {

@@ -11,6 +11,8 @@ import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.AudioSettingsValidator
 import org.roruku.smartformatconverter.engine.media.ImageAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.ImageSettingsValidator
+import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.VideoSettingsValidator
 import org.roruku.smartformatconverter.engine.image.ImageConverterEngine
 import org.roruku.smartformatconverter.data.repository.ProgressEstimator
 import org.roruku.smartformatconverter.data.repository.ActiveConversionJobs

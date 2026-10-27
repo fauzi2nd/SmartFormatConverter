@@ -8,12 +8,21 @@ import org.junit.Test
 import org.roruku.smartformatconverter.engine.media.BitrateSelection
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.VideoSettingsValidator
+import org.roruku.smartformatconverter.engine.media3.VideoEncoderCatalog
 import org.roruku.smartformatconverter.data.repository.Media3OutputPolicy
 import org.roruku.smartformatconverter.data.repository.FormatCapabilityRegistry
 import org.roruku.smartformatconverter.data.db.MediaType
 
 /** Test the engine actually shipped, not the retired FFmpeg shell command builder. */
 class VideoV3Test {
+    @Test
+    fun automaticCodecResolvesPerContainerInAllPreviews() {
+        assertEquals("video/avc", VideoEncoderCatalog.mimeType("mp4", "auto"))
+        assertEquals("video/x-vnd.on2.vp9", VideoEncoderCatalog.mimeType("webm", "auto"))
+        assertEquals("video/x-vnd.on2.vp8", VideoEncoderCatalog.mimeType("webm", "vp8"))
+        assertEquals("video/hevc", VideoEncoderCatalog.mimeType("mp4", "h265"))
+    }
+
     @Test
     fun registryAndOutputPolicyAgree() {
         assertEquals(listOf("mp4", "webm"),

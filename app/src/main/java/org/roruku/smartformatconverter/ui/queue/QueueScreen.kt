@@ -653,6 +653,7 @@ fun QueueScreenPreview() {
             onPauseJob = {},
             onResumeJob = {},
             onRetryJob = {},
+            onRetryWithResolutionFallback = {},
             onDeleteJob = {}
         )
     }

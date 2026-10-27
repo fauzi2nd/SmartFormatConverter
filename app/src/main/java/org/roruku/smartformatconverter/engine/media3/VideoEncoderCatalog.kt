@@ -19,10 +19,22 @@ internal object VideoEncoderCatalog {
         val reportedSourceSupported: Boolean?,
     )
 
-    fun mimeType(format: String, codec: String): String = when (format.lowercase()) {
-        "webm" -> MimeTypes.VIDEO_VP9
-        else -> if (codec.lowercase() in setOf("h265", "hevc"))
-            MimeTypes.VIDEO_H265 else MimeTypes.VIDEO_H264
+    /**
+     * Container-aware formats actually supported by our output muxers.
+     * Availability is separately filtered through MediaCodec at runtime.
+     */
+    fun supportedCodecs(format: String): List<String> = when (format.lowercase()) {
+        "webm" -> listOf("vp8", "vp9")
+        "mp4" -> listOf("h264", "h265")
+        else -> emptyList()
+    }
+
+    fun mimeType(format: String, codec: String): String = when (codec.lowercase()) {
+        "vp8" -> MimeTypes.VIDEO_VP8
+        "vp9" -> MimeTypes.VIDEO_VP9
+        "h264", "avc" -> MimeTypes.VIDEO_H264
+        "h265", "hevc" -> MimeTypes.VIDEO_H265
+        else -> throw IllegalArgumentException("Unsupported video codec: $codec")
     }
 
     fun available(mimeType: String): List<MediaCodecInfo> =

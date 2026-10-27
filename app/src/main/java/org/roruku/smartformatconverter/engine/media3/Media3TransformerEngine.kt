@@ -16,6 +16,8 @@ import androidx.media3.effect.Presentation
 import androidx.media3.transformer.AudioEncoderSettings
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.DefaultEncoderFactory
+import androidx.media3.transformer.EncoderSelector
+import androidx.media3.transformer.EncoderUtil
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.Effects
 import androidx.media3.transformer.ExportException
@@ -129,11 +131,10 @@ object Media3TransformerEngine {
         val videoBitrate = plan.videoKbps
         val audioBitrate = plan.audioKbps
 
-        // Media3's fallback may silently downscale a 1440x1080 display source
-        // to 1080x810 when the device VP9 encoder cannot support it. Check the
-        // *actual muxed result* and reject unexpected resolution losses.
-        val shouldPreserveResolution = effectiveSettings.width == null &&
-            effectiveSettings.height == null
+        // Preserve source display dimensions unless the user explicitly
+        // requests an alternate size or opts in to encoder downscaling.
+        val shouldPreserveResolution = !effectiveSettings.allowEncoderDownscale &&
+            effectiveSettings.width == null && effectiveSettings.height == null
 
         executeTransformation(
             context = context,
@@ -145,6 +146,7 @@ object Media3TransformerEngine {
             audioBitrateKbps = audioBitrate,
             webmOutput = config.outputFormat == VideoOutputFormat.WEBM,
             sourceAudioChannels = source.audioChannels,
+            allowEncoderDownscale = effectiveSettings.allowEncoderDownscale,
             expectedDisplaySize = if (shouldPreserveResolution &&
                 source.videoWidth > 0 && source.videoHeight > 0
             ) VideoGeometryPolicy.displaySize(
@@ -291,11 +293,23 @@ object Media3TransformerEngine {
         webmOutput: Boolean = false,
         muxerFactory: Muxer.Factory? = null,
         sourceAudioChannels: Int = 0,
+        allowEncoderDownscale: Boolean = false,
         expectedDisplaySize: VideoGeometryPolicy.Size? = null,
         onProgress: (progress: Float, speed: String?, eta: String?) -> Unit
     ): Result<File> = suspendCancellableCoroutine { continuation ->
         val encoderFactoryBuilder = DefaultEncoderFactory.Builder(context)
             .setEnableFallback(true)
+        if (webmOutput) {
+            // Media3 EncoderSelector.DEFAULT excludes ALL software encoders if
+            // any hardware VP9 encoder is present, even when hardware can only
+            // produce 1080x810 from a 1440x1080 source. Include both kinds.
+            encoderFactoryBuilder.setVideoEncoderSelector(
+                EncoderSelector { mimeType -> EncoderUtil.getSupportedEncoders(mimeType) }
+            )
+            // Keep bitrate/profile fallback but prohibit resolution fallback
+            // unless the user explicitly enabled it in Advanced Settings.
+            encoderFactoryBuilder.setEnableFormatFallback(allowEncoderDownscale)
+        }
 
         if (videoBitrateKbps != null && videoBitrateKbps > 0) {
             encoderFactoryBuilder.setRequestedVideoEncoderSettings(

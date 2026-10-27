@@ -191,6 +191,16 @@ fun VideoAdvancedSettingsControl(
                     draft.preventUpscale,
                     onChange = { draft = draft.copy(preventUpscale = it) }
                 )
+                ToggleOption(
+                    stringResource(R.string.video_setting_allow_encoder_downscale),
+                    draft.allowEncoderDownscale,
+                    onChange = { draft = draft.copy(allowEncoderDownscale = it) }
+                )
+                Text(
+                    stringResource(R.string.video_setting_allow_encoder_downscale_desc),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
 
                 val videoChoices = if (draft.format == "webm") listOf(
                     "auto" to stringResource(R.string.advanced_vp9),

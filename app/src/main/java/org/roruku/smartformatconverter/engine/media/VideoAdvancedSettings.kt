@@ -18,6 +18,9 @@ data class VideoAdvancedSettings(
     val height: Int? = null,
     val fps: String? = null,
     val preventUpscale: Boolean = true,
+    // Explicit user permission to accept encoder-side resolution reductions.
+    // Default false: try full-resolution hardware AND software encoders first.
+    val allowEncoderDownscale: Boolean = false,
     val videoCodec: String = "auto",
     val encoder: String = "auto",
     val rateControl: String = "vbr",
@@ -56,6 +59,7 @@ data class VideoAdvancedSettings(
         if (height != null) put("height", height)
         if (fps != null) put("fps", fps)
         put("preventUpscale", preventUpscale)
+        put("allowEncoderDownscale", allowEncoderDownscale)
         put("videoCodec", videoCodec)
         put("encoder", encoder)
         put("rateControl", rateControl)
@@ -86,6 +90,7 @@ data class VideoAdvancedSettings(
                 height = obj.optInt("height").takeIf { obj.has("height") },
                 fps = obj.optString("fps", "").ifBlank { null },
                 preventUpscale = obj.optBoolean("preventUpscale", true),
+                allowEncoderDownscale = obj.optBoolean("allowEncoderDownscale", false),
                 videoCodec = obj.optString("videoCodec", "auto"),
                 encoder = obj.optString("encoder", "auto"),
                 rateControl = obj.optString("rateControl", "crf"),

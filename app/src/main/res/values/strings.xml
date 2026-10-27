@@ -400,4 +400,6 @@
     <string name="bitrate_auto">Auto (recommended)</string>
     <string name="bitrate_source">Source / original</string>
     <string name="bitrate_mode_explanation">Auto uses an encoder-recommended bitrate. Source tries to match the source track bitrate when available, otherwise falls back to Auto. Source is not lossless unless using Remux.</string>
+    <string name="video_setting_allow_encoder_downscale">Allow encoder resolution fallback</string>
+    <string name="video_setting_allow_encoder_downscale_desc">Off: keep original resolution and try available hardware/software encoders. On: if necessary, allow the encoder to use a smaller resolution (reduces detail). The output format stays unchanged.</string>
 </resources>

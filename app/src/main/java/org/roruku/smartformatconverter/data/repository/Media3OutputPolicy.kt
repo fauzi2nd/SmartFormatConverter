@@ -3,6 +3,7 @@ package org.roruku.smartformatconverter.data.repository
 import org.roruku.smartformatconverter.data.db.MediaType
 import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.VideoEncoderSelection
 
 /**
  * The active Media3 muxers support MP4, gated WebM, and AAC-in-MP4 audio.
@@ -21,14 +22,14 @@ internal object Media3OutputPolicy {
             "Remux cannot resize, edit audio/video, or preserve extra tracks. Use Transcode instead."
         s.videoCodec == "copy" || s.audioCodec == "copy" ->
             "Choose Original Quality / Remux for MP4 stream copy; codec copy flags are not supported."
-        (s.format == "webm" && s.videoCodec !in setOf("auto", "vp9")) ||
+        (s.format == "webm" && s.videoCodec !in setOf("auto", "vp8", "vp9")) ||
             (s.format == "mp4" && s.videoCodec !in setOf("auto", "h264", "h265", "hevc")) ->
-            "Select VP9 for WebM or H.264/H.265 for MP4."
+            "Select VP8/VP9 for WebM or H.264/H.265 for MP4."
         (s.format == "webm" && s.audioCodec !in setOf("auto", "opus", "none")) ||
             (s.format == "mp4" && s.audioCodec !in setOf("auto", "aac", "none")) ->
             "Select Opus for WebM or AAC for MP4."
-        s.encoder != "auto" ->
-            "Manual hardware/software encoder selection is not supported."
+        !VideoEncoderSelection.isValid(s.encoder) ->
+            "Invalid video encoder selection."
         s.fps != null || s.pixelFormat != "auto" || s.rateControl == "cbr" ->
             "Custom FPS, pixel format or constant bitrate mode is not supported."
         s.sampleRate != null || s.channels != null ||

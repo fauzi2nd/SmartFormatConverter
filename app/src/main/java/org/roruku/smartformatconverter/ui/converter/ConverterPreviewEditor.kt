@@ -874,6 +874,17 @@ fun ConverterPreviewEditor(
                 }.getOrDefault(emptyList())
             }
     }
+    val hardwareCodecs by produceState<Set<String>>(emptySet(), state.targetFormat, isPreview) {
+        value = if (isPreview) emptySet() else withContext(Dispatchers.Default) {
+            buildSet {
+                val codecs = if (state.targetFormat == "webm") listOf("vp9") else listOf("h264", "h265")
+                codecs.forEach { codec ->
+                    val mime = VideoEncoderCatalog.mimeType(state.targetFormat, codec)
+                    if (runCatching { VideoEncoderCatalog.describe(mime).any { it.hardware } }.getOrDefault(false)) add(codec)
+                }
+            }
+        }
+    }
     val estimatedTotalBytes = if (videoPlans.size == files.size &&
         videoPlans.values.all { it.estimatedBytes != null }) {
         videoPlans.values.sumOf { it.estimatedBytes ?: 0L }
@@ -1209,9 +1220,23 @@ fun ConverterPreviewEditor(
                             val hardwarePresent = deviceEncoders.any { it.hardware }
                             val softwarePresent = deviceEncoders.any { !it.hardware }
                             val encoderChoices = buildList {
-                                add(VideoEncoderSelection.AUTO to "Auto")
-                                if (hardwarePresent) add(VideoEncoderSelection.HARDWARE to "Hardware")
-                                if (softwarePresent) add(VideoEncoderSelection.SOFTWARE to "Software")
+                                add(VideoEncoderSelection.AUTO to "Auto (recommended)")
+                                if (hardwarePresent) {
+                                    add(VideoEncoderSelection.HARDWARE to "Hardware (auto-select)")
+                                    deviceEncoders.filter { it.hardware }.forEach { entry ->
+                                        add(VideoEncoderSelection.specific(entry.name) to
+                                            "Hardware · ${entry.name}" +
+                                            when (entry.reportedSourceSupported) {
+                                                true -> " ✓"
+                                                false -> " (resolution/FPS unsupported)"
+                                                null -> ""
+                                            })
+                                    }
+                                }
+                                if (softwarePresent) add(VideoEncoderSelection.SOFTWARE to "Software (auto-select)")
+                                deviceEncoders.filter { !it.hardware }.forEach { entry ->
+                                    add(VideoEncoderSelection.specific(entry.name) to "Software · ${entry.name}")
+                                }
                             }
                             CompactSettingChoice("Video encoder", resolvedVideoSettings.encoder.takeIf {
                                 chosen -> encoderChoices.any { it.first == chosen }
@@ -1219,9 +1244,10 @@ fun ConverterPreviewEditor(
                                 update(resolvedVideoSettings.copy(encoder = it, preset = "Custom"))
                             }
                             val codecs = if (state.targetFormat == "webm")
-                                listOf("auto" to "Auto (VP9)", "vp9" to "VP9")
-                            else listOf("auto" to "Auto (H.264)", "h264" to "H.264 / AVC",
-                                "h265" to "H.265 / HEVC")
+                                listOf("auto" to "Auto (VP9)", "vp9" to "VP9" + if ("vp9" in hardwareCodecs) " · HW" else " · SW/device dependent")
+                            else listOf("auto" to "Auto (H.264)",
+                                "h264" to ("H.264 / AVC" + if ("h264" in hardwareCodecs) " · HW" else " · SW/device dependent"),
+                                "h265" to ("H.265 / HEVC" + if ("h265" in hardwareCodecs) " · HW" else " · SW/device dependent"))
                             CompactSettingChoice("Video codec", resolvedVideoSettings.videoCodec, codecs) {
                                 update(resolvedVideoSettings.copy(videoCodec = it, encoder = "auto",
                                     preset = "Custom"))

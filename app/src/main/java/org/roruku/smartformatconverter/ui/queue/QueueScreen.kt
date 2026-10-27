@@ -115,7 +115,7 @@ fun QueueScreenContent(
     onPauseJob: (String) -> Unit,
     onResumeJob: (String) -> Unit,
     onRetryJob: (String) -> Unit,
-    onRetryWithResolutionFallback: (String) -> Unit,
+    onRetryWithResolutionFallback: (String) -> Unit = {},
     onDeleteJob: (ConversionJobEntity) -> Unit,
     modifier: Modifier = Modifier,
 ) {

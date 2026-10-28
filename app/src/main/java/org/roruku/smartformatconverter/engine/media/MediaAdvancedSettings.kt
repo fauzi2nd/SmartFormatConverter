@@ -94,13 +94,24 @@ data class AudioAdvancedSettings(
     val volumePercent: Int = 100,
     val preserveMetadata: Boolean = true,
     val preset: String = "Custom",
+    /** Audio MediaCodec implementation: auto or exact encoder name. */
+    val encoder: String = "auto",
+    /** Peak normalization targeting -1 dBFS, performed on PCM before encoding. */
+    val normalizePeak: Boolean = false,
+    /** Optional FLAC compression level (0 = fastest, 8 = smallest). */
+    val flacCompressionLevel: Int? = null,
 ) {
-    fun applyPreset(name: String): AudioAdvancedSettings = when (name) {
-        "Smart Auto" -> copy(preset = name, bitrateKbps = BitrateSelection.AUTO)
-        "High Quality" -> copy(preset = name, bitrateKbps = 320)
-        "Balanced" -> copy(preset = name, bitrateKbps = 192)
-        "Small File" -> copy(preset = name, bitrateKbps = 96)
-        else -> copy(preset = "Custom")
+    val isLossless: Boolean get() = format in setOf("wav", "flac")
+
+    fun applyPreset(name: String): AudioAdvancedSettings {
+        val initial = AudioAdvancedSettings(format = format)
+        if (isLossless) return initial.copy(
+            preset = if (name == "Custom") "Custom" else "Lossless"
+        )
+        return initial.copy(
+            preset = if (name == "Lossless") "Smart Auto" else name,
+            bitrateKbps = BitrateSelection.AUTO
+        )
     }
 
     fun toJson(): String = JSONObject().apply {
@@ -113,6 +124,9 @@ data class AudioAdvancedSettings(
         channels?.let { put("channels", it) }
         put("volumePercent", volumePercent)
         put("preserveMetadata", preserveMetadata)
+        put("encoder", encoder)
+        put("normalizePeak", normalizePeak)
+        flacCompressionLevel?.let { put("flacCompressionLevel", it) }
     }.toString()
 
     companion object {
@@ -128,7 +142,11 @@ data class AudioAdvancedSettings(
                 sampleRate = if (obj.has("sampleRate")) obj.getInt("sampleRate") else null,
                 channels = if (obj.has("channels")) obj.getInt("channels") else null,
                 volumePercent = obj.optInt("volumePercent", 100),
-                preserveMetadata = obj.optBoolean("preserveMetadata", true)
+                preserveMetadata = obj.optBoolean("preserveMetadata", true),
+                encoder = obj.optString("encoder", "auto"),
+                normalizePeak = obj.optBoolean("normalizePeak", false),
+                flacCompressionLevel = if (obj.has("flacCompressionLevel"))
+                    obj.getInt("flacCompressionLevel") else null
             )
         }
     }
@@ -145,8 +163,16 @@ object AudioSettingsValidator {
             "Audio bitrate must be Auto, Source, or 32–512 kbps"
         s.sampleRate != null && s.sampleRate !in setOf(32000, 44100, 48000, 96000) ->
             "Unsupported audio sample rate"
+        s.sampleRate == 96000 && s.format != "wav" ->
+            "96 kHz is available only for WAV output"
+        s.format == "ogg" && s.sampleRate != null && s.sampleRate != 48000 ->
+            "Opus output requires 48 kHz"
         s.channels != null && s.channels !in setOf(1, 2) -> "Only mono/stereo allowed"
         s.volumePercent !in 0..200 -> "Audio volume must be between 0% and 200%"
+        s.flacCompressionLevel != null &&
+            (s.format != "flac" || s.flacCompressionLevel !in 0..8) ->
+            "FLAC compression level must be 0–8 and only applies to FLAC"
+        s.encoder.isBlank() -> "Select a valid audio encoder"
         else -> null
     }
 }

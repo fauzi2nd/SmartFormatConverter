@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaFormat
 import android.net.Uri
+import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -28,9 +29,11 @@ internal object PlatformFlacExportEngine {
         context: Context,
         input: Uri,
         output: File,
-        onProgress: (Float, String?, String?) -> Unit
+        onProgress: (Float, String?, String?) -> Unit,
+        settings: AudioAdvancedSettings = AudioAdvancedSettings(format = "flac")
     ): Result<File> = withContext(Dispatchers.IO) {
         val stage = File.createTempFile("flac_pcm_", ".wav", context.cacheDir)
+        var processed: File? = null
         var encoder: MediaCodec? = null
         var completed = false
         try {
@@ -38,8 +41,18 @@ internal object PlatformFlacExportEngine {
                 onProgress(p * 0.40f, null, null)
             }
             decode.getOrThrow()
+            val needsPcm = settings.sampleRate != null || settings.channels != null ||
+                settings.volumePercent != 100 || settings.normalizePeak
+            if (needsPcm) {
+                processed = File.createTempFile("flac_processed_", ".wav", context.cacheDir)
+                PcmAudioProcessor.transform(
+                    stage, requireNotNull(processed), settings.sampleRate, settings.channels,
+                    settings.volumePercent, settings.normalizePeak
+                ).getOrThrow()
+            }
+            val pcm = processed ?: stage
             val header = ByteArray(44)
-            FileInputStream(stage).use { require(it.read(header) == 44) { "Invalid WAV stage" } }
+            FileInputStream(pcm).use { require(it.read(header) == 44) { "Invalid WAV stage" } }
             val h = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN)
             require(String(header, 0, 4, Charsets.US_ASCII) == "RIFF" &&
                 String(header, 8, 4, Charsets.US_ASCII) == "WAVE") { "Invalid PCM stage" }
@@ -50,18 +63,24 @@ internal object PlatformFlacExportEngine {
                 "FLAC encoder supports PCM16 mono/stereo up to 48 kHz"
             }
             val format = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_FLAC, sampleRate, channels)
-            encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_FLAC)
+            val requestedLevel = settings.flacCompressionLevel
+            require(AudioEncoderCatalog.compressionLevelSupported(
+                "flac", settings.encoder, requestedLevel
+            )) { "FLAC compression level is not supported by selected device encoder" }
+            if (requestedLevel != null)
+                format.setInteger(MediaFormat.KEY_FLAC_COMPRESSION_LEVEL, requestedLevel)
+            encoder = AudioEncoderCatalog.open("flac", settings.encoder)
             encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
             encoder.start()
             val codec = encoder
             val info = MediaCodec.BufferInfo()
             val frameBytes = channels * 2
-            val totalFrames = (stage.length() - 44L).coerceAtLeast(1L) / frameBytes
+            val totalFrames = (pcm.length() - 44L).coerceAtLeast(1L) / frameBytes
             var fedFrames = 0L
             var fedEos = false
             var gotEos = false
             var bytesWritten = 0L
-            FileInputStream(stage).use { raw ->
+            FileInputStream(pcm).use { raw ->
                 require(raw.skip(44) == 44L)
                 FileOutputStream(output).use { dest ->
                     while (!gotEos) {
@@ -131,6 +150,9 @@ internal object PlatformFlacExportEngine {
                     stream.write(updated)
                 }
             }
+            if (settings.preserveMetadata) {
+                FlacMetadataWriter.preserve(context, input, output)
+            }
             completed = true
             onProgress(1f, null, null)
             Result.success(output)
@@ -142,6 +164,7 @@ internal object PlatformFlacExportEngine {
             try { encoder?.stop() } catch (_: Exception) {}
             try { encoder?.release() } catch (_: Exception) {}
             stage.delete()
+            processed?.delete()
             if (!completed) output.delete()
         }
     }

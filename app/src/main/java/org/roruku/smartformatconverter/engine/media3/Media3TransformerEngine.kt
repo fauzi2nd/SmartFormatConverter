@@ -186,11 +186,35 @@ object Media3TransformerEngine {
         Media3DeviceCapabilities.unsupportedReason(MediaType.AUDIO, config.outputFormat.extension)?.let {
             return@withContext Result.failure(IllegalStateException(it))
         }
+        val audioSettings = advancedSettings ?: AudioAdvancedSettings(
+            format = config.outputFormat.extension, preset = "Smart Auto"
+        )
+        val needsPcmProcessing = audioSettings.sampleRate != null ||
+            audioSettings.channels != null || audioSettings.volumePercent != 100 ||
+            audioSettings.normalizePeak
         if (config.outputFormat == AudioOutputFormat.WAV) {
-            return@withContext PcmWavExportEngine.export(context, inputUri, tempOutputFile, onProgress)
+            if (!needsPcmProcessing)
+                return@withContext PcmWavExportEngine.export(
+                    context, inputUri, tempOutputFile, onProgress
+                )
+            val stage = File.createTempFile("wav_source_", ".wav", context.cacheDir)
+            try {
+                val decoded = PcmWavExportEngine.export(context, inputUri, stage) { p, _, _ ->
+                    onProgress(p * 0.5f, null, null)
+                }
+                decoded.getOrThrow()
+                return@withContext PcmAudioProcessor.transform(
+                    stage, tempOutputFile, audioSettings.sampleRate, audioSettings.channels,
+                    audioSettings.volumePercent, audioSettings.normalizePeak
+                )
+            } finally {
+                stage.delete()
+            }
         }
         if (config.outputFormat == AudioOutputFormat.FLAC) {
-            return@withContext PlatformFlacExportEngine.export(context, inputUri, tempOutputFile, onProgress)
+            return@withContext PlatformFlacExportEngine.export(
+                context, inputUri, tempOutputFile, onProgress, audioSettings
+            )
         }
         // Some vendor MediaMuxer implementations reject otherwise valid Opus
         // packets. Use Media3's dedicated audio muxers as a second route when
@@ -215,10 +239,17 @@ object Media3TransformerEngine {
                 output = tempOutputFile,
                 format = config.outputFormat,
                 bitrateKbps = targetAudioBitrate,
-                onProgress = onProgress
+                onProgress = onProgress,
+                settings = audioSettings
             )
             if (nativeResult.isSuccess) return@withContext nativeResult
             nativeFailure = nativeResult.exceptionOrNull()
+            if (needsPcmProcessing || audioSettings.encoder != "auto") {
+                // Do not silently discard custom PCM/encoder settings in Media3 fallback.
+                return@withContext Result.failure(IllegalStateException(
+                    "Selected audio processing failed: ${nativeFailure?.message}", nativeFailure
+                ))
+            }
             Log.w(TAG, "Platform compressed audio failed; trying Media3 fallback", nativeFailure)
             tempOutputFile.delete()
         }

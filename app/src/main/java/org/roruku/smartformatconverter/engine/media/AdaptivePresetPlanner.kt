@@ -157,14 +157,16 @@ object AdaptiveAudioPlanner {
     ): Int {
         val stereo = channels != 1
         val base = when (preset) {
-            "High Quality" -> if (opus) 192 else 256
-            "Balanced" -> if (opus) 128 else 160
-            "Small File" -> if (opus) 64 else 96
-            else -> if (opus) 144 else 176
+            "High Quality" -> if (opus) 192 else 288
+            "Balanced" -> if (opus) 128 else 176
+            "Small File" -> if (opus) 64 else 80
+            else -> if (opus) 144 else 192
         }
-        val recommended = if (stereo) base else (base * 0.65).roundToInt()
+        val recommended = if (stereo) base else (base * 0.60).roundToInt()
         val validSource = sourceRateKbps.takeIf { it in 32..512 }
-        // Manual bitrates are user-directed; Source exactly reflects the source.
+        // Explicit manual kbps and Source are respected. Otherwise, each
+        // quality preset adapts to codec, channels and source rate so a 128 kbps
+        // source is never pointlessly inflated to 320 kbps.
         return when {
             selection > 0 -> selection
             selection == BitrateSelection.SOURCE -> validSource ?: recommended

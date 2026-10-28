@@ -79,7 +79,9 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
         ImageAdvancedSettings(format = format).applyPreset("Smart Auto")
 
     private fun defaultAudio(format: String) =
-        AudioAdvancedSettings(format = format).applyPreset("Smart Auto")
+        AudioAdvancedSettings(format = format).applyPreset(
+            if (format in AudioSettingsValidator.losslessFormats) "Lossless" else "Smart Auto"
+        )
 
     fun selectTab(tabIndex: Int) {
         if (tabIndex !in 0..2 || _uiState.value.selectedTab == tabIndex) return

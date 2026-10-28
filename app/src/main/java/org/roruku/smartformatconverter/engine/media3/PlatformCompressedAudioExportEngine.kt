@@ -9,6 +9,7 @@ import android.media.MediaMuxer
 import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
+import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -34,7 +35,8 @@ internal object PlatformCompressedAudioExportEngine {
         output: File,
         format: AudioOutputFormat,
         bitrateKbps: Int,
-        onProgress: (Float, String?, String?) -> Unit
+        onProgress: (Float, String?, String?) -> Unit,
+        settings: AudioAdvancedSettings = AudioAdvancedSettings(format = format.extension)
     ): Result<File> = withContext(Dispatchers.IO) {
         require(format in setOf(AudioOutputFormat.M4A, AudioOutputFormat.AAC, AudioOutputFormat.OGG))
         val pcmStage = File.createTempFile("audio_decode_", ".wav", context.cacheDir)
@@ -61,40 +63,45 @@ internal object PlatformCompressedAudioExportEngine {
             val header = ByteBuffer.wrap(wavHeader).order(ByteOrder.LITTLE_ENDIAN)
             require(String(wavHeader, 0, 4, Charsets.US_ASCII) == "RIFF" &&
                 String(wavHeader, 8, 4, Charsets.US_ASCII) == "WAVE") { "Invalid intermediate WAV" }
-            val channels = header.getShort(22).toInt()
+            val originalChannels = header.getShort(22).toInt()
             val originalRate = header.getInt(24)
             val bits = header.getShort(34).toInt()
-            require(channels in 1..2 && bits == 16) { "Encoder requires PCM16 mono/stereo" }
+            require(originalChannels in 1..2 && bits == 16) {
+                "Encoder requires PCM16 mono/stereo"
+            }
 
             val opus = format == AudioOutputFormat.OGG
-            require(!opus || Build.VERSION.SDK_INT >= 29) { "OGG Opus requires Android 10 or newer" }
-            val rate = if (opus) 48_000 else originalRate
-            require(rate in setOf(8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000)) {
-                "AAC output does not support this input sample rate: " + originalRate +
-                    " Hz. Sample rate conversion is not available for AAC yet."
+            require(!opus || Build.VERSION.SDK_INT >= 29) {
+                "OGG Opus requires Android 10 or newer"
             }
-            val pcmInput: File
-            val skip: Long
-            if (opus && originalRate != rate) {
-                val stage = File.createTempFile("opus_pcm48_", ".raw", context.cacheDir)
+            val requestedRate = if (opus) 48_000 else settings.sampleRate ?: originalRate
+            require(requestedRate in setOf(
+                8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000
+            )) { "Unsupported AAC/Opus target sample rate $requestedRate Hz" }
+
+            val needsPcmProcessing = requestedRate != originalRate ||
+                settings.channels != null || settings.volumePercent != 100 ||
+                settings.normalizePeak
+            val pcmInput = if (needsPcmProcessing) {
+                val stage = File.createTempFile("encoded_pcm_", ".wav", context.cacheDir)
                 resampled = stage
-                Pcm48kResampler.convert(pcmStage, stage, originalRate, channels) {
-                    onProgress(0.35f + it * 0.15f, null, null)
-                }
-                pcmInput = stage
-                skip = 0L
-            } else {
-                pcmInput = pcmStage
-                skip = 44L
-                onProgress(0.5f, null, null)
-            }
+                PcmAudioProcessor.transform(
+                    pcmStage, stage, requestedRate, settings.channels,
+                    settings.volumePercent, settings.normalizePeak
+                ).getOrThrow()
+                stage
+            } else pcmStage
+            val skip = 44L
+            val rate = requestedRate
+            val channels = settings.channels ?: originalChannels
+            onProgress(0.5f, null, null)
 
             val mime = if (opus) MediaFormat.MIMETYPE_AUDIO_OPUS else MediaFormat.MIMETYPE_AUDIO_AAC
             val encoderFormat = MediaFormat.createAudioFormat(mime, rate, channels).apply {
                 setInteger(MediaFormat.KEY_BIT_RATE, bitrateKbps.coerceIn(32, 512) * 1000)
                 if (!opus) setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
             }
-            codec = MediaCodec.createEncoderByType(mime)
+            codec = AudioEncoderCatalog.open(format.extension, settings.encoder)
             val activeCodec = codec
             requireNotNull(activeCodec)
             require(activeCodec.codecInfo.getCapabilitiesForType(mime)

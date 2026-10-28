@@ -149,9 +149,28 @@ import org.roruku.smartformatconverter.engine.media.VideoEncoderSelection
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.ImageAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.AdaptiveAudioPlanner
+import org.roruku.smartformatconverter.engine.media.AudioSettingsValidator
+import org.roruku.smartformatconverter.engine.media3.AudioEncoderCatalog
+import org.roruku.smartformatconverter.engine.media.BitrateSelection
 import org.roruku.smartformatconverter.data.storage.OutputPathPolicy
 import org.roruku.smartformatconverter.data.storage.MediaDetails
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
+
+@Composable
+private fun AudioSettingValue(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(label, modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium)
+        Text(value, modifier = Modifier.weight(1.2f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
 
 @Composable
 fun editorCategoryName(tab: Int): String = when (tab) {
@@ -167,6 +186,7 @@ fun presetDisplayName(preset: String): String = when (preset) {
     "High Quality" -> stringResource(R.string.preset_high_quality)
     "Balanced" -> stringResource(R.string.preset_balanced)
     "Small File" -> stringResource(R.string.preset_small_file)
+    "Lossless" -> "Lossless"
     else -> stringResource(R.string.preset_custom)
 }
 
@@ -1749,7 +1769,10 @@ fun ConverterPreviewEditor(
                     if (state.targetFormat != "png") {
                     item {
                         SectionTitle("Preset", Icons.Default.Layers)
-                        val presets = listOf("Smart Auto", "High Quality", "Balanced", "Small File", "Custom")
+                        val presets = if (state.selectedTab == 2 &&
+                            state.targetFormat in AudioSettingsValidator.losslessFormats)
+                            listOf("Lossless", "Custom")
+                        else listOf("Smart Auto", "High Quality", "Balanced", "Small File", "Custom")
                         val chosenPreset = if (state.selectedTab == 1)
                             resolvedImageSettings.preset else resolvedAudioSettings.preset
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1828,14 +1851,216 @@ fun ConverterPreviewEditor(
                                         }
                                     )
                                 } else {
-                                    AudioAdvancedSettingsControl(
-                                        settings = resolvedAudioSettings.copy(format = state.targetFormat),
-                                        onApply = { changed ->
-                                            if (applyToAll) onUpdateAudioSettings(changed)
-                                            else selectedFile?.let {
-                                                onUpdateAudioFileSettings(it.uri, changed)
+                                    val audioSettings = resolvedAudioSettings.copy(
+                                        format = state.targetFormat
+                                    )
+                                    val updateAudio: (AudioAdvancedSettings) -> Unit = { changed ->
+                                        val custom = changed.copy(preset = "Custom")
+                                        if (applyToAll) onUpdateAudioSettings(custom)
+                                        else selectedFile?.let {
+                                            onUpdateAudioFileSettings(it.uri, custom)
+                                        }
+                                    }
+                                    val lossless = audioSettings.isLossless
+                                    val codecName = when (state.targetFormat) {
+                                        "wav" -> "PCM 16-bit (lossless)"
+                                        "flac" -> "FLAC (lossless)"
+                                        "ogg" -> "Opus"
+                                        else -> "AAC-LC"
+                                    }
+                                    AudioSettingValue("Audio codec", codecName)
+                                    val encoders = remember(state.targetFormat) {
+                                        AudioEncoderCatalog.list(state.targetFormat)
+                                    }
+                                    if (state.targetFormat != "wav") {
+                                        val encoderItems = listOf("auto" to "Auto (recommended)") +
+                                            encoders.map { encoder ->
+                                                encoder.name to (encoder.name + if (encoder.hardware)
+                                                    " · Hardware" else " · Software")
+                                            }
+                                        CompactSettingChoice(
+                                            "Audio encoder", audioSettings.encoder, encoderItems
+                                        ) { chosen -> updateAudio(audioSettings.copy(encoder = chosen)) }
+                                    } else {
+                                        AudioSettingValue("Audio encoder", "Not required (PCM)")
+                                    }
+                                    if (!lossless) {
+                                        val kbps = audioSettings.bitrateKbps
+                                        CompactSettingChoice(
+                                            "Audio bitrate", kbps.toString(),
+                                            bitrateMenuOptions(kbps, BitrateSelection.audioStandardsKbps)
+                                        ) { value ->
+                                            updateAudio(audioSettings.copy(bitrateKbps = value.toInt()))
+                                        }
+                                        val originalKbps = selectedFile?.details?.bitrate?.let {
+                                            (it / 1000).coerceAtLeast(0)
+                                        } ?: 0
+                                        val selectedRate = AdaptiveAudioPlanner.targetKbps(
+                                            kbps, originalKbps, selectedFile?.details?.audioChannels ?: 2,
+                                            state.targetFormat == "ogg", audioSettings.preset
+                                        )
+                                        Text(
+                                            "Estimated encoder target: $selectedRate kbps · " +
+                                                (if (state.targetFormat == "ogg") "Opus" else "AAC") +
+                                                " · actual output size may vary",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    } else {
+                                        AudioSettingValue("Audio bitrate", "Lossless · not configurable")
+                                    }
+
+                                    val sourceRate = selectedFile?.details?.sampleRate
+                                        ?.takeIf { it > 0 }
+                                    val rateOptions = when (state.targetFormat) {
+                                        "wav" -> listOf(32000, 44100, 48000, 96000)
+                                        "flac" -> listOf(32000, 44100, 48000)
+                                        "ogg" -> listOf(48000)
+                                        else -> listOf(32000, 44100, 48000)
+                                    }
+                                    if (state.targetFormat == "ogg") {
+                                        AudioSettingValue("Sample rate", "48 kHz (Opus required)")
+                                    } else {
+                                        CompactSettingChoice(
+                                            "Sample rate",
+                                            audioSettings.sampleRate?.toString() ?: "source",
+                                            listOf("source" to (sourceRate?.let {
+                                                "Source (${it / 1000.0} kHz)"
+                                            } ?: "Source / Auto")) +
+                                                rateOptions.map { it.toString() to "${it / 1000.0} kHz" }
+                                        ) { chosen ->
+                                            updateAudio(audioSettings.copy(
+                                                sampleRate = chosen.toIntOrNull()
+                                            ))
+                                        }
+                                    }
+                                    CompactSettingChoice(
+                                        "Channels",
+                                        audioSettings.channels?.toString() ?: "source",
+                                        listOf(
+                                            "source" to "Source (retain)",
+                                            "1" to "Mono",
+                                            "2" to "Stereo"
+                                        )
+                                    ) { value ->
+                                        updateAudio(audioSettings.copy(channels = value.toIntOrNull()))
+                                    }
+
+                                    HorizontalDivider()
+                                    Text("Audio Processing",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.SemiBold)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text("Peak normalization (-1 dBFS)")
+                                            Text("Normalizes PCM peak; not loudness (LUFS).",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        androidx.compose.material3.Switch(
+                                            checked = audioSettings.normalizePeak,
+                                            onCheckedChange = {
+                                                updateAudio(audioSettings.copy(normalizePeak = it))
+                                            }
+                                        )
+                                    }
+                                    CompactSettingChoice(
+                                        "Volume",
+                                        audioSettings.volumePercent.toString(),
+                                        listOf(0, 25, 50, 75, 100, 125, 150, 200).map {
+                                            it.toString() to "$it%"
+                                        }
+                                    ) { value ->
+                                        updateAudio(audioSettings.copy(
+                                            volumePercent = value.toInt()
+                                        ))
+                                    }
+                                    if (audioSettings.volumePercent > 100) {
+                                        Text("Gain above 100% may clip loud PCM samples.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+
+                                    if (state.targetFormat == "flac") {
+                                        val levels = encoders.filter { audioSettings.encoder == "auto" ||
+                                            it.name == audioSettings.encoder
+                                        }
+                                        val supported = (0..8).filter { level ->
+                                            levels.any { e -> e.flacCompressionMin != null &&
+                                                e.flacCompressionMax != null &&
+                                                level in e.flacCompressionMin..e.flacCompressionMax
                                             }
                                         }
+                                        CompactSettingChoice(
+                                            "FLAC compression",
+                                            audioSettings.flacCompressionLevel?.toString() ?: "auto",
+                                            listOf("auto" to "Auto (device encoder)") +
+                                                supported.map { it.toString() to "Level $it" }
+                                        ) { value ->
+                                            updateAudio(audioSettings.copy(
+                                                flacCompressionLevel = value.toIntOrNull()
+                                            ))
+                                        }
+                                        Text("Compression changes file size and speed, not PCM quality.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("Preserve title, artist, album, genre",
+                                                modifier = Modifier.weight(1f))
+                                            androidx.compose.material3.Switch(
+                                                checked = audioSettings.preserveMetadata,
+                                                onCheckedChange = {
+                                                    updateAudio(audioSettings.copy(preserveMetadata = it))
+                                                }
+                                            )
+                                        }
+                                        Text("FLAC text tags only; album artwork is not copied.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    } else {
+                                        Text("Metadata tags are not copied by the current " +
+                                            "Android ${state.targetFormat.uppercase()} export.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+
+                                    val durationMs = selectedFile?.details?.durationMs ?: 0L
+                                    val estimatedBytes = when {
+                                        durationMs <= 0 -> null
+                                        state.targetFormat == "wav" -> {
+                                            val rate = audioSettings.sampleRate ?: sourceRate ?: 44100
+                                            val ch = audioSettings.channels ?:
+                                                selectedFile?.details?.audioChannels?.takeIf { it in 1..2 } ?: 2
+                                            durationMs * rate * ch * 2 / 1000L + 44L
+                                        }
+                                        state.targetFormat == "flac" -> null
+                                        else -> {
+                                            val sourceKbps = selectedFile?.details?.bitrate?.div(1000) ?: 0
+                                            val selectedKbps = AdaptiveAudioPlanner.targetKbps(
+                                                audioSettings.bitrateKbps, sourceKbps,
+                                                audioSettings.channels ?:
+                                                    selectedFile?.details?.audioChannels ?: 2,
+                                                state.targetFormat == "ogg",
+                                                audioSettings.preset
+                                            )
+                                            durationMs * selectedKbps / 8L
+                                        }
+                                    }
+                                    HorizontalDivider()
+                                    Text(
+                                        "Output: $codecName · " +
+                                            (estimatedBytes?.let {
+                                                "estimated ${Formatter.formatShortFileSize(context, it)}"
+                                            } ?: "size depends on audio data") +
+                                            " · Source MP3 cannot regain lost quality.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                                 if (!applyToAll && selectedFile != null) {
@@ -1950,6 +2175,7 @@ private fun presetIcon(name: String): androidx.compose.ui.graphics.vector.ImageV
     "High Quality" -> Icons.Default.WorkspacePremium
     "Balanced" -> Icons.Default.Balance
     "Small File" -> Icons.Default.Eco
+    "Lossless" -> Icons.Default.HighQuality
     "Original Quality / Remux" -> Icons.Default.HighQuality
     else -> Icons.Default.Tune
 }

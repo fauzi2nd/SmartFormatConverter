@@ -34,7 +34,7 @@ class MediaAdvancedSettingsTest {
 
         val audio = AudioAdvancedSettings(format = "ogg").applyPreset("High Quality")
         assertEquals("High Quality", audio.preset)
-        assertEquals(320, audio.bitrateKbps)
+        assertEquals(BitrateSelection.AUTO, audio.bitrateKbps)
         assertEquals("ogg", audio.format)
     }
 
@@ -211,12 +211,12 @@ class MediaAdvancedSettingsTest {
     }
 
     @Test
-    fun unsupportedLegacyAudioEffectsAreRejected() {
+    fun processedAudioOptionsCanBeQueued() {
         val unsupported = AudioAdvancedSettings(
             format = "m4a", bitrateKbps = 256, sampleRate = 48000, channels = 1,
             volumePercent = 150, preserveMetadata = false)
         assertNull(AudioSettingsValidator.validate(unsupported))
-        assertNotNull(
+        assertNull(
             org.roruku.smartformatconverter.data.repository.Media3OutputPolicy.unsupportedAudioSettings(unsupported)
         )
     }

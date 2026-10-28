@@ -49,7 +49,7 @@ class EngineUnitTest {
         assertNotNull(Media3OutputPolicy.unsupportedVideoSettings(
             VideoAdvancedSettings(subtitleMode = "copy")))
         assertNull(Media3OutputPolicy.unsupportedAudioSettings(AudioAdvancedSettings()))
-        assertNotNull(Media3OutputPolicy.unsupportedAudioSettings(
+        assertNull(Media3OutputPolicy.unsupportedAudioSettings(
             AudioAdvancedSettings(volumePercent = 150)))
     }
 

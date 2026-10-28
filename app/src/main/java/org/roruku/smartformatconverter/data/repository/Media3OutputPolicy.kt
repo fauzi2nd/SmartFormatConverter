@@ -40,12 +40,8 @@ internal object Media3OutputPolicy {
         else -> null
     }
 
-    fun unsupportedAudioSettings(s: AudioAdvancedSettings): String? = when {
-        s.sampleRate != null || s.channels != null ||
-            s.volumePercent != 100 || !s.preserveMetadata ->
-            "Custom sample rate, channels, volume or metadata are not yet supported by Media3."
-        else -> null
-    }
+    fun unsupportedAudioSettings(s: AudioAdvancedSettings): String? = null
+    // Audio settings are validated and applied by the PCM staging exporters.
 
     fun rejectionReason(mediaType: MediaType, format: String): String? =
         FormatCapabilityRegistry.rejectionReason(mediaType, format)

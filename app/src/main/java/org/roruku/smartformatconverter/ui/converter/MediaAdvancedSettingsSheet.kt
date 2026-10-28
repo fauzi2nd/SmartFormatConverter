@@ -169,15 +169,18 @@ fun ImageAdvancedSettingsControl(
                                 onValueChange = { draft = draft.copy(jpegQuality = it.roundToInt()) },
                                 valueRange = 1f..100f
                             )
-                            Text(stringResource(R.string.setting_chroma_subsampling),
-                                style = MaterialTheme.typography.titleSmall)
-                            Text(stringResource(R.string.setting_jpeg_native_note),
+                            Text("JPEG chroma subsampling is selected by Android's encoder (not configurable).",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                             MediaSwitch(
                                 stringResource(R.string.setting_jpeg_exif),
                                 draft.preserveMetadata
                             ) { draft = draft.copy(preserveMetadata = it) }
+                            if (draft.preserveMetadata) {
+                                MediaSwitch("Include GPS location (privacy sensitive)", draft.preserveGps) {
+                                    draft = draft.copy(preserveGps = it)
+                                }
+                            }
                         }
                         "webp" -> {
                             val supportsLosslessWebp = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
@@ -221,6 +224,27 @@ fun ImageAdvancedSettingsControl(
                 }
             }
 
+            if (draft.format in setOf("jpg", "jpeg", "heic", "gif")) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Transparency background", style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold)
+                        Text("Formats without alpha are flattened onto this background.",
+                            style = MaterialTheme.typography.bodySmall)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("white" to "White", "black" to "Black").forEach { (value, label) ->
+                                FilterChip(selected = draft.matteColor == value,
+                                    onClick = { draft = draft.copy(matteColor = value) },
+                                    label = { Text(label) })
+                            }
+                        }
+                    }
+                }
+            }
             // Resize & Dimensions Card
             Card(
                 shape = RoundedCornerShape(16.dp),

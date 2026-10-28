@@ -20,17 +20,18 @@ data class ImageAdvancedSettings(
     val preserveMetadata: Boolean = true,
     val preserveGps: Boolean = false,
     val matteColor: String = "white",
+    val gifPaletteBits: Int = 8,
     val preset: String = "Custom",
 ) {
     fun applyPreset(name: String): ImageAdvancedSettings = when (name) {
-        "Smart Auto" -> copy(preset = name, jpegQuality = 92, jpegSubsampling = "encoder",
-            webpQuality = 90, webpLossless = false)
-        "High Quality" -> copy(preset = name, jpegQuality = 100, jpegSubsampling = "encoder",
-            webpQuality = 100, webpLossless = false)
-        "Balanced" -> copy(preset = name, jpegQuality = 90, jpegSubsampling = "encoder",
-            webpQuality = 85, webpLossless = false)
-        "Small File" -> copy(preset = name, jpegQuality = 75, jpegSubsampling = "encoder",
-            webpQuality = 70, webpLossless = false)
+        "Smart Auto" -> copy(preset = name, jpegQuality = 92,
+            webpQuality = 90, webpLossless = false, gifPaletteBits = 8)
+        "High Quality" -> copy(preset = name, jpegQuality = 100,
+            webpQuality = 100, webpLossless = format == "webp", gifPaletteBits = 8)
+        "Balanced" -> copy(preset = name, jpegQuality = 88,
+            webpQuality = 85, webpLossless = false, gifPaletteBits = 6)
+        "Small File" -> copy(preset = name, jpegQuality = 65,
+            webpQuality = 65, webpLossless = false, gifPaletteBits = 4)
         else -> copy(preset = "Custom")
     }
 
@@ -51,6 +52,7 @@ data class ImageAdvancedSettings(
         put("preserveMetadata", preserveMetadata)
         put("preserveGps", preserveGps)
         put("matteColor", matteColor)
+        put("gifPaletteBits", gifPaletteBits)
     }.toString()
 
     companion object {
@@ -73,7 +75,8 @@ data class ImageAdvancedSettings(
                 preventUpscale = obj.optBoolean("preventUpscale", true),
                 preserveMetadata = obj.optBoolean("preserveMetadata", true),
                 preserveGps = obj.optBoolean("preserveGps", false),
-                matteColor = obj.optString("matteColor", "white")
+                matteColor = obj.optString("matteColor", "white"),
+                gifPaletteBits = obj.optInt("gifPaletteBits", 8)
             )
         }
     }
@@ -84,6 +87,7 @@ object ImageSettingsValidator {
         s.format !in setOf("jpg", "jpeg", "png", "webp", "heic", "avif", "gif") -> "Unsupported image format"
         s.jpegQuality !in 1..100 || s.webpQuality !in 1..100 -> "Image quality must be 1–100"
         s.jpegSubsampling != "encoder" -> "Android JPEG encoder does not expose chroma subsampling control"
+        s.gifPaletteBits !in setOf(4, 6, 8) -> "Unsupported GIF palette depth"
         s.matteColor !in setOf("white", "black") -> "Unsupported transparency background"
         (s.width == null) != (s.height == null) -> "Set both image width and height"
         s.width != null && s.width !in 1..8192 -> "Image width must be 1–8192"

@@ -20,14 +20,14 @@ class AudioPresetStrategyTest {
             assertFalse(fromCustom.normalizePeak)
             assertEquals(100, fromCustom.volumePercent)
         }
-        val highAac = AdaptiveAudioPlanner.targetKbps(-1, 320, 2, false, "High Quality")
-        val highOpus = AdaptiveAudioPlanner.targetKbps(-1, 320, 2, true, "High Quality")
-        val balance = AdaptiveAudioPlanner.targetKbps(-1, 320, 2, false, "Balanced")
-        val small = AdaptiveAudioPlanner.targetKbps(-1, 320, 2, false, "Small File")
+        val highAac = AdaptiveAudioPlanner.targetKbps(BitrateSelection.AUTO, 320, 2, false, "High Quality")
+        val highOpus = AdaptiveAudioPlanner.targetKbps(BitrateSelection.AUTO, 320, 2, true, "High Quality")
+        val balance = AdaptiveAudioPlanner.targetKbps(BitrateSelection.AUTO, 320, 2, false, "Balanced")
+        val small = AdaptiveAudioPlanner.targetKbps(BitrateSelection.AUTO, 320, 2, false, "Small File")
         assertEquals(288, highAac)
         assertEquals(192, highOpus)
         assertTrue(highAac > balance && balance > small)
-        assertEquals(128, AdaptiveAudioPlanner.targetKbps(-1, 128, 2, false, "High Quality"))
+        assertEquals(128, AdaptiveAudioPlanner.targetKbps(BitrateSelection.AUTO, 128, 2, false, "High Quality"))
         assertEquals(320, AdaptiveAudioPlanner.targetKbps(320, 128, 2, false, "Balanced"))
     }
 

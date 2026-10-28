@@ -8,15 +8,18 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.roruku.smartformatconverter.data.storage.StorageManager
+import org.roruku.smartformatconverter.engine.media.VideoSourceGeometry
 
 data class MediaProbeDetails(
     val durationMs: Long = 0L,
     val sizeBytes: Long = 0L,
     val bitrate: Int = 0,
     val videoCodec: String? = null,
+    /** Display-oriented dimensions, with rotation already applied exactly once. */
     val videoWidth: Int = 0,
     val videoHeight: Int = 0,
     val frameRate: Float = 0f,
+    /** Always 0 for the canonical display dimensions above. */
     val videoRotation: Int = 0,
     val audioCodec: String? = null,
     val audioChannels: Int = 0,
@@ -37,6 +40,9 @@ object MediaProbe {
         var hasAudio = false
         var fr = 0f
         var videoIndex = -1
+        var encodedWidth = 0
+        var encodedHeight = 0
+        var trackRotation = 0
         var videoRateKbps = 0
         var audioRateKbps = 0
         var extractedAudioChannels = 0
@@ -49,7 +55,16 @@ object MediaProbe {
                 val format = extractor.getTrackFormat(i)
                 val mime = format.getString(MediaFormat.KEY_MIME) ?: ""
                 if (mime.startsWith("video/")) {
-                    if (videoIndex == -1) videoIndex = i
+                    if (videoIndex == -1) {
+                        videoIndex = i
+                        encodedWidth = runCatching { format.getInteger(MediaFormat.KEY_WIDTH) }
+                            .getOrDefault(0).coerceAtLeast(0)
+                        encodedHeight = runCatching { format.getInteger(MediaFormat.KEY_HEIGHT) }
+                            .getOrDefault(0).coerceAtLeast(0)
+                        trackRotation = runCatching {
+                            format.getInteger(MediaFormat.KEY_ROTATION)
+                        }.getOrDefault(0)
+                    }
                     hasVideo = true
                     vCodec = mime.removePrefix("video/")
                     if (videoRateKbps == 0) videoRateKbps = trackBitrateKbps(format)
@@ -100,20 +115,30 @@ object MediaProbe {
             try { extractor.release() } catch (e: Exception) { /* ignore */ }
         }
 
+        // A few Android versions return MediaMetadataRetriever dimensions
+        // already rotated for display. Encoded track geometry is authoritative,
+        // so rotate that exactly once and expose only DISPLAY dimensions.
+        val rotation = details.rotation.takeIf { it != 0 } ?: trackRotation
+        val geometry = VideoSourceGeometry.resolve(
+            encodedWidth, encodedHeight, details.width, details.height, rotation
+        )
+        Log.d(TAG, "Source geometry: encoded=${encodedWidth}x${encodedHeight} " +
+            "retriever=${details.width}x${details.height} rotation=$rotation " +
+            "display=${geometry.display} rawTrack=${geometry.fromEncodedTrack}")
         MediaProbeDetails(
             durationMs = details.durationMs,
             sizeBytes = details.fileSize,
             bitrate = details.bitrate,
             videoCodec = vCodec ?: details.mimeType,
-            videoWidth = details.width,
-            videoHeight = details.height,
+            videoWidth = geometry.display?.width ?: 0,
+            videoHeight = geometry.display?.height ?: 0,
             frameRate = fr,
-            videoRotation = details.rotation,
+            videoRotation = 0,
             audioCodec = aCodec,
             audioChannels = extractedAudioChannels.takeIf { it > 0 }
                 ?: details.audioChannels,
             audioSampleRate = details.sampleRate,
-            hasVideo = hasVideo || details.width > 0,
+            hasVideo = hasVideo || geometry.display != null,
             hasAudio = hasAudio,
             videoBitrateKbps = videoRateKbps,
             audioBitrateKbps = audioRateKbps

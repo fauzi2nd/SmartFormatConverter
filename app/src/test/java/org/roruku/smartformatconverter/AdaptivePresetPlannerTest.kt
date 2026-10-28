@@ -103,8 +103,26 @@ class AdaptivePresetPlannerTest {
         assertEquals(64, AdaptiveAudioPlanner.targetKbps(-1, 64, 2, true, "High Quality"))
     }
 
+    @Test fun presetResolutionAffectsRealBitrateAndSizeEstimates() {
+        val input = source(width = 1320, height = 1760, videoKbps = 18_000)
+        val high = AdaptivePresetPlanner.plan(
+            VideoAdvancedSettings(format = "webm").applyPreset("High Quality")
+                .copy(width = 720, height = 960), input)
+        val balanced = AdaptivePresetPlanner.plan(
+            VideoAdvancedSettings(format = "webm").applyPreset("Balanced")
+                .copy(width = 480, height = 640), input)
+        val small = AdaptivePresetPlanner.plan(
+            VideoAdvancedSettings(format = "webm").applyPreset("Small File")
+                .copy(width = 240, height = 320), input)
+        assertTrue(high.videoKbps > balanced.videoKbps)
+        assertTrue(balanced.videoKbps > small.videoKbps)
+        assertTrue(high.estimatedBytes!! > balanced.estimatedBytes!!)
+        assertTrue(balanced.estimatedBytes!! > small.estimatedBytes!!)
+    }
+
     @Test fun codecAndMissingMetadataKeepSafeFallback() {
         assertEquals("vp9", AdaptivePresetPlanner.outputCodec("WEBM", "auto"))
+        assertEquals("vp8", AdaptivePresetPlanner.outputCodec("webm", "vp8"))
         assertEquals("hevc", AdaptivePresetPlanner.outputCodec("mp4", "h265"))
         assertEquals("h264", AdaptivePresetPlanner.outputCodec("mp4", "auto"))
         val unknown = AdaptivePresetPlanner.plan(

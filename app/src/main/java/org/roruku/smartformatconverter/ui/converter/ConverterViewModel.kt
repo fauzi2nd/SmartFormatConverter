@@ -488,8 +488,9 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                                 return@launch
                             }
                             val chosen = withContext(Dispatchers.Default) {
-                                VideoEncoderCatalog.bestAutoResolution(
-                                    mime, advanced.encoder, dimensions, profile.frameRate
+                                VideoEncoderCatalog.bestPresetResolution(
+                                    mime, advanced.encoder, dimensions, profile.frameRate,
+                                    advanced.preset
                                 )
                             }.size
                             if (chosen == null) {

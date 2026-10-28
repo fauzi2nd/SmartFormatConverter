@@ -59,6 +59,7 @@ object AdaptivePresetPlanner {
     }
 
     fun outputCodec(format: String, videoCodec: String): String = when {
+        format.equals("webm", ignoreCase = true) && videoCodec == "vp8" -> "vp8"
         format.equals("webm", ignoreCase = true) -> "vp9"
         videoCodec in setOf("h265", "hevc") -> "hevc"
         else -> "h264"
@@ -80,6 +81,7 @@ object AdaptivePresetPlanner {
         val codecFactor = when (codec) {
             "hevc" -> 0.67
             "vp9" -> 0.72
+            "vp8" -> 1.0
             else -> 1.0
         }
         val presetFactor = when (settings.preset) {

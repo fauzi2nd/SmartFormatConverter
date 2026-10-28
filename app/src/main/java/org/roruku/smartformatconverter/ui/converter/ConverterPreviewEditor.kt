@@ -61,6 +61,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import org.roruku.smartformatconverter.engine.media.AdaptiveResolutionPolicy
+import org.roruku.smartformatconverter.engine.media.VideoPresetResolutionPolicy
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -800,7 +801,6 @@ fun ConverterPreviewEditor(
     val pager = rememberPagerState(pageCount = { files.size })
     val coroutineScope = rememberCoroutineScope()
     var applyToAll by remember { mutableStateOf(true) }
-    var videoPlans by remember { mutableStateOf<Map<String, AdaptiveVideoPlan>>(emptyMap()) }
     var probedVideos by remember { mutableStateOf<Map<String, MediaProbeDetails>>(emptyMap()) }
     var previewReady by remember { mutableStateOf(false) }
     var confirmGrowth by remember { mutableStateOf(false) }
@@ -811,44 +811,21 @@ fun ConverterPreviewEditor(
     var customHeightDraft by remember { mutableStateOf("") }
     var customAspectLocked by remember { mutableStateOf(true) }
 
-    // Probe all selected source videos off the UI thread; use the exact same
-    // pure planner as the export engine. Do not run codecs in Compose Preview.
-    LaunchedEffect(files, state.videoSettings, state.perFileVideoSettings,
-        state.targetFormat, state.selectedTab, isPreview) {
-        videoPlans = emptyMap()
+    // Probe each source ONCE. Changing presets must not re-open every
+    // MediaExtractor or cause a stale preflight result to flash in the UI.
+    LaunchedEffect(files, state.selectedTab, isPreview) {
         probedVideos = emptyMap()
         previewReady = false
         if (state.selectedTab == 0 && !isPreview) {
-            val results = mutableMapOf<String, AdaptiveVideoPlan>()
             val probed = mutableMapOf<String, MediaProbeDetails>()
             for (file in files) {
                 try {
-                    val source = MediaProbe.probeMedia(context, file.uri)
-                    probed[file.uri.toString()] = source
+                    probed[file.uri.toString()] = MediaProbe.probeMedia(context, file.uri)
                     probedVideos = probed.toMap()
-                    val settings = (state.perFileVideoSettings[file.uri.toString()]
-                        ?: state.videoSettings).copy(format = state.targetFormat)
-                    val plan = AdaptivePresetPlanner.plan(settings,
-                        VideoSourceProfile(
-                            width = AdaptiveResolutionPolicy.displaySize(
-                                source.videoWidth, source.videoHeight, source.videoRotation
-                            )?.width ?: source.videoWidth,
-                            height = AdaptiveResolutionPolicy.displaySize(
-                                source.videoWidth, source.videoHeight, source.videoRotation
-                            )?.height ?: source.videoHeight,
-                            frameRate = source.frameRate,
-                            videoBitrateKbps = source.videoBitrateKbps,
-                            audioBitrateKbps = source.audioBitrateKbps,
-                            audioChannels = source.audioChannels,
-                            durationMs = source.durationMs, sizeBytes = file.details.fileSize,
-                            hasAudio = source.hasAudio
-                        ))
-                    results[file.uri.toString()] = plan
-                    videoPlans = results.toMap()
                 } catch (error: CancellationException) {
                     throw error
                 } catch (_: Exception) {
-                    // Unknown metadata: retain the user's ability to convert.
+                    // The preflight validates missing source dimensions.
                 }
             }
         }
@@ -871,7 +848,6 @@ fun ConverterPreviewEditor(
     val resolvedAudioSettings = selectedFile?.let { file ->
         state.perFileAudioSettings[file.uri.toString()] ?: state.audioSettings
     } ?: state.audioSettings
-    val currentPlan = selectedFile?.let { videoPlans[it.uri.toString()] }
     val selectedSource = selectedFile?.let { probedVideos[it.uri.toString()] }
     val sourceDisplay = AdaptiveResolutionPolicy.displaySize(
         selectedSource?.videoWidth ?: selectedFile?.details?.width ?: 0,
@@ -1061,8 +1037,8 @@ fun ConverterPreviewEditor(
                     val frameRate = profile?.frameRate ?: 0f
                     if (config.usesAutoResolution && dimensions != null) {
                         val result = runCatching {
-                            VideoEncoderCatalog.bestAutoResolution(
-                                mime, config.encoder, dimensions, frameRate
+                            VideoEncoderCatalog.bestPresetResolution(
+                                mime, config.encoder, dimensions, frameRate, config.preset
                             )
                         }
                         val chosen = result.getOrNull()?.size
@@ -1097,11 +1073,38 @@ fun ConverterPreviewEditor(
         }
     val hasPreflightErrors = videoPreflight?.invalid?.isNotEmpty() == true
 
-    val estimatedTotalBytes = if (videoPlans.size == files.size &&
-        videoPlans.values.all { it.estimatedBytes != null }) {
-        videoPlans.values.sumOf { it.estimatedBytes ?: 0L }
+    // Preview estimates use exactly the same selected dimensions that will
+    // be persisted into each immutable job by ConverterViewModel.
+    val effectiveVideoPlans: Map<String, AdaptiveVideoPlan> = if (state.selectedTab == 0) {
+        files.mapNotNull { media ->
+            val key = media.uri.toString()
+            val source = probedVideos[key] ?: return@mapNotNull null
+            val current = (state.perFileVideoSettings[key]
+                ?: state.videoSettings).copy(format = state.targetFormat)
+            val chosen = if (current.usesAutoResolution) videoPreflight?.picked?.get(key) else null
+            val resolved = if (chosen != null &&
+                (chosen.width != source.videoWidth || chosen.height != source.videoHeight)) {
+                current.copy(width = chosen.width, height = chosen.height)
+            } else current
+            key to AdaptivePresetPlanner.plan(
+                resolved,
+                VideoSourceProfile(
+                    width = source.videoWidth, height = source.videoHeight,
+                    frameRate = source.frameRate,
+                    videoBitrateKbps = source.videoBitrateKbps,
+                    audioBitrateKbps = source.audioBitrateKbps,
+                    audioChannels = source.audioChannels, durationMs = source.durationMs,
+                    sizeBytes = media.details.fileSize, hasAudio = source.hasAudio
+                )
+            )
+        }.toMap()
+    } else emptyMap()
+    val currentPlan = selectedFile?.let { effectiveVideoPlans[it.uri.toString()] }
+    val estimatedTotalBytes = if (effectiveVideoPlans.size == files.size &&
+        effectiveVideoPlans.values.all { it.estimatedBytes != null }) {
+        effectiveVideoPlans.values.sumOf { it.estimatedBytes ?: 0L }
     } else null
-    val growthRisks = videoPlans.values.count { it.mayGrow }
+    val growthRisks = effectiveVideoPlans.values.count { it.mayGrow }
 
     if (confirmGrowth) {
         AlertDialog(
@@ -1236,8 +1239,13 @@ fun ConverterPreviewEditor(
                                         buildString {
                                             append(Formatter.formatShortFileSize(
                                                 context, media.details.fileSize))
-                                            if (media.details.width > 0 && media.details.height > 0) {
-                                                append(" · ${media.details.width}×${media.details.height}")
+                                            val sourceGeometry = probedVideos[media.uri.toString()]
+                                            val displayedWidth = sourceGeometry?.videoWidth?.takeIf { it > 0 }
+                                                ?: media.details.width
+                                            val displayedHeight = sourceGeometry?.videoHeight?.takeIf { it > 0 }
+                                                ?: media.details.height
+                                            if (displayedWidth > 0 && displayedHeight > 0) {
+                                                append(" · ${displayedWidth}×${displayedHeight}")
                                             }
                                         },
                                         style = MaterialTheme.typography.bodySmall,
@@ -1521,9 +1529,11 @@ fun ConverterPreviewEditor(
                                 }.map { it.first.id }.toSet()
                             val resolutionOptions = buildList {
                                 if (resolvedVideoSettings.usesAutoResolution) {
-                                    add("auto" to (selectedAutoResolution?.let {
-                                        "Auto (${it.width}×${it.height})"
-                                    } ?: "Auto (detecting device…)"))
+                                    val preset = resolvedVideoSettings.preset
+                                    add("auto" to (selectedAutoResolution?.let { size ->
+                                        val p = minOf(size.width, size.height)
+                                        "$preset · ${p}p (${size.width}×${size.height})"
+                                    } ?: "$preset (detecting…)"))
                                 }
                                 add("source" to (sourceDisplay?.let { "Source (${it.width}×${it.height})" }
                                     ?: "Source"))
@@ -1547,10 +1557,11 @@ fun ConverterPreviewEditor(
                                 disabledIds = blockedTiers) { id ->
                                 when (id) {
                                     "auto" -> {
-                                        if (applyToAll) onUpdatePreset("Smart Auto")
+                                        val preset = resolvedVideoSettings.preset
+                                        if (applyToAll) onUpdatePreset(preset)
                                         else selectedFile?.let { file ->
                                             onUpdateVideoFileSettings(file.uri,
-                                                resolvedVideoSettings.applyPreset("Smart Auto"))
+                                                resolvedVideoSettings.applyPreset(preset))
                                         }
                                     }
                                     "source" -> update(resolvedVideoSettings.copy(
@@ -1575,18 +1586,36 @@ fun ConverterPreviewEditor(
                             val autoDownscaled = resolvedVideoSettings.usesAutoResolution &&
                                 sourceDisplay != null && selectedAutoResolution != null &&
                                 selectedAutoResolution != sourceDisplay
+                            val presetRange = VideoPresetResolutionPolicy.range(
+                                resolvedVideoSettings.preset
+                            )
+                            val sourceShort = sourceDisplay?.let { minOf(it.width, it.height) } ?: 0
+                            val chosenShort = selectedAutoResolution?.let {
+                                minOf(it.width, it.height)
+                            } ?: 0
+                            val belowPresetTarget = autoDownscaled && presetRange != null &&
+                                sourceShort >= presetRange.min && chosenShort < presetRange.min
                             val resolutionMessage = when {
                                 inlineVideoError != null -> inlineVideoError
                                 videoPreflight == null && !isPreview ->
-                                    "Checking device limits and selecting the best resolution…"
+                                    "Checking device limits and selecting a compatible resolution…"
+                                belowPresetTarget ->
+                                    "${resolvedVideoSettings.preset}: target ${presetRange!!.min}p–" +
+                                        "${presetRange.max}p unsupported. Using ${selectedAutoResolution} " +
+                                        "as a disclosed fallback. Source ratio preserved."
+                                autoDownscaled && presetRange != null ->
+                                    "${resolvedVideoSettings.preset}: target ${presetRange.min}p–" +
+                                        "${presetRange.max}p. Source ${sourceDisplay} → " +
+                                        "${selectedAutoResolution} (reported compatible)."
                                 autoDownscaled ->
-                                    "Auto: source ${sourceDisplay} → ${selectedAutoResolution}. " +
-                                        "Highest reported-compatible size; portrait ratio preserved."
+                                    "Smart Auto: source ${sourceDisplay} → ${selectedAutoResolution}. " +
+                                        "Highest reported-compatible size; source ratio preserved."
                                 resolvedVideoSettings.usesAutoResolution &&
                                     selectedAutoResolution != null ->
-                                    "Auto: source resolution is compatible; no resize required."
+                                    "${resolvedVideoSettings.preset}: source ${sourceDisplay} " +
+                                        "is compatible; no resizing or upscaling."
                                 else -> "4K–144p follows source orientation. Unsupported resolutions " +
-                                    "are disabled; Custom sizes are checked before conversion."
+                                    "are disabled; Custom dimensions are checked before export."
                             }
                             Text(
                                 resolutionMessage,
@@ -1840,7 +1869,7 @@ fun ConverterPreviewEditor(
             Button(
                 onClick = {
                     if (state.selectedTab == 0 && (growthRisks > 0 ||
-                            (previewReady && videoPlans.size < files.size))) {
+                            (previewReady && effectiveVideoPlans.size < files.size))) {
                         confirmGrowth = true
                     } else onStart()
                 },

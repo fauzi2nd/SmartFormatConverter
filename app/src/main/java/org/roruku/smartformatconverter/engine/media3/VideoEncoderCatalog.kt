@@ -8,6 +8,7 @@ import androidx.media3.transformer.EncoderUtil
 import org.roruku.smartformatconverter.engine.media.VideoEncoderSelection
 import org.roruku.smartformatconverter.engine.media.VideoEncoderEligibility
 import org.roruku.smartformatconverter.engine.media.AdaptiveAutoResolution
+import org.roruku.smartformatconverter.engine.media.VideoPresetResolutionPolicy
 import org.roruku.smartformatconverter.engine.media.AdaptiveResolutionPolicy
 
 /**
@@ -71,23 +72,36 @@ internal object VideoEncoderCatalog {
         }
     )
 
-    /** Same auto sizing algorithm is used by the editor and queued job. */
-    fun bestAutoResolution(
-        mimeType: String, encoder: String,
-        source: AdaptiveResolutionPolicy.Size, fps: Float
-    ): AdaptiveAutoResolution.Choice {
-        if (selected(mimeType, encoder).isEmpty())
-            return AdaptiveAutoResolution.Choice(null, false)
-        return AdaptiveAutoResolution.choose(source) { size ->
+    /** Shared codec/device capability check for both UI and queued exports. */
+    fun bestPresetResolution(
+        mimeType: String,
+        encoder: String,
+        source: AdaptiveResolutionPolicy.Size,
+        fps: Float,
+        preset: String,
+    ): VideoPresetResolutionPolicy.Choice {
+        if (selected(mimeType, encoder).isEmpty()) {
+            return VideoPresetResolutionPolicy.Choice(null, false, 0, 0, false)
+        }
+        return VideoPresetResolutionPolicy.choose(preset, source) { size ->
             val reports = describe(mimeType, size.width, size.height, 0, fps)
-                .filter { VideoEncoderSelection.matches(encoder, it.name, it.hardware) }
-                .map { it.reportedSourceSupported }
+                .filter {
+                    VideoEncoderSelection.matches(encoder, it.name, it.hardware)
+                }.map { it.reportedSourceSupported }
             when {
                 reports.any { it == true } -> true
                 reports.any { it == null } -> null
                 else -> false
             }
         }
+    }
+
+    fun bestAutoResolution(
+        mimeType: String, encoder: String,
+        source: AdaptiveResolutionPolicy.Size, fps: Float
+    ): AdaptiveAutoResolution.Choice {
+        val resolved = bestPresetResolution(mimeType, encoder, source, fps, "Smart Auto")
+        return AdaptiveAutoResolution.Choice(resolved.size, resolved.verified)
     }
 
     fun describe(

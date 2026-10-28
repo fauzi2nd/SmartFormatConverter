@@ -1030,6 +1030,40 @@ fun ConverterPreviewEditor(
             }
         }
     }
+    // Check every queued video's selected implementation, resolution and FPS.
+    // Keep this in the editor AND recheck in the ViewModel before enqueueing.
+    val videoPreflight by produceState<Map<String, String>?>(
+        null, files, probedVideos, previewReady, state.targetFormat,
+        state.videoSettings, state.perFileVideoSettings, state.selectedTab, isPreview
+    ) {
+        value = if (state.selectedTab != 0 || isPreview) emptyMap()
+            else if (!previewReady) null
+            else withContext(Dispatchers.Default) {
+                files.mapNotNull { media ->
+                    val profile = probedVideos[media.uri.toString()]
+                    val config = (state.perFileVideoSettings[media.uri.toString()]
+                        ?: state.videoSettings).copy(format = state.targetFormat)
+                    val dimensions = AdaptiveResolutionPolicy.displaySize(
+                        profile?.videoWidth ?: media.details.width,
+                        profile?.videoHeight ?: media.details.height,
+                        profile?.videoRotation ?: media.details.rotation
+                    )
+                    val w = config.width ?: dimensions?.width ?: 0
+                    val h = config.height ?: dimensions?.height ?: 0
+                    val mime = VideoEncoderCatalog.mimeType(state.targetFormat, config.videoCodec)
+                    val failure = runCatching {
+                        VideoEncoderCatalog.incompatibilityReason(
+                            mime, config.encoder, w, h, profile?.frameRate ?: 0f
+                        )
+                    }.getOrElse { "Unable to verify $mime encoder: ${it.message}" }
+                    failure?.let { media.details.fileName to it }
+                }.toMap()
+            }
+    }
+    val blockingVideoReason = videoPreflight?.entries?.firstOrNull()?.let {
+        "${it.key}: ${it.value}"
+    }
+
     val estimatedTotalBytes = if (videoPlans.size == files.size &&
         videoPlans.values.all { it.estimatedBytes != null }) {
         videoPlans.values.sumOf { it.estimatedBytes ?: 0L }
@@ -1383,7 +1417,15 @@ fun ConverterPreviewEditor(
                                 VideoEncoderSelection.HARDWARE to "Hardware",
                                 VideoEncoderSelection.SOFTWARE to "Software"
                             )
-                            CompactSettingChoice("Video encoder", mode, encoderChoices) { selectedMode ->
+                            val unavailableModes = if (detected == null || isPreview) emptySet()
+                                else encoderChoices.mapNotNull { (id, _) ->
+                                    if (codecCandidates.none { supported(it, id) }) id else null
+                                }.toSet()
+                            val labeledEncoderChoices = encoderChoices.map { (id, name) ->
+                                id to if (id in unavailableModes) "$name (unavailable)" else name
+                            }
+                            CompactSettingChoice("Video encoder", mode, labeledEncoderChoices,
+                                disabledIds = unavailableModes) { selectedMode ->
                                 // A mode switch must never be blocked by a codec selected in
                                 // the previous mode. Reconcile the codec with capabilities
                                 // and keep Auto when the new mode has no usable codec.
@@ -1439,15 +1481,17 @@ fun ConverterPreviewEditor(
                                 AdaptiveResolutionPolicy.availableTiers(
                                     it, resolvedVideoSettings.preventUpscale
                                 )
-                            }.orEmpty().filter { (tier, _) ->
-                                selectableResolutionTiers == null ||
+                            }.orEmpty()
+                            val blockedTiers = if (selectableResolutionTiers == null) emptySet()
+                                else adaptiveChoices.filterNot { (tier, _) ->
                                     tier.id in selectableResolutionTiers.orEmpty()
-                            }
+                                }.map { it.first.id }.toSet()
                             val resolutionOptions = buildList {
                                 add("source" to (sourceDisplay?.let { "Source (${it.width}×${it.height})" }
                                     ?: "Source"))
                                 adaptiveChoices.forEach { (tier, size) ->
-                                    add(tier.id to "${tier.label} · ${size.width}×${size.height}")
+                                    val note = if (tier.id in blockedTiers) " (not supported)" else ""
+                                    add(tier.id to "${tier.label} · ${size.width}×${size.height}$note")
                                 }
                                 add("custom" to (if (resolvedVideoSettings.width != null &&
                                     resolvedVideoSettings.height != null)
@@ -1460,7 +1504,8 @@ fun ConverterPreviewEditor(
                             }
                             val resolutionId = if (resolvedVideoSettings.width == null) "source"
                                 else chosenTier?.first?.id ?: "custom"
-                            CompactSettingChoice("Resolution", resolutionId, resolutionOptions) { id ->
+                            CompactSettingChoice("Resolution", resolutionId, resolutionOptions,
+                                disabledIds = blockedTiers) { id ->
                                 when (id) {
                                     "source" -> update(resolvedVideoSettings.copy(
                                         width = null, height = null, preset = "Custom"))
@@ -1482,9 +1527,10 @@ fun ConverterPreviewEditor(
                                 }
                             }
                             Text(
-                                "Adaptive 4K–144p options follow source orientation, " +
-                                    "aspect ratio and this device's reported encoder limits. " +
-                                    "Select Custom for manual width and height.",
+                                "Adaptive 4K–144p options preserve source orientation. " +
+                                    "Unavailable resolutions remain visible but cannot be selected; " +
+                                    "the result depends on codec, encoder and source FPS. " +
+                                    "Custom dimensions are checked before conversion.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1730,6 +1776,15 @@ fun ConverterPreviewEditor(
             shadowElevation = 6.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
+            Column {
+            if (state.selectedTab == 0 && blockingVideoReason != null) {
+                Text(
+                    blockingVideoReason,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
             Button(
                 onClick = {
                     if (state.selectedTab == 0 && (growthRisks > 0 ||
@@ -1737,7 +1792,9 @@ fun ConverterPreviewEditor(
                         confirmGrowth = true
                     } else onStart()
                 },
-                enabled = files.isNotEmpty() && !state.isConverting,
+                enabled = files.isNotEmpty() && !state.isConverting &&
+                    (state.selectedTab != 0 || isPreview ||
+                        (videoPreflight != null && blockingVideoReason == null)),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
@@ -1746,6 +1803,7 @@ fun ConverterPreviewEditor(
                     if (state.isConverting) stringResource(R.string.preparing_queue)
                     else stringResource(R.string.start_conversion_count, files.size)
                 )
+            }
             }
         }
     }
@@ -1798,6 +1856,7 @@ private fun CompactSettingChoice(
     label: String,
     value: String,
     options: List<Pair<String, String>>,
+    disabledIds: Set<String> = emptySet(),
     onChange: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -1839,6 +1898,7 @@ private fun CompactSettingChoice(
                     options.forEach { (id, title) ->
                         androidx.compose.material3.DropdownMenuItem(
                             text = { Text(title) },
+                            enabled = id !in disabledIds,
                             onClick = { expanded = false; onChange(id) }
                         )
                     }

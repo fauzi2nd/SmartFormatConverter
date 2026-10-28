@@ -24,6 +24,9 @@ import org.roruku.smartformatconverter.data.repository.ConversionRepository
 import org.roruku.smartformatconverter.data.repository.Media3OutputPolicy
 import org.roruku.smartformatconverter.data.repository.SourceFormatLabels
 import org.roruku.smartformatconverter.engine.media3.Media3DeviceCapabilities
+import org.roruku.smartformatconverter.engine.media3.MediaProbe
+import org.roruku.smartformatconverter.engine.media3.VideoEncoderCatalog
+import org.roruku.smartformatconverter.engine.media.AdaptiveResolutionPolicy
 import org.roruku.smartformatconverter.data.storage.BatchConversionScanner
 import org.roruku.smartformatconverter.data.storage.BatchScanConfig
 import org.roruku.smartformatconverter.data.storage.MediaDetails
@@ -463,6 +466,32 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 }
 
                 val context = getApplication<Application>()
+                if (mediaType == MediaType.VIDEO) {
+                    // UI checks are advisory; validate again against each saved
+                    // per-file configuration before adding any jobs.
+                    for (file in state.selectedFiles) {
+                        val advanced = videoSnapshots[file.uri.toString()] ?: continue
+                        val profile = MediaProbe.probeMedia(context, file.uri)
+                        val dimensions = AdaptiveResolutionPolicy.displaySize(
+                            profile.videoWidth.takeIf { it > 0 } ?: file.details.width,
+                            profile.videoHeight.takeIf { it > 0 } ?: file.details.height,
+                            profile.videoRotation
+                        )
+                        val mime = VideoEncoderCatalog.mimeType(state.targetFormat, advanced.videoCodec)
+                        val reason = withContext(Dispatchers.Default) {
+                            VideoEncoderCatalog.incompatibilityReason(
+                                mime, advanced.encoder,
+                                advanced.width ?: dimensions?.width ?: 0,
+                                advanced.height ?: dimensions?.height ?: 0,
+                                profile.frameRate
+                            )
+                        }
+                        if (reason != null) {
+                            _uiState.update { it.copy(message = "${file.details.fileName}: $reason") }
+                            return@launch
+                        }
+                    }
+                }
                 val jobs = state.selectedFiles.map { file ->
                     ConversionJobEntity(
                         fileName = file.details.fileName,

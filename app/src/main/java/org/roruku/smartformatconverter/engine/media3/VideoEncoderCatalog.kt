@@ -6,6 +6,7 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.transformer.EncoderUtil
 import org.roruku.smartformatconverter.engine.media.VideoEncoderSelection
+import org.roruku.smartformatconverter.engine.media.VideoEncoderEligibility
 
 /**
  * Device-only encoder discovery and strict encoder selection.
@@ -51,6 +52,22 @@ internal object VideoEncoderCatalog {
                 choice, info.name, EncoderUtil.isHardwareAccelerated(info, mimeType)
             )
         }
+
+    fun incompatibilityReason(
+        mimeType: String, encoder: String, width: Int, height: Int,
+        fps: Float = 0f
+    ): String? = VideoEncoderEligibility.rejection(
+        mime = mimeType,
+        encoderChoice = encoder,
+        width = width,
+        height = height,
+        fps = fps,
+        candidates = describe(mimeType, width, height, 0, fps).map {
+            VideoEncoderEligibility.Candidate(
+                it.name, it.hardware, it.reportedSourceSupported
+            )
+        }
+    )
 
     fun describe(
         mimeType: String,

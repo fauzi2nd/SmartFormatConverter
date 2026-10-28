@@ -401,12 +401,22 @@ fun AudioAdvancedSettingsControl(
     var open by remember { mutableStateOf(previewExpanded) }
     var draft by remember { mutableStateOf(settings) }
     OutlinedButton(
-        onClick = { draft = settings; open = true },
+        onClick = {
+            if (open) {
+                open = false
+            } else {
+                draft = settings
+                open = true
+            }
+        },
         modifier = Modifier.fillMaxWidth()
     ) {
         Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
-        Text(stringResource(R.string.advanced_audio_title))
+        Text(
+            if (open) "Hide advanced audio settings"
+            else stringResource(R.string.advanced_audio_title)
+        )
     }
     Text(
         if (settings.format in AudioSettingsValidator.losslessFormats)
@@ -422,12 +432,14 @@ fun AudioAdvancedSettingsControl(
     if (!open) return
     val content: @Composable () -> Unit = {
         Column(
-            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+            // Inline with Converter Preview's LazyColumn: do not introduce
+            // another vertically scrollable container or a modal sheet.
+            modifier = Modifier.fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(stringResource(R.string.advanced_audio_title),
-                style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(stringResource(R.string.setting_all_media_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -509,8 +521,9 @@ fun AudioAdvancedSettingsControl(
             Spacer(Modifier.height(12.dp))
         }
     }
-    if (LocalInspectionMode.current) content()
-    else ModalBottomSheet(onDismissRequest = { open = false }) { content() }
+    // Show controls directly inside the Audio Settings card, consistent
+    // with the inline video controls and preserving page scroll position.
+    content()
 }
 
 @Composable

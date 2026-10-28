@@ -12,6 +12,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -115,10 +116,20 @@ internal object PlatformFlacExportEngine {
                 }
             }
             require(bytesWritten > 42L) { "FLAC encoder returned no complete stream" }
-            val magic = ByteArray(4)
-            FileInputStream(output).use { require(it.read(magic) == 4) }
-            require(String(magic, Charsets.US_ASCII) == "fLaC") {
-                "Device FLAC encoder did not emit a complete stream; output rejected"
+            // Some Android FLAC encoders omit totalSamples in STREAMINFO,
+            // making a fully playable output appear to have unknown duration.
+            // Repair only the zero field, without touching compressed frames.
+            RandomAccessFile(output, "rw").use { stream ->
+                val infoHeader = ByteArray(42)
+                stream.seek(0L)
+                stream.readFully(infoHeader)
+                val updated = FlacStreamInfoSamples.withKnownTotalSamples(
+                    infoHeader, fedFrames
+                ) ?: error("Device FLAC encoder returned invalid STREAMINFO")
+                if (!updated.contentEquals(infoHeader)) {
+                    stream.seek(0L)
+                    stream.write(updated)
+                }
             }
             completed = true
             onProgress(1f, null, null)

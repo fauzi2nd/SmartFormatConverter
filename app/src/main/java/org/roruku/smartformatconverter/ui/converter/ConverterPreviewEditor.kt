@@ -124,6 +124,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.ui.PlayerView
 import coil.ImageLoader
 import coil.compose.AsyncImage
@@ -459,6 +461,7 @@ private fun ModernAudioPlayer(
     var isPlaying by remember { mutableStateOf(player.isPlaying) }
     var currentPos by remember { mutableLongStateOf(player.currentPosition.coerceAtLeast(0L)) }
     var duration by remember { mutableLongStateOf(player.duration.coerceAtLeast(0L)) }
+    var canSeek by remember { mutableStateOf(player.isCurrentMediaItemSeekable) }
     var isMuted by remember { mutableStateOf(player.volume == 0f) }
     var isScrubbing by remember { mutableStateOf(false) }
     var scrubPos by remember { mutableFloatStateOf(0f) }
@@ -470,6 +473,11 @@ private fun ModernAudioPlayer(
                 isPlaying = playing
             }
             override fun onPlaybackStateChanged(state: Int) {
+                duration = player.duration.coerceAtLeast(0L)
+                canSeek = player.isCurrentMediaItemSeekable
+            }
+            override fun onEvents(player: Player, events: Player.Events) {
+                canSeek = player.isCurrentMediaItemSeekable
                 duration = player.duration.coerceAtLeast(0L)
             }
         }
@@ -483,6 +491,7 @@ private fun ModernAudioPlayer(
                 currentPos = player.currentPosition.coerceAtLeast(0L)
             }
             duration = player.duration.coerceAtLeast(0L)
+            canSeek = player.isCurrentMediaItemSeekable
             delay(250)
         }
     }
@@ -585,19 +594,19 @@ private fun ModernAudioPlayer(
                 Slider(
                     value = currentVal,
                     onValueChange = {
-                        if (hasKnownDuration) {
+                        if (hasKnownDuration && canSeek) {
                             isScrubbing = true
                             scrubPos = it
                         }
                     },
                     onValueChangeFinished = {
-                        if (hasKnownDuration) {
+                        if (hasKnownDuration && canSeek) {
                             player.seekTo(scrubPos.toLong())
                             currentPos = scrubPos.toLong()
                             isScrubbing = false
                         }
                     },
-                    enabled = hasKnownDuration,
+                    enabled = hasKnownDuration && canSeek,
                     valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
                     colors = SliderDefaults.colors(
                         thumbColor = MaterialTheme.colorScheme.primary,
@@ -626,6 +635,15 @@ private fun ModernAudioPlayer(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                if (!hasKnownDuration || !canSeek) {
+                    Text(
+                        text = if (!hasKnownDuration)
+                            "Seeking unavailable: the file does not expose a usable duration."
+                        else "Seeking is not supported by this audio stream.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Row(
@@ -635,8 +653,10 @@ private fun ModernAudioPlayer(
             ) {
                 IconButton(
                     onClick = {
-                        player.seekTo((player.currentPosition - 10000L).coerceAtLeast(0L))
+                        if (canSeek && hasKnownDuration)
+                            player.seekTo((player.currentPosition - 10000L).coerceAtLeast(0L))
                     },
+                    enabled = hasKnownDuration && canSeek,
                     modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
@@ -670,8 +690,13 @@ private fun ModernAudioPlayer(
 
                 IconButton(
                     onClick = {
-                        player.seekTo((player.currentPosition + 10000L).coerceAtMost(duration))
+                        if (canSeek && hasKnownDuration) {
+                            val lastValidPosition = (duration - 1L).coerceAtLeast(0L)
+                            player.seekTo((player.currentPosition + 10000L)
+                                .coerceAtMost(lastValidPosition))
+                        }
                     },
+                    enabled = hasKnownDuration && canSeek,
                     modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
@@ -697,7 +722,18 @@ fun SourcePlayer(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val player = remember(uri) {
-        ExoPlayer.Builder(context).build().apply {
+        val builder = ExoPlayer.Builder(context)
+        if (audio) {
+            // ADTS AAC has no seek index. Enable ExoPlayer's approximate
+            // constant-bitrate seeking rather than always jumping to zero.
+            builder.setMediaSourceFactory(
+                DefaultMediaSourceFactory(
+                    context,
+                    DefaultExtractorsFactory().setConstantBitrateSeekingEnabled(true)
+                )
+            )
+        }
+        builder.build().apply {
             setMediaItem(MediaItem.fromUri(uri))
             prepare()
             playWhenReady = false

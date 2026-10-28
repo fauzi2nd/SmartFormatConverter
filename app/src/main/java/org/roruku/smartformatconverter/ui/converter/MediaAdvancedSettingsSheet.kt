@@ -123,10 +123,10 @@ fun ImageAdvancedSettingsControl(
                         onValueChange = { commit(settings.copy(webpQuality = it.roundToInt())) })
                 }
             }
-            "png" -> Text("Lossless • Original pixel quality",
+            "png" -> Text(if (settings.optimizePng) "Lossless • Size optimization enabled (when beneficial)" else "Lossless • Original pixel quality",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            "gif" -> Text("Single-frame GIF • maximum 256 colors",
+            "gif" -> Text("Single-frame GIF • ${1 shl settings.gifPaletteBits} palette colors",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

@@ -631,7 +631,7 @@ private fun readQueueTechnicalDetails(context: Context, job: ConversionJobEntity
         QueueTechnicalDetails(
             name, retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull(),
             number(MediaMetadataRetriever.METADATA_KEY_BITRATE),
-            actualSampleRate ?: number(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE),
+            actualSampleRate,
             channels,
             number(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH),
             number(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT),

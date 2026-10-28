@@ -76,13 +76,14 @@ fun ImageAdvancedSettingsControl(
     var widthDraft by remember(settings.width) { mutableStateOf(settings.width?.toString().orEmpty()) }
     var heightDraft by remember(settings.height) { mutableStateOf(settings.height?.toString().orEmpty()) }
     var resolutionOpen by remember { mutableStateOf(false) }
+    var customDimensions by remember { mutableStateOf(false) }
     var modeOpen by remember { mutableStateOf(false) }
     var backgroundOpen by remember { mutableStateOf(false) }
 
     fun commit(next: ImageAdvancedSettings) {
         if (ImageSettingsValidator.validate(next) == null) onApply(next.copy(preset = "Custom"))
     }
-    val resolution = when {
+    val resolution = if (customDimensions && settings.width != null && settings.height != null) "Custom" else when {
         settings.width == null || settings.height == null -> "Original"
         settings.width == 1920 && settings.height == 1080 -> "1080p FHD"
         settings.width == 1280 && settings.height == 720 -> "720p HD"
@@ -166,6 +167,7 @@ fun ImageAdvancedSettingsControl(
                 listOf("Original", "1080p FHD", "720p HD", "512 × 512", "Custom").forEach { option ->
                     DropdownMenuItem(text = { Text(option) }, onClick = {
                         resolutionOpen = false
+                        customDimensions = option == "Custom"
                         val dimensions = when (option) {
                             "Original" -> null
                             "1080p FHD" -> 1920 to 1080

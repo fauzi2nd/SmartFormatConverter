@@ -1768,6 +1768,11 @@ fun ConverterPreviewEditor(
                     // PNG compression is lossless; a quality preset would be misleading.
                     if (state.targetFormat != "png") {
                     item {
+                        Surface(modifier = Modifier.fillMaxWidth().testTag("editor_preset"),
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SectionTitle("Preset", Icons.Default.Layers)
                         val presets = if (state.selectedTab == 2 &&
                             state.targetFormat in AudioSettingsValidator.losslessFormats)
@@ -1808,6 +1813,8 @@ fun ConverterPreviewEditor(
                                     }
                                     if (rowPresets.size == 1) Spacer(Modifier.weight(1f))
                                 }
+                            }
+                        }
                             }
                         }
                     }

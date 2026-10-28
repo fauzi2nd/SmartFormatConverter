@@ -233,10 +233,10 @@ object ImageConverterEngine {
                     // 256 colours; this single-frame encoder uses streaming
                     // rows to avoid a second width*height IntArray allocation.
                     BufferedOutputStream(FileOutputStream(outputFile)).use { out ->
-                        StillGifWriter.write(out, finalBitmap.width, finalBitmap.height, { y, row ->
+                        StillGifWriter.write(out, finalBitmap.width, finalBitmap.height, config.gifPaletteBits) { y, row ->
                             finalBitmap.getPixels(row, 0, finalBitmap.width, 0, y,
                                 finalBitmap.width, 1)
-                        }, config.gifPaletteBits)
+                        }
                     }
                 }
             }

@@ -991,6 +991,29 @@ fun ConverterPreviewEditor(
                 }.getOrDefault(emptyList())
             }
     }
+    // The device may support 4K or only smaller dimensions. Check the real
+    // encoders for EACH tier, not only presence of the target codec.
+    // MediaCodec ranges are advisory; an encoder can still fail to initialize.
+    val selectableResolutionTiers by produceState<Set<String>?>(
+        null, encoderMime, sourceDisplay, selectedSource?.frameRate,
+        resolvedVideoSettings.encoder, resolvedVideoSettings.preventUpscale, isPreview
+    ) {
+        value = if (encoderMime == null || sourceDisplay == null || isPreview) null
+            else withContext(Dispatchers.Default) {
+                AdaptiveResolutionPolicy.availableTiers(
+                    sourceDisplay, resolvedVideoSettings.preventUpscale
+                ).filter { (_, size) ->
+                    VideoEncoderCatalog.describe(
+                        encoderMime, size.width, size.height, 0,
+                        selectedSource?.frameRate ?: 0f
+                    ).any { encoder ->
+                        VideoEncoderSelection.matches(
+                            resolvedVideoSettings.encoder, encoder.name, encoder.hardware
+                        ) && encoder.reportedSourceSupported != false
+                    }
+                }.map { it.first.id }.toSet()
+            }
+    }
     // Discover real encoder support per output codec and implementation type.
     // Null means detection is still running. Discover capabilities on EACH device,
     // and refresh when the output container changes.
@@ -1416,7 +1439,10 @@ fun ConverterPreviewEditor(
                                 AdaptiveResolutionPolicy.availableTiers(
                                     it, resolvedVideoSettings.preventUpscale
                                 )
-                            }.orEmpty()
+                            }.orEmpty().filter { (tier, _) ->
+                                selectableResolutionTiers == null ||
+                                    tier.id in selectableResolutionTiers.orEmpty()
+                            }
                             val resolutionOptions = buildList {
                                 add("source" to (sourceDisplay?.let { "Source (${it.width}×${it.height})" }
                                     ?: "Source"))
@@ -1455,6 +1481,13 @@ fun ConverterPreviewEditor(
                                         }
                                 }
                             }
+                            Text(
+                                "Adaptive 4K–144p options follow source orientation, " +
+                                    "aspect ratio and this device's reported encoder limits. " +
+                                    "Select Custom for manual width and height.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                             CompactSettingChoice("Frame rate (FPS)", resolvedVideoSettings.fps ?: "source",
                                 buildList {
                                     add("source" to "Source")

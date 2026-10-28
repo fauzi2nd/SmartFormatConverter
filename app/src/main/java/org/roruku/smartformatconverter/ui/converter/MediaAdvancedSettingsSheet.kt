@@ -79,6 +79,7 @@ fun ImageAdvancedSettingsControl(
     var customDimensions by remember { mutableStateOf(false) }
     var modeOpen by remember { mutableStateOf(false) }
     var backgroundOpen by remember { mutableStateOf(false) }
+    var encoderInfoOpen by remember { mutableStateOf(false) }
 
     fun commit(next: ImageAdvancedSettings) {
         if (ImageSettingsValidator.validate(next) == null) onApply(next.copy(preset = "Custom"))
@@ -128,6 +129,12 @@ fun ImageAdvancedSettingsControl(
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (settings.format in setOf("jpg", "jpeg")) {
+            TextButton(onClick = { encoderInfoOpen = !encoderInfoOpen }) {
+                Text(if (encoderInfoOpen) "Hide encoder information" else "ⓘ JPEG encoder information")
+            }
+            if (encoderInfoOpen) Text("Android selects JPEG chroma subsampling. Exact 4:4:4 output is not guaranteed.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             MediaSwitch("Preserve EXIF", settings.preserveMetadata) {
                 commit(settings.copy(preserveMetadata = it, preserveGps = if (it) settings.preserveGps else false))
             }

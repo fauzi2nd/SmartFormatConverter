@@ -21,17 +21,18 @@ data class ImageAdvancedSettings(
     val preserveGps: Boolean = false,
     val matteColor: String = "white",
     val gifPaletteBits: Int = 8,
+    val optimizePng: Boolean = false,
     val preset: String = "Custom",
 ) {
     fun applyPreset(name: String): ImageAdvancedSettings = when (name) {
         "Smart Auto" -> copy(preset = name, jpegQuality = 92,
-            webpQuality = 90, webpLossless = false, gifPaletteBits = 8)
+            webpQuality = 90, webpLossless = false, gifPaletteBits = 8, optimizePng = false)
         "High Quality" -> copy(preset = name, jpegQuality = 100,
-            webpQuality = 100, webpLossless = format == "webp", gifPaletteBits = 8)
+            webpQuality = 100, webpLossless = false, gifPaletteBits = 8, optimizePng = false)
         "Balanced" -> copy(preset = name, jpegQuality = 88,
-            webpQuality = 85, webpLossless = false, gifPaletteBits = 6)
+            webpQuality = 85, webpLossless = false, gifPaletteBits = 6, optimizePng = true)
         "Small File" -> copy(preset = name, jpegQuality = 65,
-            webpQuality = 65, webpLossless = false, gifPaletteBits = 4)
+            webpQuality = 65, webpLossless = false, gifPaletteBits = 4, optimizePng = true)
         else -> copy(preset = "Custom")
     }
 
@@ -53,6 +54,7 @@ data class ImageAdvancedSettings(
         put("preserveGps", preserveGps)
         put("matteColor", matteColor)
         put("gifPaletteBits", gifPaletteBits)
+        put("optimizePng", optimizePng)
     }.toString()
 
     companion object {
@@ -76,7 +78,8 @@ data class ImageAdvancedSettings(
                 preserveMetadata = obj.optBoolean("preserveMetadata", true),
                 preserveGps = obj.optBoolean("preserveGps", false),
                 matteColor = obj.optString("matteColor", "white"),
-                gifPaletteBits = obj.optInt("gifPaletteBits", 8)
+                gifPaletteBits = obj.optInt("gifPaletteBits", 8),
+                optimizePng = obj.optBoolean("optimizePng", false)
             )
         }
     }

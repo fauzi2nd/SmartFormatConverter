@@ -466,11 +466,14 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                 }
 
                 val context = getApplication<Application>()
+                val resolvedVideoSnapshots = videoSnapshots.toMutableMap()
                 if (mediaType == MediaType.VIDEO) {
-                    // UI checks are advisory; validate again against each saved
-                    // per-file configuration before adding any jobs.
+                    // Re-evaluate with the same planner as preview and store
+                    // explicit output dimensions in each queued job snapshot.
                     for (file in state.selectedFiles) {
-                        val advanced = videoSnapshots[file.uri.toString()] ?: continue
+                        val key = file.uri.toString()
+                        val advanced = videoSnapshots[key] ?: continue
+                        if (advanced.isRemux) continue
                         val profile = MediaProbe.probeMedia(context, file.uri)
                         val dimensions = AdaptiveResolutionPolicy.displaySize(
                             profile.videoWidth.takeIf { it > 0 } ?: file.details.width,
@@ -478,17 +481,37 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                             profile.videoRotation
                         )
                         val mime = VideoEncoderCatalog.mimeType(state.targetFormat, advanced.videoCodec)
-                        val reason = withContext(Dispatchers.Default) {
-                            VideoEncoderCatalog.incompatibilityReason(
-                                mime, advanced.encoder,
-                                advanced.width ?: dimensions?.width ?: 0,
-                                advanced.height ?: dimensions?.height ?: 0,
-                                profile.frameRate
-                            )
-                        }
-                        if (reason != null) {
-                            _uiState.update { it.copy(message = "${file.details.fileName}: $reason") }
-                            return@launch
+                        if (advanced.usesAutoResolution) {
+                            if (dimensions == null) {
+                                _uiState.update { it.copy(message =
+                                    "${file.details.fileName}: cannot determine source resolution.") }
+                                return@launch
+                            }
+                            val chosen = withContext(Dispatchers.Default) {
+                                VideoEncoderCatalog.bestAutoResolution(
+                                    mime, advanced.encoder, dimensions, profile.frameRate
+                                )
+                            }.size
+                            if (chosen == null) {
+                                _uiState.update { it.copy(message =
+                                    "${file.details.fileName}: no compatible $mime resolution reported by device.") }
+                                return@launch
+                            }
+                            resolvedVideoSnapshots[key] = if (chosen == dimensions) advanced
+                                else advanced.copy(width = chosen.width, height = chosen.height)
+                        } else {
+                            val reason = withContext(Dispatchers.Default) {
+                                VideoEncoderCatalog.incompatibilityReason(
+                                    mime, advanced.encoder,
+                                    advanced.width ?: dimensions?.width ?: 0,
+                                    advanced.height ?: dimensions?.height ?: 0,
+                                    profile.frameRate
+                                )
+                            }
+                            if (reason != null) {
+                                _uiState.update { it.copy(message = "${file.details.fileName}: $reason") }
+                                return@launch
+                            }
                         }
                     }
                 }
@@ -503,7 +526,7 @@ class ConverterViewModel(application: Application) : AndroidViewModel(applicatio
                         fileSize = file.details.fileSize,
                         relativeFolderPath = file.relativeFolderPath,
                         customParamsJson = when (mediaType) {
-                            MediaType.VIDEO -> videoSnapshots[file.uri.toString()]?.toJson()
+                            MediaType.VIDEO -> resolvedVideoSnapshots[file.uri.toString()]?.toJson()
                             MediaType.IMAGE -> imageSnapshots[file.uri.toString()]?.toJson()
                             MediaType.AUDIO -> audioSnapshots[file.uri.toString()]?.toJson()
                             MediaType.DOWNLOAD -> null

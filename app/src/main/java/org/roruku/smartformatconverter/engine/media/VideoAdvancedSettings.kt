@@ -39,24 +39,19 @@ data class VideoAdvancedSettings(
 ) {
     val isRemux: Boolean get() = preset.equals("Original Quality / Remux", ignoreCase = true)
 
-    fun applyPreset(name: String): VideoAdvancedSettings = when (name) {
-        "Original Quality / Remux" -> copy(preset = name)
-        "Smart Auto" -> copy(preset = name, rateControl = "vbr",
-            width = null, height = null, fps = null,
-            videoCodec = "auto", encoder = "auto",
-            videoBitrateKbps = BitrateSelection.AUTO,
-            audioBitrateKbps = BitrateSelection.AUTO,
-            preventUpscale = true,
-            // Smart Auto must not reuse stale Custom resolution or encoder settings.
-            allowEncoderDownscale = false)
-        // Media3 uses encoder target bitrate, not libx264 CRF. Presets must
-        // adjust the setting actually consumed by the runtime.
-        "High Quality", "Balanced", "Small File" ->
-            copy(preset = name, rateControl = "vbr",
-                videoBitrateKbps = BitrateSelection.AUTO,
-                audioBitrateKbps = BitrateSelection.AUTO,
-                allowEncoderDownscale = false)
-        else -> copy(preset = "Custom")
+    /** Quick quality presets resolve the highest reported-compatible size per video. */
+    val usesAutoResolution: Boolean get() =
+        preset in setOf("Smart Auto", "High Quality", "Balanced", "Small File") &&
+            width == null && height == null
+
+    /** Presets have independent defaults; only manual editing enters Custom. */
+    fun applyPreset(name: String): VideoAdvancedSettings {
+        val fresh = VideoAdvancedSettings(format = format)
+        return when (name) {
+            "Smart Auto", "High Quality", "Balanced", "Small File",
+            "Original Quality / Remux" -> fresh.copy(preset = name)
+            else -> fresh.copy(preset = "Custom")
+        }
     }
 
     fun toJson(): String = JSONObject().apply {

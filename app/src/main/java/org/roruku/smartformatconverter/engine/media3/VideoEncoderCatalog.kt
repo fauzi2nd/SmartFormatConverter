@@ -7,6 +7,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.transformer.EncoderUtil
 import org.roruku.smartformatconverter.engine.media.VideoEncoderSelection
 import org.roruku.smartformatconverter.engine.media.VideoEncoderEligibility
+import org.roruku.smartformatconverter.engine.media.AdaptiveAutoResolution
+import org.roruku.smartformatconverter.engine.media.AdaptiveResolutionPolicy
 
 /**
  * Device-only encoder discovery and strict encoder selection.
@@ -68,6 +70,25 @@ internal object VideoEncoderCatalog {
             )
         }
     )
+
+    /** Same auto sizing algorithm is used by the editor and queued job. */
+    fun bestAutoResolution(
+        mimeType: String, encoder: String,
+        source: AdaptiveResolutionPolicy.Size, fps: Float
+    ): AdaptiveAutoResolution.Choice {
+        if (selected(mimeType, encoder).isEmpty())
+            return AdaptiveAutoResolution.Choice(null, false)
+        return AdaptiveAutoResolution.choose(source) { size ->
+            val reports = describe(mimeType, size.width, size.height, 0, fps)
+                .filter { VideoEncoderSelection.matches(encoder, it.name, it.hardware) }
+                .map { it.reportedSourceSupported }
+            when {
+                reports.any { it == true } -> true
+                reports.any { it == null } -> null
+                else -> false
+            }
+        }
+    }
 
     fun describe(
         mimeType: String,

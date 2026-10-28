@@ -55,13 +55,13 @@ class AdaptivePresetPlannerTest {
         val standard = AdaptivePresetPlanner.plan(
             VideoAdvancedSettings().applyPreset("High Quality"), source())
         val rejectedResize = AdaptivePresetPlanner.plan(
-            VideoAdvancedSettings(width = 1920, height = 2160,
-                preventUpscale = true).applyPreset("High Quality"),
+            VideoAdvancedSettings().applyPreset("High Quality")
+                .copy(width = 1920, height = 2160, preventUpscale = true),
             source(width = 1920, height = 1080))
         assertEquals(standard.videoKbps, rejectedResize.videoKbps)
         val downscale = AdaptivePresetPlanner.plan(
-            VideoAdvancedSettings(width = 1280, height = 720,
-                preventUpscale = true).applyPreset("High Quality"), source())
+            VideoAdvancedSettings().applyPreset("High Quality")
+                .copy(width = 1280, height = 720, preventUpscale = true), source())
         assertTrue(downscale.videoKbps < standard.videoKbps)
     }
 

@@ -760,6 +760,11 @@ fun SourceMediaDesignPreview(tab: Int) {
  * Preview source media before conversion. The fixed action area is outside the
  * scrolling content. MainActivity hides main navigation while this editor is active.
  */
+private data class VideoPreflightAssessment(
+    val invalid: Map<String, String> = emptyMap(),
+    val picked: Map<String, AdaptiveResolutionPolicy.Size> = emptyMap(),
+)
+
 @Composable
 fun ConverterPreviewEditor(
     state: ConverterUiState,
@@ -1030,39 +1035,67 @@ fun ConverterPreviewEditor(
             }
         }
     }
-    // Check every queued video's selected implementation, resolution and FPS.
-    // Keep this in the editor AND recheck in the ViewModel before enqueueing.
-    val videoPreflight by produceState<Map<String, String>?>(
+    // Analyze automatic quality presets without mutating manual/Custom values.
+    // The ViewModel uses this same device planner when persisting the job.
+    val videoPreflight by produceState<VideoPreflightAssessment?>(
         null, files, probedVideos, previewReady, state.targetFormat,
         state.videoSettings, state.perFileVideoSettings, state.selectedTab, isPreview
     ) {
-        value = if (state.selectedTab != 0 || isPreview) emptyMap()
+        value = if (state.selectedTab != 0 || isPreview) VideoPreflightAssessment()
             else if (!previewReady) null
             else withContext(Dispatchers.Default) {
-                files.mapNotNull { media ->
-                    val profile = probedVideos[media.uri.toString()]
-                    val config = (state.perFileVideoSettings[media.uri.toString()]
+                val errors = mutableMapOf<String, String>()
+                val selections = mutableMapOf<String, AdaptiveResolutionPolicy.Size>()
+                for (media in files) {
+                    val key = media.uri.toString()
+                    val profile = probedVideos[key]
+                    val config = (state.perFileVideoSettings[key]
                         ?: state.videoSettings).copy(format = state.targetFormat)
+                    if (config.isRemux) continue
                     val dimensions = AdaptiveResolutionPolicy.displaySize(
                         profile?.videoWidth ?: media.details.width,
                         profile?.videoHeight ?: media.details.height,
                         profile?.videoRotation ?: media.details.rotation
                     )
-                    val w = config.width ?: dimensions?.width ?: 0
-                    val h = config.height ?: dimensions?.height ?: 0
                     val mime = VideoEncoderCatalog.mimeType(state.targetFormat, config.videoCodec)
-                    val failure = runCatching {
-                        VideoEncoderCatalog.incompatibilityReason(
-                            mime, config.encoder, w, h, profile?.frameRate ?: 0f
-                        )
-                    }.getOrElse { "Unable to verify $mime encoder: ${it.message}" }
-                    failure?.let { media.details.fileName to it }
-                }.toMap()
+                    val frameRate = profile?.frameRate ?: 0f
+                    if (config.usesAutoResolution && dimensions != null) {
+                        val result = runCatching {
+                            VideoEncoderCatalog.bestAutoResolution(
+                                mime, config.encoder, dimensions, frameRate
+                            )
+                        }
+                        val chosen = result.getOrNull()?.size
+                        if (chosen != null) selections[key] = chosen
+                        else errors[key] = result.exceptionOrNull()?.message
+                            ?: "No compatible output resolution reported for $mime."
+                    } else if (config.usesAutoResolution) {
+                        errors[key] = "Cannot determine source resolution for automatic preset."
+                    } else {
+                        val failure = runCatching {
+                            VideoEncoderCatalog.incompatibilityReason(
+                                mime, config.encoder,
+                                config.width ?: dimensions?.width ?: 0,
+                                config.height ?: dimensions?.height ?: 0,
+                                frameRate
+                            )
+                        }.getOrElse { "Unable to verify $mime encoder: ${it.message}" }
+                        if (failure != null) errors[key] = failure
+                    }
+                }
+                VideoPreflightAssessment(errors, selections)
             }
     }
-    val blockingVideoReason = videoPreflight?.entries?.firstOrNull()?.let {
-        "${it.key}: ${it.value}"
+    val selectedAutoResolution = selectedFile?.let {
+        videoPreflight?.picked?.get(it.uri.toString())
     }
+    val inlineVideoError = videoPreflight?.invalid?.get(selectedFile?.uri?.toString())
+        ?: videoPreflight?.invalid?.entries?.firstOrNull()?.let { entry ->
+            val name = files.firstOrNull { it.uri.toString() == entry.key }?.details?.fileName
+                ?: "another file"
+            "$name: ${entry.value}"
+        }
+    val hasPreflightErrors = videoPreflight?.invalid?.isNotEmpty() == true
 
     val estimatedTotalBytes = if (videoPlans.size == files.size &&
         videoPlans.values.all { it.estimatedBytes != null }) {
@@ -1487,6 +1520,11 @@ fun ConverterPreviewEditor(
                                     tier.id in selectableResolutionTiers.orEmpty()
                                 }.map { it.first.id }.toSet()
                             val resolutionOptions = buildList {
+                                if (resolvedVideoSettings.usesAutoResolution) {
+                                    add("auto" to (selectedAutoResolution?.let {
+                                        "Auto (${it.width}×${it.height})"
+                                    } ?: "Auto (detecting device…)"))
+                                }
                                 add("source" to (sourceDisplay?.let { "Source (${it.width}×${it.height})" }
                                     ?: "Source"))
                                 adaptiveChoices.forEach { (tier, size) ->
@@ -1502,11 +1540,19 @@ fun ConverterPreviewEditor(
                                 size.width == resolvedVideoSettings.width &&
                                     size.height == resolvedVideoSettings.height
                             }
-                            val resolutionId = if (resolvedVideoSettings.width == null) "source"
+                            val resolutionId = if (resolvedVideoSettings.usesAutoResolution) "auto"
+                                else if (resolvedVideoSettings.width == null) "source"
                                 else chosenTier?.first?.id ?: "custom"
                             CompactSettingChoice("Resolution", resolutionId, resolutionOptions,
                                 disabledIds = blockedTiers) { id ->
                                 when (id) {
+                                    "auto" -> {
+                                        if (applyToAll) onUpdatePreset("Smart Auto")
+                                        else selectedFile?.let { file ->
+                                            onUpdateVideoFileSettings(file.uri,
+                                                resolvedVideoSettings.applyPreset("Smart Auto"))
+                                        }
+                                    }
                                     "source" -> update(resolvedVideoSettings.copy(
                                         width = null, height = null, preset = "Custom"))
                                     "custom" -> {
@@ -1526,13 +1572,27 @@ fun ConverterPreviewEditor(
                                         }
                                 }
                             }
+                            val autoDownscaled = resolvedVideoSettings.usesAutoResolution &&
+                                sourceDisplay != null && selectedAutoResolution != null &&
+                                selectedAutoResolution != sourceDisplay
+                            val resolutionMessage = when {
+                                inlineVideoError != null -> inlineVideoError
+                                videoPreflight == null && !isPreview ->
+                                    "Checking device limits and selecting the best resolution…"
+                                autoDownscaled ->
+                                    "Auto: source ${sourceDisplay} → ${selectedAutoResolution}. " +
+                                        "Highest reported-compatible size; portrait ratio preserved."
+                                resolvedVideoSettings.usesAutoResolution &&
+                                    selectedAutoResolution != null ->
+                                    "Auto: source resolution is compatible; no resize required."
+                                else -> "4K–144p follows source orientation. Unsupported resolutions " +
+                                    "are disabled; Custom sizes are checked before conversion."
+                            }
                             Text(
-                                "Adaptive 4K–144p options preserve source orientation. " +
-                                    "Unavailable resolutions remain visible but cannot be selected; " +
-                                    "the result depends on codec, encoder and source FPS. " +
-                                    "Custom dimensions are checked before conversion.",
+                                resolutionMessage,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (inlineVideoError != null) MaterialTheme.colorScheme.error
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             CompactSettingChoice("Frame rate (FPS)", resolvedVideoSettings.fps ?: "source",
                                 buildList {
@@ -1777,14 +1837,6 @@ fun ConverterPreviewEditor(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column {
-            if (state.selectedTab == 0 && blockingVideoReason != null) {
-                Text(
-                    blockingVideoReason,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
             Button(
                 onClick = {
                     if (state.selectedTab == 0 && (growthRisks > 0 ||
@@ -1794,7 +1846,7 @@ fun ConverterPreviewEditor(
                 },
                 enabled = files.isNotEmpty() && !state.isConverting &&
                     (state.selectedTab != 0 || isPreview ||
-                        (videoPreflight != null && blockingVideoReason == null)),
+                        (videoPreflight != null && !hasPreflightErrors)),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)

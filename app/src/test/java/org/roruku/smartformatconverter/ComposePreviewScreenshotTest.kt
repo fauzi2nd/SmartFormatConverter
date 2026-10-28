@@ -143,6 +143,35 @@ class ComposePreviewScreenshotTest {
     }
 
     @Test
+    fun converterEditorImageSections() {
+        composeRule.setContent {
+            SmartFormatConverterTheme(darkTheme = true) {
+                Surface(modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background) {
+                    PreviewEditorSample(tab = 1)
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        fun capture(section: String) {
+            val output = File("preview/converter-editor-image-$section.png")
+            output.parentFile?.mkdirs()
+            composeRule.onRoot().captureRoboImage(
+                filePath = output.absolutePath, roborazziOptions = recordOptions)
+        }
+        capture("top")
+        listOf(
+            "settings" to "editor_media_settings",
+            "summary" to "editor_output_summary"
+        ).forEach { (section, tag) ->
+            composeRule.onNodeWithTag("converter_editor_scroll")
+                .performScrollToNode(hasTestTag(tag))
+            composeRule.waitForIdle()
+            capture(section)
+        }
+    }
+
+    @Test
     fun converterEditorVideoSections() = screenshotEditorSections("converter-editor-video") {
         PreviewEditorSample(tab = 0)
     }

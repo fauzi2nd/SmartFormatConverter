@@ -73,24 +73,10 @@ fun ImageAdvancedSettingsControl(
     onApply: (ImageAdvancedSettings) -> Unit,
     previewExpanded: Boolean = false
 ) {
-    var open by remember { mutableStateOf(previewExpanded) }
-    var draft by remember { mutableStateOf(settings) }
-    var widthText by remember { mutableStateOf(settings.width?.toString().orEmpty()) }
-    var heightText by remember { mutableStateOf(settings.height?.toString().orEmpty()) }
+    var draft by remember(settings) { mutableStateOf(settings) }
+    var widthText by remember(settings) { mutableStateOf(settings.width?.toString().orEmpty()) }
+    var heightText by remember(settings) { mutableStateOf(settings.height?.toString().orEmpty()) }
 
-    OutlinedButton(
-        onClick = {
-            draft = settings
-            widthText = settings.width?.toString().orEmpty()
-            heightText = settings.height?.toString().orEmpty()
-            open = true
-        },
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(stringResource(R.string.advanced_image_title))
-    }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         val qualitySummary = when (settings.format) {
             "jpg", "jpeg" -> stringResource(R.string.setting_jpeg_quality, settings.jpegQuality)
@@ -117,12 +103,10 @@ fun ImageAdvancedSettingsControl(
             )
         }
     }
-    if (!open) return
 
     val content: @Composable () -> Unit = {
         Column(
-            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(stringResource(R.string.advanced_image_title),
@@ -426,11 +410,15 @@ fun ImageAdvancedSettingsControl(
             if (validation != null) Text(validation, color = MaterialTheme.colorScheme.error)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = { open = false }, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.cancel))
+                OutlinedButton(onClick = {
+                    draft = settings
+                    widthText = settings.width?.toString().orEmpty()
+                    heightText = settings.height?.toString().orEmpty()
+                }, modifier = Modifier.weight(1f)) {
+                    Text("Reset")
                 }
                 Button(
-                    onClick = { onApply(proposed.copy(preset = "Custom")); open = false },
+                    onClick = { onApply(proposed.copy(preset = "Custom")) },
                     enabled = validation == null,
                     modifier = Modifier.weight(1f)
                 ) { Text(stringResource(R.string.apply)) }
@@ -439,11 +427,7 @@ fun ImageAdvancedSettingsControl(
         }
     }
 
-    if (LocalInspectionMode.current) {
-        content()
-    } else {
-        ModalBottomSheet(onDismissRequest = { open = false }) { content() }
-    }
+    content()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

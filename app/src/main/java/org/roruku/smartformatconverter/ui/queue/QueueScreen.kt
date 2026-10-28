@@ -29,6 +29,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -134,14 +138,16 @@ fun QueueScreenContent(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(horizontal = 12.dp, vertical = 14.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+          val narrow = maxWidth < 380.dp
+          Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+           if (narrow) {
+            Text(text = stringResource(R.string.queue_title), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+           }
+           Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (narrow) Arrangement.End else Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            if (!narrow) Text(
                 text = stringResource(R.string.queue_title),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
@@ -164,6 +170,9 @@ fun QueueScreenContent(
                     fontWeight = FontWeight.Medium
                 )
             }
+        }
+
+          }
         }
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -365,13 +374,14 @@ fun JobCardItem(
                         text = outputName,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    @OptIn(ExperimentalLayoutApi::class)
+                    FlowRow(
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
                             text = stringResource(
@@ -401,7 +411,7 @@ fun JobCardItem(
                 ) {
                     when (job.status) {
                         JobStatus.RUNNING, JobStatus.PREPARING, JobStatus.PENDING -> {
-                            IconButton(onClick = onPause, modifier = Modifier.size(36.dp)) {
+                            IconButton(onClick = onPause, modifier = Modifier.size(44.dp)) {
                                 Icon(
                                     imageVector = Icons.Default.PauseCircle,
                                     contentDescription = stringResource(R.string.action_pause),

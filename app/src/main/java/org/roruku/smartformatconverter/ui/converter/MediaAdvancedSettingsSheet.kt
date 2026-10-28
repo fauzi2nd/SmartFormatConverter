@@ -362,12 +362,39 @@ fun ImageAdvancedSettingsControl(
                         )
                     }
 
-                    MediaSwitch(stringResource(R.string.setting_maintain_ratio), draft.keepAspectRatio) {
-                        draft = draft.copy(keepAspectRatio = it)
+                    Text("Resize mode", style = MaterialTheme.typography.titleSmall)
+                    Text("Original keeps source dimensions. Fit preserves the whole image; Fill & Crop trims the edges; Stretch changes proportions.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val resizeMode = when {
+                        widthText.isBlank() && heightText.isBlank() -> "Original"
+                        !draft.keepAspectRatio -> "Stretch"
+                        draft.cropToExactRatio -> "Fill & Crop"
+                        else -> "Fit"
                     }
-                    if (draft.keepAspectRatio && widthText.isNotBlank() && heightText.isNotBlank()) {
-                        MediaSwitch(stringResource(R.string.setting_crop_to_exact), draft.cropToExactRatio) {
-                            draft = draft.copy(cropToExactRatio = it)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf("Original", "Fit", "Fill & Crop", "Stretch").chunked(2).forEach { row ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                row.forEach { mode ->
+                                    FilterChip(
+                                        selected = resizeMode == mode,
+                                        onClick = {
+                                            if (mode == "Original") {
+                                                widthText = ""
+                                                heightText = ""
+                                            } else {
+                                                if (widthText.isBlank()) widthText = "1920"
+                                                if (heightText.isBlank()) heightText = "1080"
+                                            }
+                                            draft = draft.copy(
+                                                keepAspectRatio = mode != "Stretch",
+                                                cropToExactRatio = mode == "Fill & Crop"
+                                            )
+                                        },
+                                        label = { Text(mode) }
+                                    )
+                                }
+                            }
                         }
                     }
                     MediaSwitch(

@@ -7,26 +7,33 @@ import java.io.OutputStream
  * palette; dimensions are preserved instead of silently downsizing images
  * larger than 2048 pixels. Rows are consumed one at a time.
  *
- * RGB332 is deterministic and requires neither a full-image palette search nor
+ * Indexed RGB palette is deterministic and requires neither a full-image palette search nor
  * another copy of the source bitmap in memory. This does not preserve animated
  * input and does not provide lossless true-colour image quality.
  */
 internal object StillGifWriter {
-    fun write(output: OutputStream, width: Int, height: Int, row: (Int, IntArray) -> Unit) {
+    fun write(output: OutputStream, width: Int, height: Int, row: (Int, IntArray) -> Unit, paletteBits: Int = 8) {
+        require(paletteBits in setOf(4, 6, 8))
         require(width in 1..65535 && height in 1..65535) {
             "GIF dimensions must be between 1 and 65535 pixels"
         }
         output.write("GIF89a".toByteArray(Charsets.US_ASCII))
         writeShort(output, width)
         writeShort(output, height)
-        output.write(0xf7) // global colour table, 8 bits per channel, 256 entries
+        output.write(0xf0 or (paletteBits - 1)) // global table with 2^paletteBits colors
         output.write(0) // background colour index
         output.write(0) // pixel aspect ratio
 
-        for (index in 0..255) {
-            val red = ((index shr 5) * 255 + 3) / 7
-            val green = (((index shr 2) and 7) * 255 + 3) / 7
-            val blue = ((index and 3) * 255 + 1) / 3
+        val redBits = if (paletteBits == 8) 3 else 2
+        val greenBits = if (paletteBits == 8) 3 else if (paletteBits == 6) 2 else 1
+        val blueBits = paletteBits - redBits - greenBits
+        val redMax = (1 shl redBits) - 1
+        val greenMax = (1 shl greenBits) - 1
+        val blueMax = (1 shl blueBits) - 1
+        for (index in 0 until (1 shl paletteBits)) {
+            val red = ((index shr (greenBits + blueBits)) * 255) / redMax
+            val green = (((index shr blueBits) and greenMax) * 255) / greenMax
+            val blue = ((index and blueMax) * 255) / blueMax
             output.write(red)
             output.write(green)
             output.write(blue)
@@ -38,10 +45,11 @@ internal object StillGifWriter {
         writeShort(output, width)
         writeShort(output, height)
         output.write(0) // non-interlaced; use global colour table only
-        output.write(8) // LZW minimum code size
+        output.write(paletteBits) // LZW minimum code size
 
-        val codes = GifLzwBlocks(output)
-        codes.emit(256) // clear dictionary
+        val clearCode = 1 shl paletteBits
+        val codes = GifLzwBlocks(output, paletteBits + 1)
+        codes.emit(clearCode) // clear dictionary
         var countSinceClear = 0
         val pixels = IntArray(width)
         for (y in 0 until height) {
@@ -54,20 +62,20 @@ internal object StillGifWriter {
                 val r = (((argb ushr 16) and 0xff) * alpha + 255 * (255 - alpha) + 127) / 255
                 val g = (((argb ushr 8) and 0xff) * alpha + 255 * (255 - alpha) + 127) / 255
                 val b = ((argb and 0xff) * alpha + 255 * (255 - alpha) + 127) / 255
-                val paletteIndex = ((r shr 5) shl 5) or
-                    ((g shr 5) shl 2) or (b shr 6)
+                val paletteIndex = ((r shr (8 - redBits)) shl (greenBits + blueBits)) or
+                    ((g shr (8 - greenBits)) shl blueBits) or (b shr (8 - blueBits))
                 codes.emit(paletteIndex)
                 countSinceClear++
                 // The decoder dictionary stays below 512 entries, so all
                 // emitted LZW codes are nine bits. Frequent clear codes trade
                 // compression ratio for simple and predictable memory use.
-                if (countSinceClear == 200) {
-                    codes.emit(256)
+                if (countSinceClear == (1 shl paletteBits) - 3) {
+                    codes.emit(clearCode)
                     countSinceClear = 0
                 }
             }
         }
-        codes.emit(257) // end of information
+        codes.emit(clearCode + 1) // end of information
         codes.finish()
         output.write(0x3b) // GIF trailer
     }
@@ -77,7 +85,7 @@ internal object StillGifWriter {
         output.write((value shr 8) and 0xff)
     }
 
-    private class GifLzwBlocks(private val out: OutputStream) {
+    private class GifLzwBlocks(private val out: OutputStream, private val codeWidth: Int) {
         private val block = ByteArray(255)
         private var blockSize = 0
         private var bits = 0
@@ -85,7 +93,7 @@ internal object StillGifWriter {
 
         fun emit(code: Int) {
             bits = bits or (code shl bitCount)
-            bitCount += 9
+            bitCount += codeWidth
             while (bitCount >= 8) {
                 writeByte(bits and 0xff)
                 bits = bits ushr 8

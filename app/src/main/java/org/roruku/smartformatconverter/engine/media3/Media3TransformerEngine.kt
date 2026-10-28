@@ -2,6 +2,8 @@ package org.roruku.smartformatconverter.engine.media3
 
 import android.content.Context
 import android.media.MediaMetadataRetriever
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -38,6 +40,7 @@ import org.roruku.smartformatconverter.engine.media.AdaptiveAudioPlanner
 import org.roruku.smartformatconverter.engine.media.AdaptivePresetPlanner
 import org.roruku.smartformatconverter.engine.media.VideoSourceProfile
 import org.roruku.smartformatconverter.engine.media.AdaptiveResolutionPolicy
+import org.roruku.smartformatconverter.engine.media.VideoSourceGeometry
 import org.roruku.smartformatconverter.engine.media.BitrateSelection
 import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
@@ -405,17 +408,49 @@ object Media3TransformerEngine {
                                 val retriever = MediaMetadataRetriever()
                                 try {
                                     retriever.setDataSource(outputFile.absolutePath)
-                                    val w = retriever.extractMetadata(
+                                    val retrieverWidth = retriever.extractMetadata(
                                         MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH
                                     )?.toIntOrNull() ?: 0
-                                    val h = retriever.extractMetadata(
+                                    val retrieverHeight = retriever.extractMetadata(
                                         MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT
                                     )?.toIntOrNull() ?: 0
-                                    val rotation = retriever.extractMetadata(
+                                    val retrieverRotation = retriever.extractMetadata(
                                         MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION
                                     )?.toIntOrNull() ?: 0
+                                    var encodedWidth = 0
+                                    var encodedHeight = 0
+                                    var trackRotation = 0
+                                    val extractor = MediaExtractor()
+                                    try {
+                                        extractor.setDataSource(outputFile.absolutePath)
+                                        for (i in 0 until extractor.trackCount) {
+                                            val format = extractor.getTrackFormat(i)
+                                            if (!format.getString(MediaFormat.KEY_MIME)
+                                                    .orEmpty().startsWith("video/")) continue
+                                            encodedWidth = runCatching {
+                                                format.getInteger(MediaFormat.KEY_WIDTH)
+                                            }.getOrDefault(0)
+                                            encodedHeight = runCatching {
+                                                format.getInteger(MediaFormat.KEY_HEIGHT)
+                                            }.getOrDefault(0)
+                                            trackRotation = runCatching {
+                                                format.getInteger(MediaFormat.KEY_ROTATION)
+                                            }.getOrDefault(0)
+                                            break
+                                        }
+                                    } catch (error: Exception) {
+                                        Log.w(TAG, "Cannot inspect encoded output dimensions", error)
+                                    } finally {
+                                        extractor.release()
+                                    }
+                                    val geometry = VideoSourceGeometry.resolve(
+                                        encodedWidth, encodedHeight, retrieverWidth,
+                                        retrieverHeight,
+                                        retrieverRotation.takeIf { it != 0 } ?: trackRotation
+                                    ).display
                                     VideoGeometryPolicy.unexpectedResize(
-                                        original.width, original.height, 0, w, h, rotation
+                                        original.width, original.height, 0,
+                                        geometry?.width ?: 0, geometry?.height ?: 0, 0
                                     )
                                 } catch (error: Exception) {
                                     Log.w(TAG, "Could not independently verify output resolution", error)

@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import org.roruku.smartformatconverter.R
 import org.roruku.smartformatconverter.engine.media.BitrateSelection
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
+import org.roruku.smartformatconverter.engine.media.AdaptiveResolutionPolicy
 import org.roruku.smartformatconverter.engine.media.VideoSettingsValidator
 import org.roruku.smartformatconverter.engine.media.VideoEncoderSelection
 import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
@@ -55,8 +56,14 @@ import org.roruku.smartformatconverter.ui.theme.SmartFormatConverterTheme
 fun VideoAdvancedSettingsControl(
     settings: VideoAdvancedSettings,
     onApply: (VideoAdvancedSettings) -> Unit,
-    previewExpanded: Boolean = false
+    previewExpanded: Boolean = false,
+    sourceWidth: Int = 0,
+    sourceHeight: Int = 0,
+    sourceRotation: Int = 0,
 ) {
+    val sourceSize = AdaptiveResolutionPolicy.displaySize(
+        sourceWidth, sourceHeight, sourceRotation
+    )
     var open by remember { mutableStateOf(previewExpanded) }
     var draft by remember { mutableStateOf(settings) }
     var resolutionChoice by remember { mutableStateOf("source") }
@@ -68,12 +75,15 @@ fun VideoAdvancedSettingsControl(
         modifier = Modifier.fillMaxWidth(),
         onClick = {
             draft = settings
+            val sourceTiers = sourceSize?.let {
+                AdaptiveResolutionPolicy.availableTiers(it, settings.preventUpscale)
+            }.orEmpty()
             resolutionChoice = if (settings.width == null) "source" else
-                "${settings.width}x${settings.height}".takeIf {
-                    it in setOf("3840x2160", "2560x1440", "1920x1080", "1280x720", "854x480")
-                } ?: "custom"
-            customWidth = (settings.width ?: 1920).toString()
-            customHeight = (settings.height ?: 1080).toString()
+                sourceTiers.firstOrNull { (_, size) ->
+                    size.width == settings.width && size.height == settings.height
+                }?.first?.id ?: "custom"
+            customWidth = (settings.width ?: sourceSize?.width ?: 1920).toString()
+            customHeight = (settings.height ?: sourceSize?.height ?: 1080).toString()
             formError = null
             open = true
         }
@@ -149,32 +159,32 @@ fun VideoAdvancedSettingsControl(
                     style = MaterialTheme.typography.bodyMedium
                 )
             } else {
+                val adaptiveTiers = sourceSize?.let {
+                    AdaptiveResolutionPolicy.availableTiers(it, draft.preventUpscale)
+                }.orEmpty()
                 ChoiceField(
                     label = stringResource(R.string.video_setting_resolution),
                     value = resolutionChoice,
-                    options = listOf(
-                        "source" to stringResource(R.string.source_original),
-                        "3840x2160" to stringResource(R.string.option_4k),
-                        "2560x1440" to stringResource(R.string.option_1440p),
-                        "1920x1080" to stringResource(R.string.option_1080p),
-                        "1280x720" to stringResource(R.string.option_720p),
-                        "854x480" to stringResource(R.string.option_480p),
-                        "custom" to stringResource(R.string.preset_custom)
-                    ),
+                    options = buildList {
+                        add("source" to (sourceSize?.let { "Source (${it.width}×${it.height})" }
+                            ?: stringResource(R.string.source_original)))
+                        adaptiveTiers.forEach { (tier, size) ->
+                            add(tier.id to "${tier.label} · ${size.width}×${size.height}")
+                        }
+                        add("custom" to stringResource(R.string.preset_custom))
+                    },
                     onChange = { selection ->
                         resolutionChoice = selection
-                        draft = if (selection == "source") {
-                            draft.copy(width = null, height = null)
-                        } else {
-                            val parts = if (selection == "custom") {
-                                listOf(customWidth, customHeight)
-                            } else {
-                                selection.split('x')
-                            }
-                            draft.copy(
-                                width = parts.getOrNull(0)?.toIntOrNull(),
-                                height = parts.getOrNull(1)?.toIntOrNull()
+                        draft = when (selection) {
+                            "source" -> draft.copy(width = null, height = null)
+                            "custom" -> draft.copy(
+                                width = customWidth.toIntOrNull(),
+                                height = customHeight.toIntOrNull()
                             )
+                            else -> adaptiveTiers.firstOrNull { it.first.id == selection }
+                                ?.second?.let { size ->
+                                    draft.copy(width = size.width, height = size.height)
+                                } ?: draft
                         }
                     }
                 )

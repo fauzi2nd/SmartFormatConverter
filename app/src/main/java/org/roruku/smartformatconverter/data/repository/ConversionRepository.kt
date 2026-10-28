@@ -256,7 +256,9 @@ class ConversionRepository(
                         maintainAspectRatio = advanced?.keepAspectRatio ?: true,
                         preventUpscale = advanced?.preventUpscale ?: true,
                         cropToExactRatio = advanced?.cropToExactRatio ?: false,
-                        preserveExif = advanced?.preserveMetadata ?: settings.preserveMetadata
+                        preserveExif = advanced?.preserveMetadata ?: settings.preserveMetadata,
+                        preserveGps = advanced?.preserveGps ?: false,
+                        matteColor = advanced?.matteColor ?: "white"
                     )
                     ImageConverterEngine.convertImage(
                         context = context,

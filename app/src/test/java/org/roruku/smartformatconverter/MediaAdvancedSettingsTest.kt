@@ -81,9 +81,21 @@ class MediaAdvancedSettingsTest {
         assertEquals(100, webp.webpQuality)
         val compressed = webp.applyPreset("Small File")
         assertFalse(compressed.webpLossless)
-        assertEquals(70, compressed.webpQuality)
+        assertEquals(65, compressed.webpQuality)
         val jpeg = ImageAdvancedSettings().applyPreset("Small File")
         assertEquals("encoder", jpeg.jpegSubsampling)
+    }
+
+    @Test
+    fun gifAndPngPresetsDriveEncoderOptions() {
+        val gif = ImageAdvancedSettings(format = "gif")
+        assertEquals(8, gif.applyPreset("Smart Auto").gifPaletteBits)
+        assertEquals(6, gif.applyPreset("Balanced").gifPaletteBits)
+        assertEquals(4, gif.applyPreset("Small File").gifPaletteBits)
+        val png = ImageAdvancedSettings(format = "png")
+        assertFalse(png.applyPreset("Smart Auto").optimizePng)
+        assertTrue(png.applyPreset("Balanced").optimizePng)
+        assertTrue(ImageAdvancedSettings.fromJson(png.applyPreset("Balanced").toJson()).optimizePng)
     }
 
     @Test

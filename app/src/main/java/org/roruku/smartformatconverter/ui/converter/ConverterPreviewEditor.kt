@@ -1765,8 +1765,6 @@ fun ConverterPreviewEditor(
                         }
                     }
                 } else {
-                    // PNG compression is lossless; a quality preset would be misleading.
-                    if (state.targetFormat != "png") {
                     item {
                         Surface(modifier = Modifier.fillMaxWidth().testTag("editor_preset"),
                             shape = RoundedCornerShape(16.dp),
@@ -1774,22 +1772,29 @@ fun ConverterPreviewEditor(
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SectionTitle("Preset", Icons.Default.Layers)
-                        val presets = if (state.selectedTab == 2 &&
-                            state.targetFormat in AudioSettingsValidator.losslessFormats)
-                            listOf("Lossless", "Custom")
-                        else listOf("Smart Auto", "High Quality", "Balanced", "Small File", "Custom")
-                        val chosenPreset = if (state.selectedTab == 1)
-                            resolvedImageSettings.preset else resolvedAudioSettings.preset
+                        val presets = when {
+                            state.selectedTab == 2 && state.targetFormat in AudioSettingsValidator.losslessFormats ->
+                                listOf("Lossless", "Custom")
+                            state.selectedTab == 1 && state.targetFormat == "png" ->
+                                listOf("Smart Auto", "Optimized PNG")
+                            state.selectedTab == 1 && state.targetFormat == "gif" ->
+                                listOf("Smart Auto", "Balanced", "Small File")
+                            else -> listOf("Smart Auto", "High Quality", "Balanced", "Small File", "Custom")
+                        }
+                        val chosenPreset = if (state.selectedTab == 1) {
+                            if (state.targetFormat == "png" && resolvedImageSettings.optimizePng) "Optimized PNG"
+                            else resolvedImageSettings.preset
+                        } else resolvedAudioSettings.preset
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             presets.chunked(2).forEach { rowPresets ->
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     rowPresets.forEach { choice ->
                                         val choose: () -> Unit = {
                                             if (state.selectedTab == 1) {
-                                                if (applyToAll) onUpdateImagePreset(choice)
+                                                if (applyToAll) onUpdateImagePreset(if (choice == "Optimized PNG") "Balanced" else choice)
                                                 else selectedFile?.let { file ->
                                                     onUpdateImageFileSettings(file.uri,
-                                                        resolvedImageSettings.applyPreset(choice))
+                                                        resolvedImageSettings.applyPreset(if (choice == "Optimized PNG") "Balanced" else choice))
                                                 }
                                             } else {
                                                 if (applyToAll) onUpdateAudioPreset(choice)
@@ -1817,7 +1822,6 @@ fun ConverterPreviewEditor(
                         }
                             }
                         }
-                    }
                     }
                     item {
                         Card(

@@ -849,10 +849,17 @@ fun ConverterPreviewEditor(
         state.perFileAudioSettings[file.uri.toString()] ?: state.audioSettings
     } ?: state.audioSettings
     val selectedSource = selectedFile?.let { probedVideos[it.uri.toString()] }
-    val sourceDisplay = AdaptiveResolutionPolicy.displaySize(
-        selectedSource?.videoWidth ?: selectedFile?.details?.width ?: 0,
-        selectedSource?.videoHeight ?: selectedFile?.details?.height ?: 0,
-        selectedSource?.videoRotation ?: selectedFile?.details?.rotation ?: 0
+    // MediaProbe exposes canonical display dimensions. Retriever-based
+    // MediaDetails may also already be display-rotated: never rotate fallback
+    // dimensions again before the source probe completes.
+    val sourceDisplay = if (selectedSource != null) {
+        AdaptiveResolutionPolicy.displaySize(
+            selectedSource.videoWidth, selectedSource.videoHeight,
+            selectedSource.videoRotation
+        )
+    } else AdaptiveResolutionPolicy.displaySize(
+        selectedFile?.details?.width ?: 0,
+        selectedFile?.details?.height ?: 0, 0
     )
     if (customResolutionOpen) {
         val w = customWidthDraft.toIntOrNull()
@@ -1028,10 +1035,12 @@ fun ConverterPreviewEditor(
                     val config = (state.perFileVideoSettings[key]
                         ?: state.videoSettings).copy(format = state.targetFormat)
                     if (config.isRemux) continue
-                    val dimensions = AdaptiveResolutionPolicy.displaySize(
-                        profile?.videoWidth ?: media.details.width,
-                        profile?.videoHeight ?: media.details.height,
-                        profile?.videoRotation ?: media.details.rotation
+                    val dimensions = if (profile != null) {
+                        AdaptiveResolutionPolicy.displaySize(
+                            profile.videoWidth, profile.videoHeight, profile.videoRotation
+                        )
+                    } else AdaptiveResolutionPolicy.displaySize(
+                        media.details.width, media.details.height, 0
                     )
                     val mime = VideoEncoderCatalog.mimeType(state.targetFormat, config.videoCodec)
                     val frameRate = profile?.frameRate ?: 0f

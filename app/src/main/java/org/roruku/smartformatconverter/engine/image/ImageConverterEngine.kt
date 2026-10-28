@@ -38,6 +38,7 @@ data class ImageConversionConfig(
     val preserveGps: Boolean = false,
     val matteColor: String = "white",
     val gifPaletteBits: Int = 8,
+    val optimizePng: Boolean = false,
     val customWidth: Int? = null,
     val customHeight: Int? = null,
     val maintainAspectRatio: Boolean = true,
@@ -174,6 +175,7 @@ object ImageConverterEngine {
                         finalBitmap.compress(Bitmap.CompressFormat.PNG, 100, outStream)
                     }
                     if (!written) throw IllegalStateException("PNG encoder rejected the image")
+                    if (config.optimizePng) PngLosslessOptimizer.optimize(outputFile)
                 }
                 ImageOutputFormat.WEBP -> {
                     if (config.webpLossless &&

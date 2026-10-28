@@ -50,11 +50,11 @@ class MediaAdvancedSettingsTest {
         assertEquals(BitrateSelection.AUTO, state.audioSettings.bitrateKbps)
     }
     @Test
-    fun jpegDefaultRetains444AndNeverUpscales() {
+    fun jpegDefaultUsesPlatformEncoderAndNeverUpscales() {
         val settings = ImageAdvancedSettings()
         assertEquals("jpg", settings.format)
         assertEquals(100, settings.jpegQuality)
-        assertEquals("444", settings.jpegSubsampling)
+        assertEquals("encoder", settings.jpegSubsampling)
         assertTrue(settings.preventUpscale)
         assertNull(ImageSettingsValidator.validate(settings))
     }
@@ -81,9 +81,21 @@ class MediaAdvancedSettingsTest {
         assertEquals(100, webp.webpQuality)
         val compressed = webp.applyPreset("Small File")
         assertFalse(compressed.webpLossless)
-        assertEquals(75, compressed.webpQuality)
+        assertEquals(70, compressed.webpQuality)
         val jpeg = ImageAdvancedSettings().applyPreset("Small File")
-        assertEquals("420", jpeg.jpegSubsampling)
+        assertEquals("encoder", jpeg.jpegSubsampling)
+    }
+
+    @Test
+    fun imagePresetsDifferAndSensitiveMetadataRequiresOptIn() {
+        val auto = ImageAdvancedSettings().applyPreset("Smart Auto")
+        val balanced = ImageAdvancedSettings().applyPreset("Balanced")
+        assertTrue(auto.jpegQuality > balanced.jpegQuality)
+        assertFalse(auto.preserveGps)
+        val custom = auto.copy(matteColor = "black", preserveGps = true)
+        assertEquals(custom, ImageAdvancedSettings.fromJson(custom.toJson()))
+        assertNotNull(ImageSettingsValidator.validate(custom.copy(jpegSubsampling = "444")))
+        assertNotNull(ImageSettingsValidator.validate(custom.copy(matteColor = "blue")))
     }
 
     @Test

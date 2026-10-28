@@ -12,7 +12,7 @@ import java.io.OutputStream
  * input and does not provide lossless true-colour image quality.
  */
 internal object StillGifWriter {
-    fun write(output: OutputStream, width: Int, height: Int, row: (Int, IntArray) -> Unit, paletteBits: Int = 8) {
+    fun write(output: OutputStream, width: Int, height: Int, paletteBits: Int = 8, row: (Int, IntArray) -> Unit) {
         require(paletteBits in setOf(4, 6, 8))
         require(width in 1..65535 && height in 1..65535) {
             "GIF dimensions must be between 1 and 65535 pixels"

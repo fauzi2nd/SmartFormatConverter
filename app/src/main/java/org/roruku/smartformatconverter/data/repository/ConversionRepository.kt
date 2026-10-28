@@ -259,7 +259,8 @@ class ConversionRepository(
                         preserveExif = advanced?.preserveMetadata ?: settings.preserveMetadata,
                         preserveGps = advanced?.preserveGps ?: false,
                         matteColor = advanced?.matteColor ?: "white",
-                        gifPaletteBits = advanced?.gifPaletteBits ?: 8
+                        gifPaletteBits = advanced?.gifPaletteBits ?: 8,
+                        optimizePng = advanced?.optimizePng ?: false
                     )
                     ImageConverterEngine.convertImage(
                         context = context,

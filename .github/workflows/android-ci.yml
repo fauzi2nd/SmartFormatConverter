@@ -94,14 +94,35 @@ jobs:
       # APK remains on the trusted self-hosted runner. GitHub artifact uploads
       # are disabled while the account's Actions storage quota is exhausted.
 
-      - name: Clear stale Compose preview screenshots
-        shell: powershell
-        run: |
-          if (Test-Path 'app/preview') { Remove-Item 'app/preview' -Recurse -Force }
-
       - name: Run Unit Tests
         run: gradlew.bat testDebugUnitTest --no-configuration-cache --warning-mode all --stacktrace
         shell: cmd
+
+      - name: Record Compose screenshots from the tested UI
+        shell: cmd
+        run: gradlew.bat :app:testDebugUnitTest --tests "org.roruku.smartformatconverter.ComposePreviewScreenshotTest" -Proborazzi.test.record=true --rerun-tasks --no-configuration-cache --stacktrace
+
+      - name: Verify generated screenshot coverage
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $required = @(
+            'home-screen.png',
+            'converter-editor-image.png',
+            'converter-editor-image-top.png',
+            'converter-editor-image-settings.png',
+            'converter-editor-image-summary.png',
+            'converter-editor-video-top.png',
+            'converter-editor-audio.png',
+            'queue-active.png',
+            'queue-empty.png'
+          )
+          foreach ($name in $required) {
+            $path = Join-Path 'app/preview' $name
+            if (-not (Test-Path $path)) { throw "Missing freshly recorded screenshot: $path" }
+            if ((Get-Item $path).Length -lt 1024) { throw "Invalid screenshot: $path" }
+          }
+          Write-Host "Verified $($required.Count) required screenshots."
 
       - name: Print failed JUnit test cases
         if: failure()

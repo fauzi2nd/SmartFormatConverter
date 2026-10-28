@@ -77,6 +77,11 @@ fun ImageAdvancedSettingsControl(
     var widthText by remember(settings) { mutableStateOf(settings.width?.toString().orEmpty()) }
     var heightText by remember(settings) { mutableStateOf(settings.height?.toString().orEmpty()) }
 
+    fun update(next: ImageAdvancedSettings) {
+        draft = next
+        if (ImageSettingsValidator.validate(next) == null) onApply(next.copy(preset = "Custom"))
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         val qualitySummary = when (settings.format) {
             "jpg", "jpeg" -> stringResource(R.string.setting_jpeg_quality, settings.jpegQuality)
@@ -109,12 +114,6 @@ fun ImageAdvancedSettingsControl(
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text(stringResource(R.string.advanced_image_title),
-                style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text(stringResource(R.string.setting_all_media_note),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            HorizontalDivider()
 
             // Quality & Compression Card
             Card(
@@ -150,7 +149,7 @@ fun ImageAdvancedSettingsControl(
                                 style = MaterialTheme.typography.bodyMedium)
                             Slider(
                                 value = draft.jpegQuality.toFloat(),
-                                onValueChange = { draft = draft.copy(jpegQuality = it.roundToInt()) },
+                                onValueChange = { update(draft.copy(jpegQuality = it.roundToInt())) },
                                 valueRange = 1f..100f
                             )
                             Text("JPEG chroma subsampling is selected by Android's encoder (not configurable).",
@@ -159,10 +158,10 @@ fun ImageAdvancedSettingsControl(
                             MediaSwitch(
                                 stringResource(R.string.setting_jpeg_exif),
                                 draft.preserveMetadata
-                            ) { draft = draft.copy(preserveMetadata = it) }
+                            ) { update(draft.copy(preserveMetadata = it)) }
                             if (draft.preserveMetadata) {
                                 MediaSwitch("Include GPS location (privacy sensitive)", draft.preserveGps) {
-                                    draft = draft.copy(preserveGps = it)
+                                    update(draft.copy(preserveGps = it))
                                 }
                             }
                         }
@@ -172,7 +171,7 @@ fun ImageAdvancedSettingsControl(
                                 stringResource(R.string.setting_lossless_webp),
                                 draft.webpLossless,
                                 enabled = supportsLosslessWebp
-                            ) { draft = draft.copy(webpLossless = it) }
+                            ) { update(draft.copy(webpLossless = it)) }
                             if (!supportsLosslessWebp) {
                                 Text(stringResource(R.string.setting_webp_lossless_unsupported),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -183,7 +182,7 @@ fun ImageAdvancedSettingsControl(
                                     style = MaterialTheme.typography.bodyMedium)
                                 Slider(
                                     value = draft.webpQuality.toFloat(),
-                                    onValueChange = { draft = draft.copy(webpQuality = it.roundToInt()) },
+                                    onValueChange = { update(draft.copy(webpQuality = it.roundToInt())) },
                                     valueRange = 1f..100f
                                 )
                             }
@@ -192,7 +191,7 @@ fun ImageAdvancedSettingsControl(
                             Text("Image quality: ${draft.jpegQuality}%", style = MaterialTheme.typography.bodyMedium)
                             Slider(
                                 value = draft.jpegQuality.toFloat(),
-                                onValueChange = { draft = draft.copy(jpegQuality = it.roundToInt()) },
+                                onValueChange = { update(draft.copy(jpegQuality = it.roundToInt())) },
                                 valueRange = 1f..100f
                             )
                             Text("Device encoder required. Advanced EXIF preservation is not available for this output.",
@@ -226,7 +225,7 @@ fun ImageAdvancedSettingsControl(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             listOf("white" to "White", "black" to "Black").forEach { (value, label) ->
                                 FilterChip(selected = draft.matteColor == value,
-                                    onClick = { draft = draft.copy(matteColor = value) },
+                                    onClick = { update(draft.copy(matteColor = value)) },
                                     label = { Text(label) })
                             }
                         }
@@ -280,9 +279,10 @@ fun ImageAdvancedSettingsControl(
                                 onClick = {
                                     widthText = dims.first
                                     heightText = dims.second
-                                    draft = draft.copy(
+                                    update(draft.copy(
+                                        width = dims.first.toIntOrNull(), height = dims.second.toIntOrNull(),
                                         cropToExactRatio = dims.first.isNotEmpty() && dims.first == dims.second
-                                    )
+                                    ))
                                 },
                                 label = { Text(stringResource(resId), style = MaterialTheme.typography.labelSmall) },
                                 shape = RoundedCornerShape(8.dp),
@@ -310,17 +310,15 @@ fun ImageAdvancedSettingsControl(
                     ) {
                         OutlinedTextField(
                             value = widthText,
-                            onValueChange = { widthText = it.filter(Char::isDigit).take(5) },
-                            label = { Text(stringResource(R.string.setting_image_width)) },
-                            suffix = { Text("px", style = MaterialTheme.typography.labelSmall) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                            trailingIcon = {
-                                if (widthText.isNotEmpty()) {
-                                    IconButton(onClick = { widthText = "" }, modifier = Modifier.size(24.dp)) {
-                                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    }
-                                }
+                            onValueChange = { input ->
+                                widthText = input.filter(Char::isDigit).take(5)
+                                val w = widthText.toIntOrNull()
+                                val h = heightText.toIntOrNull()
+                                if ((widthText.isEmpty() && heightText.isEmpty()) || (w != null && h != null)) update(draft.copy(width = w, height = h))
                             },
+                            label = { Text("Width") },
+                            
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f),
                             singleLine = true
@@ -333,17 +331,15 @@ fun ImageAdvancedSettingsControl(
                         )
                         OutlinedTextField(
                             value = heightText,
-                            onValueChange = { heightText = it.filter(Char::isDigit).take(5) },
-                            label = { Text(stringResource(R.string.setting_image_height)) },
-                            suffix = { Text("px", style = MaterialTheme.typography.labelSmall) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                            trailingIcon = {
-                                if (heightText.isNotEmpty()) {
-                                    IconButton(onClick = { heightText = "" }, modifier = Modifier.size(24.dp)) {
-                                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    }
-                                }
+                            onValueChange = { input ->
+                                heightText = input.filter(Char::isDigit).take(5)
+                                val w = widthText.toIntOrNull()
+                                val h = heightText.toIntOrNull()
+                                if ((widthText.isEmpty() && heightText.isEmpty()) || (w != null && h != null)) update(draft.copy(width = w, height = h))
                             },
+                            label = { Text("Height") },
+                            
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f),
                             singleLine = true
@@ -374,10 +370,11 @@ fun ImageAdvancedSettingsControl(
                                                 if (widthText.isBlank()) widthText = "1920"
                                                 if (heightText.isBlank()) heightText = "1080"
                                             }
-                                            draft = draft.copy(
+                                            update(draft.copy(
+                                                width = widthText.toIntOrNull(), height = heightText.toIntOrNull(),
                                                 keepAspectRatio = mode != "Stretch",
                                                 cropToExactRatio = mode == "Fill & Crop"
-                                            )
+                                            ))
                                         },
                                         label = { Text(mode) }
                                     )
@@ -390,7 +387,7 @@ fun ImageAdvancedSettingsControl(
                         checked = draft.preventUpscale,
                         subtitle = stringResource(R.string.setting_no_upscale_subtitle)
                     ) {
-                        draft = draft.copy(preventUpscale = it)
+                        update(draft.copy(preventUpscale = it))
                     }
                 }
             }
@@ -408,21 +405,6 @@ fun ImageAdvancedSettingsControl(
                 else -> ImageSettingsValidator.validate(proposed)
             }
             if (validation != null) Text(validation, color = MaterialTheme.colorScheme.error)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = {
-                    draft = settings
-                    widthText = settings.width?.toString().orEmpty()
-                    heightText = settings.height?.toString().orEmpty()
-                }, modifier = Modifier.weight(1f)) {
-                    Text("Reset")
-                }
-                Button(
-                    onClick = { onApply(proposed.copy(preset = "Custom")) },
-                    enabled = validation == null,
-                    modifier = Modifier.weight(1f)
-                ) { Text(stringResource(R.string.apply)) }
-            }
             Spacer(Modifier.height(12.dp))
         }
     }

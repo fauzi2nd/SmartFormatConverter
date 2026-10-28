@@ -4,6 +4,13 @@ import org.roruku.smartformatconverter.data.repository.SourceFormatLabels
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
 
 import android.text.format.Formatter
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.media.MediaMetadataRetriever
+import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.compose.runtime.produceState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -120,6 +127,7 @@ fun QueueScreenContent(
     modifier: Modifier = Modifier,
 ) {
     var selectedOutput by remember { mutableStateOf<ConversionJobEntity?>(null) }
+    var selectedDetails by remember { mutableStateOf<ConversionJobEntity?>(null) }
     val thumbnailLoader = rememberCompletedThumbnailLoader()
     Column(
         modifier = modifier
@@ -246,6 +254,7 @@ fun QueueScreenContent(
                         },
                         onDelete = { onDeleteJob(job) },
                         onOpenResult = { selectedOutput = job },
+                        onOpenDetails = { selectedDetails = job },
                         thumbnailLoader = thumbnailLoader
                     )
                 }
@@ -254,6 +263,12 @@ fun QueueScreenContent(
     }
     selectedOutput?.let { job ->
         CompletedOutputViewer(job = job, onDismiss = { selectedOutput = null })
+    }
+    selectedDetails?.let { job ->
+        QueueResultDetails(job = job, onDismiss = { selectedDetails = null }, onPlay = {
+            selectedDetails = null
+            selectedOutput = job
+        })
     }
 }
 
@@ -267,6 +282,7 @@ fun JobCardItem(
     onRetryWithResolutionFallback: () -> Unit = {},
     onDelete: () -> Unit,
     onOpenResult: () -> Unit = {},
+    onOpenDetails: () -> Unit = {},
     thumbnailLoader: ImageLoader? = null,
 ) {
     val context = LocalContext.current
@@ -278,6 +294,11 @@ fun JobCardItem(
     }
 
     val canOpenResult = job.status == JobStatus.COMPLETED && !job.outputUri.isNullOrBlank()
+    val outputName by produceState(initialValue = defaultQueueOutputName(job), job.outputUri, job.fileName, job.status) {
+        value = if (canOpenResult) withContext(Dispatchers.IO) {
+            readQueueOutputName(context, job)
+        } else defaultQueueOutputName(job)
+    }
     val alreadyAllowed = runCatching {
         job.customParamsJson?.let(VideoAdvancedSettings::fromJson)?.allowEncoderDownscale == true
     }.getOrDefault(false)
@@ -308,7 +329,7 @@ fun JobCardItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = canOpenResult) { onOpenResult() },
+            .clickable(enabled = canOpenResult) { onOpenDetails() },
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
@@ -339,7 +360,7 @@ fun JobCardItem(
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = job.fileName,
+                        text = outputName,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -364,7 +385,7 @@ fun JobCardItem(
                     if (canOpenResult) {
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = stringResource(R.string.queue_tap_to_preview),
+                            text = "Tap for details",
                             color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium
@@ -426,6 +447,12 @@ fun JobCardItem(
                             }
                         }
                         JobStatus.COMPLETED -> {
+                            if (canOpenResult) {
+                                IconButton(onClick = onOpenResult, modifier = Modifier.size(36.dp)) {
+                                    Icon(Icons.Default.PlayCircle, contentDescription = "Play or preview result",
+                                        modifier = Modifier.size(22.dp))
+                                }
+                            }
                             IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
@@ -536,6 +563,100 @@ fun JobCardItem(
             }
         }
     }
+}
+
+
+private fun defaultQueueOutputName(job: ConversionJobEntity): String {
+    if (job.status != JobStatus.COMPLETED || job.outputUri.isNullOrBlank()) return job.fileName
+    val ext = job.outputFormat.trim().trimStart('.')
+    if (ext.isBlank()) return job.fileName
+    return job.fileName.substringBeforeLast('.', job.fileName) + "." + ext.lowercase()
+}
+
+private fun readQueueOutputName(context: Context, job: ConversionJobEntity): String {
+    val fallback = defaultQueueOutputName(job)
+    val uri = job.outputUri?.let(Uri::parse) ?: return fallback
+    return runCatching {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+            ?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0) cursor.getString(index)?.takeIf { it.isNotBlank() } else null
+                } else null
+            }
+    }.getOrNull() ?: fallback
+}
+
+private data class QueueTechnicalDetails(
+    val name: String,
+    val durationMs: Long?,
+    val bitrate: Int?,
+    val sampleRate: Int?,
+    val channels: Int?,
+    val width: Int?,
+    val height: Int?,
+    val codec: String?,
+)
+
+private fun readQueueTechnicalDetails(context: Context, job: ConversionJobEntity): QueueTechnicalDetails {
+    val uri = job.outputUri?.let(Uri::parse)
+    val name = readQueueOutputName(context, job)
+    if (uri == null) return QueueTechnicalDetails(name, null, null, null, null, null, null, null)
+    val retriever = MediaMetadataRetriever()
+    return try {
+        retriever.setDataSource(context, uri)
+        fun number(key: Int) = retriever.extractMetadata(key)?.toIntOrNull()
+        QueueTechnicalDetails(
+            name, retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull(),
+            number(MediaMetadataRetriever.METADATA_KEY_BITRATE),
+            number(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE),
+            null,
+            number(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH),
+            number(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT),
+            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
+        )
+    } catch (_: Exception) {
+        QueueTechnicalDetails(name, null, null, null, null, null, null, null)
+    } finally { runCatching { retriever.release() } }
+}
+
+@Composable
+private fun QueueResultDetails(job: ConversionJobEntity, onDismiss: () -> Unit, onPlay: () -> Unit) {
+    val context = LocalContext.current
+    val details by produceState<QueueTechnicalDetails?>(null, job.id, job.outputUri) {
+        value = withContext(Dispatchers.IO) { readQueueTechnicalDetails(context, job) }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Output details") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(details?.name ?: defaultQueueOutputName(job), fontWeight = FontWeight.Bold)
+                Text("Source: ${job.fileName}")
+                Text("Format: ${job.inputFormat.uppercase()} → ${job.outputFormat.uppercase()}")
+                Text("Size: ${Formatter.formatShortFileSize(context, job.outputFileSize)}")
+                details?.let { info ->
+                    info.codec?.let { Text("Codec / MIME: $it") }
+                    info.bitrate?.let { Text("Bitrate: ${it / 1000} kbps") }
+                    info.sampleRate?.let { Text("Sample rate: $it Hz") }
+                    info.channels?.let { Text("Channels: $it") }
+                    info.durationMs?.let { ms ->
+                        Text("Duration: ${ms / 60000}:${(ms / 1000 % 60).toString().padStart(2, '0')}")
+                    }
+                    if (info.width != null && info.height != null) {
+                        Text("Resolution: ${info.width} × ${info.height}")
+                    }
+                }
+                if (details == null) Text("Reading output metadata…")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onPlay) { Text("Play / Preview") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        }
+    )
 }
 
 @Composable

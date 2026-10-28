@@ -32,7 +32,7 @@ internal object AudioEncoderCatalog {
                     else !info.name.startsWith("OMX.google.", true) &&
                         !info.name.startsWith("c2.android.", true)
                     val limits = if (format.equals("flac", true)) runCatching {
-                        info.getCapabilitiesForType(mime).encoderCapabilities.complexityRange
+                        info.getCapabilitiesForType(mime).encoderCapabilities?.complexityRange
                     }.getOrNull() else null
                     Entry(info.name, hardware, limits?.lower, limits?.upper)
                 }

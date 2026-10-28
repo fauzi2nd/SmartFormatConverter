@@ -35,6 +35,8 @@ data class ImageConversionConfig(
     val webpLossless: Boolean = false,
     val webpQuality: Int = 90,
     val preserveExif: Boolean = true,
+    val preserveGps: Boolean = false,
+    val matteColor: String = "white",
     val customWidth: Int? = null,
     val customHeight: Int? = null,
     val maintainAspectRatio: Boolean = true,
@@ -140,8 +142,8 @@ object ImageConverterEngine {
                 workingBitmap = bitmap
             }
 
-            val finalBitmap: Bitmap = if (config.outputFormat in setOf(ImageOutputFormat.JPEG, ImageOutputFormat.HEIC) && bitmap!!.hasAlpha()) {
-                compositeOverWhiteBackground(bitmap)
+            val finalBitmap: Bitmap = if (config.outputFormat in setOf(ImageOutputFormat.JPEG, ImageOutputFormat.HEIC, ImageOutputFormat.GIF) && bitmap!!.hasAlpha()) {
+                compositeOverBackground(bitmap, config.matteColor)
             } else {
                 bitmap!!
             }
@@ -240,7 +242,7 @@ object ImageConverterEngine {
             }
 
             if (config.preserveExif && config.outputFormat == ImageOutputFormat.JPEG) {
-                copyExifMetadata(context, inputUri, outputFile)
+                copyExifMetadata(context, inputUri, outputFile, config.preserveGps)
             }
 
             completed = true
@@ -296,10 +298,10 @@ object ImageConverterEngine {
         }
     }
 
-    private fun compositeOverWhiteBackground(src: Bitmap): Bitmap {
+    private fun compositeOverBackground(src: Bitmap, matteColor: String): Bitmap {
         val result = createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
-        canvas.drawColor(Color.WHITE)
+        canvas.drawColor(if (matteColor == "black") Color.BLACK else Color.WHITE)
         canvas.drawBitmap(src, 0f, 0f, null)
         return result
     }
@@ -431,7 +433,7 @@ object ImageConverterEngine {
         return ExifTransform(0, false)
     }
 
-    private fun copyExifMetadata(context: Context, inputUri: Uri, outputFile: File) {
+    private fun copyExifMetadata(context: Context, inputUri: Uri, outputFile: File, preserveGps: Boolean) {
         try {
             StorageManager.openReadableInputStream(context, inputUri).use { inputStream ->
                 val sourceExif = ExifInterface(inputStream)
@@ -445,12 +447,6 @@ object ImageConverterEngine {
                     ExifInterface.TAG_DATETIME_DIGITIZED,
                     ExifInterface.TAG_FLASH,
                     ExifInterface.TAG_FOCAL_LENGTH,
-                    ExifInterface.TAG_GPS_LATITUDE,
-                    ExifInterface.TAG_GPS_LATITUDE_REF,
-                    ExifInterface.TAG_GPS_LONGITUDE,
-                    ExifInterface.TAG_GPS_LONGITUDE_REF,
-                    ExifInterface.TAG_GPS_ALTITUDE,
-                    ExifInterface.TAG_GPS_ALTITUDE_REF,
                     ExifInterface.TAG_WHITE_BALANCE,
                     ExifInterface.TAG_EXPOSURE_TIME,
                     ExifInterface.TAG_F_NUMBER,
@@ -461,6 +457,16 @@ object ImageConverterEngine {
                     val value = sourceExif.getAttribute(attr)
                     if (value != null) {
                         destExif.setAttribute(attr, value)
+                    }
+                }
+                if (preserveGps) {
+                    val gpsAttributes = arrayOf(
+                        ExifInterface.TAG_GPS_LATITUDE, ExifInterface.TAG_GPS_LATITUDE_REF,
+                        ExifInterface.TAG_GPS_LONGITUDE, ExifInterface.TAG_GPS_LONGITUDE_REF,
+                        ExifInterface.TAG_GPS_ALTITUDE, ExifInterface.TAG_GPS_ALTITUDE_REF
+                    )
+                    gpsAttributes.forEach { tag ->
+                        sourceExif.getAttribute(tag)?.let { destExif.setAttribute(tag, it) }
                     }
                 }
                 destExif.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())

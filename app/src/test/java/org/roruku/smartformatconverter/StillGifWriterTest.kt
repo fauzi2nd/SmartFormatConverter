@@ -52,6 +52,18 @@ class StillGifWriterTest {
         assertEquals(0xffffffff.toInt(), image.getRGB(0, 0))
     }
 
+    @Test fun palettePresetsGenerateReadableSmallerIndexedGifs() {
+        val sizes = listOf(8, 6, 4).map { bits ->
+            val out = ByteArrayOutputStream()
+            StillGifWriter.write(out, 32, 32, bits) { _, row -> row.fill(0xff999999.toInt()) }
+            val result = ImageIO.read(ByteArrayInputStream(out.toByteArray()))
+            assertEquals(32, result.width)
+            assertEquals(32, result.height)
+            out.size()
+        }
+        assertTrue(sizes[2] < sizes[0])
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun refusesDimensionsBeyondGifSpec() {
         StillGifWriter.write(ByteArrayOutputStream(), 65536, 2) { _, _ -> }

@@ -9,7 +9,7 @@ import org.json.JSONObject
 data class ImageAdvancedSettings(
     val format: String = "jpg",
     val jpegQuality: Int = 100,
-    val jpegSubsampling: String = "444",
+    val jpegSubsampling: String = "encoder",
     val webpQuality: Int = 95,
     val webpLossless: Boolean = false,
     val width: Int? = null,
@@ -18,17 +18,19 @@ data class ImageAdvancedSettings(
     val cropToExactRatio: Boolean = false,
     val preventUpscale: Boolean = true,
     val preserveMetadata: Boolean = true,
+    val preserveGps: Boolean = false,
+    val matteColor: String = "white",
     val preset: String = "Custom",
 ) {
     fun applyPreset(name: String): ImageAdvancedSettings = when (name) {
-        "Smart Auto" -> copy(preset = name, jpegQuality = 95, jpegSubsampling = "444",
+        "Smart Auto" -> copy(preset = name, jpegQuality = 92, jpegSubsampling = "encoder",
             webpQuality = 90, webpLossless = false)
-        "High Quality" -> copy(preset = name, jpegQuality = 100, jpegSubsampling = "444",
+        "High Quality" -> copy(preset = name, jpegQuality = 100, jpegSubsampling = "encoder",
             webpQuality = 100, webpLossless = false)
-        "Balanced" -> copy(preset = name, jpegQuality = 95, jpegSubsampling = "444",
-            webpQuality = 90, webpLossless = false)
-        "Small File" -> copy(preset = name, jpegQuality = 80, jpegSubsampling = "420",
-            webpQuality = 75, webpLossless = false)
+        "Balanced" -> copy(preset = name, jpegQuality = 90, jpegSubsampling = "encoder",
+            webpQuality = 85, webpLossless = false)
+        "Small File" -> copy(preset = name, jpegQuality = 75, jpegSubsampling = "encoder",
+            webpQuality = 70, webpLossless = false)
         else -> copy(preset = "Custom")
     }
 
@@ -47,6 +49,8 @@ data class ImageAdvancedSettings(
         put("cropToExactRatio", cropToExactRatio)
         put("preventUpscale", preventUpscale)
         put("preserveMetadata", preserveMetadata)
+        put("preserveGps", preserveGps)
+        put("matteColor", matteColor)
     }.toString()
 
     companion object {
@@ -59,7 +63,7 @@ data class ImageAdvancedSettings(
                 format = obj.optString("format", "jpg"),
                 preset = obj.optString("preset", "Custom"),
                 jpegQuality = obj.optInt("jpegQuality", 100),
-                jpegSubsampling = obj.optString("jpegSubsampling", "444"),
+                jpegSubsampling = "encoder", // Legacy requests cannot force Bitmap.compress subsampling.
                 webpQuality = obj.optInt("webpQuality", 95),
                 webpLossless = obj.optBoolean("webpLossless", false),
                 width = if (obj.has("width")) obj.getInt("width") else null,
@@ -67,7 +71,9 @@ data class ImageAdvancedSettings(
                 keepAspectRatio = obj.optBoolean("keepAspectRatio", true),
                 cropToExactRatio = obj.optBoolean("cropToExactRatio", false),
                 preventUpscale = obj.optBoolean("preventUpscale", true),
-                preserveMetadata = obj.optBoolean("preserveMetadata", true)
+                preserveMetadata = obj.optBoolean("preserveMetadata", true),
+                preserveGps = obj.optBoolean("preserveGps", false),
+                matteColor = obj.optString("matteColor", "white")
             )
         }
     }
@@ -77,7 +83,8 @@ object ImageSettingsValidator {
     fun validate(s: ImageAdvancedSettings): String? = when {
         s.format !in setOf("jpg", "jpeg", "png", "webp", "heic", "avif", "gif") -> "Unsupported image format"
         s.jpegQuality !in 1..100 || s.webpQuality !in 1..100 -> "Image quality must be 1–100"
-        s.jpegSubsampling !in setOf("444", "422", "420") -> "Invalid JPEG chroma subsampling"
+        s.jpegSubsampling != "encoder" -> "Android JPEG encoder does not expose chroma subsampling control"
+        s.matteColor !in setOf("white", "black") -> "Unsupported transparency background"
         (s.width == null) != (s.height == null) -> "Set both image width and height"
         s.width != null && s.width !in 1..8192 -> "Image width must be 1–8192"
         s.height != null && s.height !in 1..8192 -> "Image height must be 1–8192"

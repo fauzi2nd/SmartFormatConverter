@@ -258,7 +258,8 @@ class ConversionRepository(
                         cropToExactRatio = advanced?.cropToExactRatio ?: false,
                         preserveExif = advanced?.preserveMetadata ?: settings.preserveMetadata,
                         preserveGps = advanced?.preserveGps ?: false,
-                        matteColor = advanced?.matteColor ?: "white"
+                        matteColor = advanced?.matteColor ?: "white",
+                        gifPaletteBits = advanced?.gifPaletteBits ?: 8
                     )
                     ImageConverterEngine.convertImage(
                         context = context,

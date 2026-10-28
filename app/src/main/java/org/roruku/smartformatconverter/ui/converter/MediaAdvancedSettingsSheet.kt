@@ -97,7 +97,7 @@ fun ImageAdvancedSettingsControl(
             "webp" -> if (settings.webpLossless) stringResource(R.string.setting_lossless_webp)
                       else stringResource(R.string.setting_webp_quality, settings.webpQuality)
             "heic", "avif" -> "Image quality: " + settings.jpegQuality + "%"
-            "gif" -> "GIF: one still frame (256 colors; transparent pixels become white)"
+            "gif" -> "GIF: still frame (256 colors; background: ${settings.matteColor})"
             else -> stringResource(R.string.setting_png_lossless)
         }
         Text(
@@ -211,15 +211,19 @@ fun ImageAdvancedSettingsControl(
                                 onValueChange = { draft = draft.copy(jpegQuality = it.roundToInt()) },
                                 valueRange = 1f..100f
                             )
-                            Text("HEIC/AVIF depends on a compatible device encoder. EXIF preservation is not guaranteed.",
+                            Text("Device encoder required. Advanced EXIF preservation is not available for this output.",
                                 style = MaterialTheme.typography.bodySmall)
                         }
                         "gif" -> Text(
                             "Still-frame GIF only: source dimensions are preserved (GIF limit: 65535 px per axis), 256 colors, white background for transparency. Very large files may exceed device memory. Animation is not preserved.",
                             style = MaterialTheme.typography.bodySmall
                         )
-                        else -> Text(stringResource(R.string.setting_png_lossless),
-                            style = MaterialTheme.typography.bodyMedium)
+                        else -> {
+                            Text(stringResource(R.string.setting_png_lossless), style = MaterialTheme.typography.bodyMedium)
+                            Text("PNG uses platform lossless compression. Compression level cannot be configured.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }

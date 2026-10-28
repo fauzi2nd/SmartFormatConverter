@@ -73,6 +73,14 @@ class VideoV3Test {
         assertEquals(false, webm.allowEncoderDownscale)
         assertNull(webm.width)
         assertNull(webm.height)
+        val stale = VideoAdvancedSettings(format = "webm", width = 1280, height = 720,
+            fps = "30", videoCodec = "vp8", encoder = "software")
+            .applyPreset("Smart Auto")
+        assertNull(stale.width)
+        assertNull(stale.height)
+        assertNull(stale.fps)
+        assertEquals("auto", stale.videoCodec)
+        assertEquals("auto", stale.encoder)
     }
 
     @Test

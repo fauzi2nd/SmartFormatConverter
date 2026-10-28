@@ -37,6 +37,7 @@ import kotlinx.coroutines.withContext
 import org.roruku.smartformatconverter.engine.media.AdaptiveAudioPlanner
 import org.roruku.smartformatconverter.engine.media.AdaptivePresetPlanner
 import org.roruku.smartformatconverter.engine.media.VideoSourceProfile
+import org.roruku.smartformatconverter.engine.media.AdaptiveResolutionPolicy
 import org.roruku.smartformatconverter.engine.media.BitrateSelection
 import org.roruku.smartformatconverter.engine.media.AudioAdvancedSettings
 import org.roruku.smartformatconverter.engine.media.VideoAdvancedSettings
@@ -59,6 +60,10 @@ object Media3TransformerEngine {
         Media3DeviceCapabilities.unsupportedReason(MediaType.VIDEO, config.outputFormat.extension)?.let {
             return@withContext Result.failure(IllegalStateException(it))
         }
+        val source = MediaProbe.probeMedia(context, inputUri)
+        val sourceDisplay = AdaptiveResolutionPolicy.displaySize(
+            source.videoWidth, source.videoHeight, source.videoRotation
+        )
         val mediaItem = MediaItem.fromUri(inputUri)
         val editedItemBuilder = EditedMediaItem.Builder(mediaItem)
 
@@ -70,17 +75,24 @@ object Media3TransformerEngine {
             // If the source dimensions cannot be read, fail rather than silently
             // violating an explicit quality requirement.
             val canResize = if (advancedSettings.preventUpscale) {
-                val input = MediaProbe.probeMedia(context, inputUri)
-                if (input.videoWidth <= 0 || input.videoHeight <= 0) {
+                if (sourceDisplay == null) {
                     return@withContext Result.failure(
                         IllegalStateException("Cannot determine source resolution for prevent-upscale. Try original resolution.")
                     )
                 }
-                width <= input.videoWidth && height <= input.videoHeight
+                !AdaptiveResolutionPolicy.isUpscale(
+                    sourceDisplay, AdaptiveResolutionPolicy.Size(width, height)
+                )
             } else true
-            if (canResize) {
-                effects.add(Presentation.createForWidthAndHeight(width, height, Presentation.LAYOUT_SCALE_TO_FIT))
+            if (!canResize) {
+                return@withContext Result.failure(IllegalArgumentException(
+                    "Requested ${width}×${height} exceeds the source display resolution. " +
+                        "Choose Source, a smaller adaptive resolution, or disable Prevent upscaling."
+                ))
             }
+            effects.add(Presentation.createForWidthAndHeight(
+                width, height, Presentation.LAYOUT_SCALE_TO_FIT
+            ))
         }
 
         if (effects.isNotEmpty()) {
@@ -108,7 +120,6 @@ object Media3TransformerEngine {
 
         // Source probe drives both adaptive quality and estimated resource demand.
         // A saved manual bitrate continues to override the planner.
-        val source = MediaProbe.probeMedia(context, inputUri)
         val effectiveSettings = advancedSettings ?: VideoAdvancedSettings(
             format = config.outputFormat.extension,
             preset = "Smart Auto",
@@ -117,7 +128,8 @@ object Media3TransformerEngine {
         )
         val plan = AdaptivePresetPlanner.plan(effectiveSettings,
             VideoSourceProfile(
-                width = source.videoWidth, height = source.videoHeight,
+                width = sourceDisplay?.width ?: source.videoWidth,
+                height = sourceDisplay?.height ?: source.videoHeight,
                 frameRate = source.frameRate,
                 videoBitrateKbps = source.videoBitrateKbps,
                 audioBitrateKbps = source.audioBitrateKbps,
@@ -135,8 +147,13 @@ object Media3TransformerEngine {
 
         // Preserve source display dimensions unless the user explicitly
         // requests an alternate size or opts in to encoder downscaling.
-        val shouldPreserveResolution = !effectiveSettings.allowEncoderDownscale &&
-            effectiveSettings.width == null && effectiveSettings.height == null
+        val expectedSize = if (!effectiveSettings.allowEncoderDownscale) {
+            if (effectiveSettings.width != null && effectiveSettings.height != null) {
+                VideoGeometryPolicy.Size(effectiveSettings.width, effectiveSettings.height)
+            } else {
+                sourceDisplay?.let { VideoGeometryPolicy.Size(it.width, it.height) }
+            }
+        } else null
 
         executeTransformation(
             context = context,
@@ -150,11 +167,7 @@ object Media3TransformerEngine {
             sourceAudioChannels = source.audioChannels,
             allowEncoderDownscale = effectiveSettings.allowEncoderDownscale,
             selectedVideoEncoder = effectiveSettings.encoder,
-            expectedDisplaySize = if (shouldPreserveResolution &&
-                source.videoWidth > 0 && source.videoHeight > 0
-            ) VideoGeometryPolicy.displaySize(
-                source.videoWidth, source.videoHeight, source.videoRotation
-            ) else null,
+            expectedDisplaySize = expectedSize,
             onProgress = onProgress
         )
     }
@@ -363,8 +376,12 @@ object Media3TransformerEngine {
                 )
             )
             .setEncoderFactory(encoderFactoryBuilder.build())
-        if (webmOutput) transformerBuilder.setMuxerFactory(
-            WebmMuxerFactory(sourceAudioChannels))
+        if (webmOutput) {
+            // WebM does not reliably carry the portrait rotation metadata
+            // expected by the default landscape-encoding Transformer path.
+            transformerBuilder.setPortraitEncodingEnabled(true)
+            transformerBuilder.setMuxerFactory(WebmMuxerFactory(sourceAudioChannels))
+        }
         if (muxerFactory != null) transformerBuilder.setMuxerFactory(muxerFactory)
 
         if (videoMimeType != null) {

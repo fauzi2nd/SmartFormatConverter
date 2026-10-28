@@ -57,6 +57,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import org.roruku.smartformatconverter.engine.media.AdaptiveResolutionPolicy
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -797,6 +801,10 @@ fun ConverterPreviewEditor(
     var confirmGrowth by remember { mutableStateOf(false) }
     var renameFile by remember { mutableStateOf<SelectedMediaFile?>(null) }
     var renameDraft by remember { mutableStateOf("") }
+    var customResolutionOpen by remember { mutableStateOf(false) }
+    var customWidthDraft by remember { mutableStateOf("") }
+    var customHeightDraft by remember { mutableStateOf("") }
+    var customAspectLocked by remember { mutableStateOf(true) }
 
     // Probe all selected source videos off the UI thread; use the exact same
     // pure planner as the export engine. Do not run codecs in Compose Preview.
@@ -817,7 +825,12 @@ fun ConverterPreviewEditor(
                         ?: state.videoSettings).copy(format = state.targetFormat)
                     val plan = AdaptivePresetPlanner.plan(settings,
                         VideoSourceProfile(
-                            width = source.videoWidth, height = source.videoHeight,
+                            width = AdaptiveResolutionPolicy.displaySize(
+                                source.videoWidth, source.videoHeight, source.videoRotation
+                            )?.width ?: source.videoWidth,
+                            height = AdaptiveResolutionPolicy.displaySize(
+                                source.videoWidth, source.videoHeight, source.videoRotation
+                            )?.height ?: source.videoHeight,
                             frameRate = source.frameRate,
                             videoBitrateKbps = source.videoBitrateKbps,
                             audioBitrateKbps = source.audioBitrateKbps,
@@ -855,6 +868,108 @@ fun ConverterPreviewEditor(
     } ?: state.audioSettings
     val currentPlan = selectedFile?.let { videoPlans[it.uri.toString()] }
     val selectedSource = selectedFile?.let { probedVideos[it.uri.toString()] }
+    val sourceDisplay = AdaptiveResolutionPolicy.displaySize(
+        selectedSource?.videoWidth ?: selectedFile?.details?.width ?: 0,
+        selectedSource?.videoHeight ?: selectedFile?.details?.height ?: 0,
+        selectedSource?.videoRotation ?: selectedFile?.details?.rotation ?: 0
+    )
+    if (customResolutionOpen) {
+        val w = customWidthDraft.toIntOrNull()
+        val h = customHeightDraft.toIntOrNull()
+        val candidate = if (w != null && h != null) AdaptiveResolutionPolicy.Size(w, h) else null
+        val valid = candidate != null && AdaptiveResolutionPolicy.valid(candidate) &&
+            (!resolvedVideoSettings.preventUpscale || sourceDisplay == null ||
+                !AdaptiveResolutionPolicy.isUpscale(sourceDisplay, candidate))
+        AlertDialog(
+            onDismissRequest = { customResolutionOpen = false },
+            title = { Text("Custom resolution") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Set the output width and height in display orientation.")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = customWidthDraft,
+                            onValueChange = { input ->
+                                if (input.length <= 5 && input.all(Char::isDigit)) {
+                                    customWidthDraft = input
+                                    if (customAspectLocked && sourceDisplay != null) {
+                                        input.toIntOrNull()?.let { entered ->
+                                            AdaptiveResolutionPolicy.scaleToWidth(sourceDisplay, entered)
+                                                ?.let { customHeightDraft = it.height.toString() }
+                                        }
+                                    }
+                                }
+                            },
+                            label = { Text("Width") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = customHeightDraft,
+                            onValueChange = { input ->
+                                if (input.length <= 5 && input.all(Char::isDigit)) {
+                                    customHeightDraft = input
+                                    if (customAspectLocked && sourceDisplay != null) {
+                                        input.toIntOrNull()?.let { entered ->
+                                            AdaptiveResolutionPolicy.scaleToHeight(sourceDisplay, entered)
+                                                ?.let { customWidthDraft = it.width.toString() }
+                                        }
+                                    }
+                                }
+                            },
+                            label = { Text("Height") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Lock source aspect ratio", modifier = Modifier.weight(1f))
+                        androidx.compose.material3.Switch(
+                            checked = customAspectLocked,
+                            onCheckedChange = { locked ->
+                                customAspectLocked = locked
+                                if (locked && sourceDisplay != null) {
+                                    customWidthDraft.toIntOrNull()?.let { entered ->
+                                        AdaptiveResolutionPolicy.scaleToWidth(sourceDisplay, entered)
+                                            ?.let { customHeightDraft = it.height.toString() }
+                                    }
+                                }
+                            },
+                            enabled = sourceDisplay != null
+                        )
+                    }
+                    Text(
+                        if (customAspectLocked) "Maintains source aspect ratio (even dimensions)."
+                        else "Different aspect ratios add padding; the picture is never stretched.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    if (resolvedVideoSettings.preventUpscale && candidate != null &&
+                        sourceDisplay != null && AdaptiveResolutionPolicy.isUpscale(sourceDisplay, candidate)) {
+                        Text("Above source size. Disable Prevent upscaling to allow this.",
+                            color = MaterialTheme.colorScheme.error)
+                    } else if (!valid) {
+                        Text("Width and height must be even numbers from 16 to 8192.",
+                            color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = valid, onClick = {
+                    val settings = resolvedVideoSettings.copy(
+                        width = w, height = h, preset = "Custom"
+                    )
+                    if (applyToAll) onUpdateVideoSettings(settings)
+                    else selectedFile?.let { onUpdateVideoFileSettings(it.uri, settings) }
+                    customResolutionOpen = false
+                }) { Text("Apply") }
+            },
+            dismissButton = {
+                TextButton(onClick = { customResolutionOpen = false }) { Text("Cancel") }
+            }
+        )
+    }
     // Encoder discovery applies only to the video editor. Image/audio output
     // formats are not video containers and must never be passed to this mapper.
     val encoderMime = if (state.selectedTab == 0) {
@@ -1297,27 +1412,48 @@ fun ConverterPreviewEditor(
                                     "yuv420p" to "YUV 4:2:0 (8-bit)")) {
                                 update(resolvedVideoSettings.copy(pixelFormat = it, preset = "Custom"))
                             }
-                            val sourceWidth = selectedSource?.videoWidth ?: selectedFile?.details?.width ?: 0
-                            val sourceHeight = selectedSource?.videoHeight ?: selectedFile?.details?.height ?: 0
+                            val adaptiveChoices = sourceDisplay?.let {
+                                AdaptiveResolutionPolicy.availableTiers(
+                                    it, resolvedVideoSettings.preventUpscale
+                                )
+                            }.orEmpty()
                             val resolutionOptions = buildList {
-                                add("source" to if (sourceWidth > 0 && sourceHeight > 0)
-                                    "Source (${sourceWidth}×${sourceHeight})" else "Source")
-                                listOf(1920 to 1080, 1280 to 720, 854 to 480).forEach { (w,h) ->
-                                    add("${w}x${h}" to "${w}×${h}")
+                                add("source" to (sourceDisplay?.let { "Source (${it.width}×${it.height})" }
+                                    ?: "Source"))
+                                adaptiveChoices.forEach { (tier, size) ->
+                                    add(tier.id to "${tier.label} · ${size.width}×${size.height}")
                                 }
-                                if (resolvedVideoSettings.width != null && resolvedVideoSettings.height != null) {
-                                    val id = "${resolvedVideoSettings.width}x${resolvedVideoSettings.height}"
-                                    if (none { it.first == id }) add(id to id)
-                                }
+                                add("custom" to (if (resolvedVideoSettings.width != null &&
+                                    resolvedVideoSettings.height != null)
+                                    "Custom (${resolvedVideoSettings.width}×${resolvedVideoSettings.height})"
+                                    else "Custom (manual width × height)"))
+                            }
+                            val chosenTier = adaptiveChoices.firstOrNull { (_, size) ->
+                                size.width == resolvedVideoSettings.width &&
+                                    size.height == resolvedVideoSettings.height
                             }
                             val resolutionId = if (resolvedVideoSettings.width == null) "source"
-                                else "${resolvedVideoSettings.width}x${resolvedVideoSettings.height}"
+                                else chosenTier?.first?.id ?: "custom"
                             CompactSettingChoice("Resolution", resolutionId, resolutionOptions) { id ->
-                                val parts = id.split('x')
-                                update(resolvedVideoSettings.copy(
-                                    width = parts.getOrNull(0)?.toIntOrNull(),
-                                    height = parts.getOrNull(1)?.toIntOrNull(),
-                                    preset = "Custom"))
+                                when (id) {
+                                    "source" -> update(resolvedVideoSettings.copy(
+                                        width = null, height = null, preset = "Custom"))
+                                    "custom" -> {
+                                        customWidthDraft = (resolvedVideoSettings.width
+                                            ?: sourceDisplay?.width ?: 1920).toString()
+                                        customHeightDraft = (resolvedVideoSettings.height
+                                            ?: sourceDisplay?.height ?: 1080).toString()
+                                        customAspectLocked = sourceDisplay != null
+                                        customResolutionOpen = true
+                                    }
+                                    else -> adaptiveChoices.firstOrNull { it.first.id == id }
+                                        ?.second?.let { size ->
+                                            update(resolvedVideoSettings.copy(
+                                                width = size.width, height = size.height,
+                                                preset = "Custom"
+                                            ))
+                                        }
+                                }
                             }
                             CompactSettingChoice("Frame rate (FPS)", resolvedVideoSettings.fps ?: "source",
                                 buildList {

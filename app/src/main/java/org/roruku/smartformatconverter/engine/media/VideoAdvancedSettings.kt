@@ -42,11 +42,12 @@ data class VideoAdvancedSettings(
     fun applyPreset(name: String): VideoAdvancedSettings = when (name) {
         "Original Quality / Remux" -> copy(preset = name)
         "Smart Auto" -> copy(preset = name, rateControl = "vbr",
+            width = null, height = null, fps = null,
+            videoCodec = "auto", encoder = "auto",
             videoBitrateKbps = BitrateSelection.AUTO,
             audioBitrateKbps = BitrateSelection.AUTO,
-            // Smart Auto may choose bitrate/codec, but must not silently
-            // reduce frame dimensions or change source display orientation.
-            // Resolution fallback is an explicit opt-in setting.
+            preventUpscale = true,
+            // Smart Auto must not reuse stale Custom resolution or encoder settings.
             allowEncoderDownscale = false)
         // Media3 uses encoder target bitrate, not libx264 CRF. Presets must
         // adjust the setting actually consumed by the runtime.

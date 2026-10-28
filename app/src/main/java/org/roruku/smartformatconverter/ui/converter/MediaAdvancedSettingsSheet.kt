@@ -73,343 +73,159 @@ fun ImageAdvancedSettingsControl(
     onApply: (ImageAdvancedSettings) -> Unit,
     previewExpanded: Boolean = false
 ) {
-    var draft by remember(settings) { mutableStateOf(settings) }
-    var widthText by remember(settings) { mutableStateOf(settings.width?.toString().orEmpty()) }
-    var heightText by remember(settings) { mutableStateOf(settings.height?.toString().orEmpty()) }
+    var widthDraft by remember(settings.width) { mutableStateOf(settings.width?.toString().orEmpty()) }
+    var heightDraft by remember(settings.height) { mutableStateOf(settings.height?.toString().orEmpty()) }
+    var resolutionOpen by remember { mutableStateOf(false) }
+    var modeOpen by remember { mutableStateOf(false) }
+    var backgroundOpen by remember { mutableStateOf(false) }
 
-    fun update(next: ImageAdvancedSettings) {
-        draft = next
+    fun commit(next: ImageAdvancedSettings) {
         if (ImageSettingsValidator.validate(next) == null) onApply(next.copy(preset = "Custom"))
     }
+    val resolution = when {
+        settings.width == null || settings.height == null -> "Original"
+        settings.width == 1920 && settings.height == 1080 -> "1080p FHD"
+        settings.width == 1280 && settings.height == 720 -> "720p HD"
+        settings.width == 512 && settings.height == 512 -> "512 × 512"
+        else -> "Custom"
+    }
+    val mode = when {
+        !settings.keepAspectRatio -> "Stretch"
+        settings.cropToExactRatio -> "Fill & Crop"
+        else -> "Fit"
+    }
 
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        val qualitySummary = when (settings.format) {
-            "jpg", "jpeg" -> stringResource(R.string.setting_jpeg_quality, settings.jpegQuality)
-            "webp" -> if (settings.webpLossless) stringResource(R.string.setting_lossless_webp)
-                      else stringResource(R.string.setting_webp_quality, settings.webpQuality)
-            "heic", "avif" -> "Image quality: " + settings.jpegQuality + "%"
-            "gif" -> "GIF: still frame (256 colors; background: ${settings.matteColor})"
-            else -> stringResource(R.string.setting_png_lossless)
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp))
+            Text(stringResource(R.string.setting_quality_compression),
+                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
         }
-        Text(
-            text = qualitySummary,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall
-        )
-        if (settings.width != null || settings.height != null) {
-            val dims = "${settings.width ?: "auto"}×${settings.height ?: "auto"}"
-            val crop = if (settings.cropToExactRatio) " · " + stringResource(R.string.setting_crop_to_exact) else ""
-            val noUpscale = if (settings.preventUpscale) " · " + stringResource(R.string.setting_no_upscale) else ""
-            Text(
-                text = "${stringResource(R.string.setting_resize)}: $dims$crop$noUpscale",
-                color = MaterialTheme.colorScheme.primary,
+        when (settings.format) {
+            "jpg", "jpeg", "heic", "avif" -> {
+                Text("Quality: ${settings.jpegQuality}", style = MaterialTheme.typography.bodyMedium)
+                Slider(value = settings.jpegQuality.toFloat(), valueRange = 1f..100f,
+                    onValueChange = { commit(settings.copy(jpegQuality = it.roundToInt())) })
+            }
+            "webp" -> {
+                val losslessSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                MediaSwitch("Lossless WebP", settings.webpLossless, enabled = losslessSupported) {
+                    commit(settings.copy(webpLossless = it))
+                }
+                if (!settings.webpLossless) {
+                    Text("Quality: ${settings.webpQuality}", style = MaterialTheme.typography.bodyMedium)
+                    Slider(value = settings.webpQuality.toFloat(), valueRange = 1f..100f,
+                        onValueChange = { commit(settings.copy(webpQuality = it.roundToInt())) })
+                }
+            }
+            "png" -> Text("Lossless • Original pixel quality",
                 style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Medium
-            )
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            "gif" -> Text("Single-frame GIF • maximum 256 colors",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (settings.format in setOf("jpg", "jpeg")) {
+            MediaSwitch("Preserve EXIF", settings.preserveMetadata) {
+                commit(settings.copy(preserveMetadata = it, preserveGps = if (it) settings.preserveGps else false))
+            }
+            if (settings.preserveMetadata) {
+                MediaSwitch("Include GPS location", settings.preserveGps) {
+                    commit(settings.copy(preserveGps = it))
+                }
+            }
+        }
+        if (settings.format in setOf("jpg", "jpeg", "heic", "gif")) {
+            Box {
+                OutlinedButton(onClick = { backgroundOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Background: ${settings.matteColor.replaceFirstChar { it.uppercase() }}")
+                }
+                DropdownMenu(expanded = backgroundOpen, onDismissRequest = { backgroundOpen = false }) {
+                    listOf("white", "black").forEach { color ->
+                        DropdownMenuItem(text = { Text(color.replaceFirstChar { it.uppercase() }) },
+                            onClick = { backgroundOpen = false; commit(settings.copy(matteColor = color)) })
+                    }
+                }
+            }
+        }
+        HorizontalDivider()
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(Icons.Default.AspectRatio, contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            Text(stringResource(R.string.setting_resize),
+                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        }
+        Text("Resolution", style = MaterialTheme.typography.labelMedium)
+        Box {
+            OutlinedButton(onClick = { resolutionOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(resolution, modifier = Modifier.weight(1f))
+                Text("▾")
+            }
+            DropdownMenu(expanded = resolutionOpen, onDismissRequest = { resolutionOpen = false }) {
+                listOf("Original", "1080p FHD", "720p HD", "512 × 512", "Custom").forEach { option ->
+                    DropdownMenuItem(text = { Text(option) }, onClick = {
+                        resolutionOpen = false
+                        val dimensions = when (option) {
+                            "Original" -> null
+                            "1080p FHD" -> 1920 to 1080
+                            "720p HD" -> 1280 to 720
+                            "512 × 512" -> 512 to 512
+                            else -> (settings.width ?: 1920) to (settings.height ?: 1080)
+                        }
+                        widthDraft = dimensions?.first?.toString().orEmpty()
+                        heightDraft = dimensions?.second?.toString().orEmpty()
+                        commit(settings.copy(width = dimensions?.first, height = dimensions?.second))
+                    })
+                }
+            }
+        }
+        if (resolution == "Original") {
+            Text("Original dimensions preserved. No resizing applied.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            Text("Resize mode", style = MaterialTheme.typography.labelMedium)
+            Box {
+                OutlinedButton(onClick = { modeOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(mode, modifier = Modifier.weight(1f))
+                    Text("▾")
+                }
+                DropdownMenu(expanded = modeOpen, onDismissRequest = { modeOpen = false }) {
+                    listOf("Fit", "Fill & Crop", "Stretch").forEach { option ->
+                        DropdownMenuItem(text = { Text(option) }, onClick = {
+                            modeOpen = false
+                            commit(settings.copy(keepAspectRatio = option != "Stretch",
+                                cropToExactRatio = option == "Fill & Crop"))
+                        })
+                    }
+                }
+            }
+            if (resolution == "Custom") {
+                OutlinedTextField(value = widthDraft,
+                    onValueChange = { input ->
+                        widthDraft = input.filter(Char::isDigit).take(5)
+                        val w = widthDraft.toIntOrNull()
+                        val h = heightDraft.toIntOrNull()
+                        if (w != null && h != null) commit(settings.copy(width = w, height = h))
+                    }, label = { Text("Width (px)") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = heightDraft,
+                    onValueChange = { input ->
+                        heightDraft = input.filter(Char::isDigit).take(5)
+                        val w = widthDraft.toIntOrNull()
+                        val h = heightDraft.toIntOrNull()
+                        if (w != null && h != null) commit(settings.copy(width = w, height = h))
+                    }, label = { Text("Height (px)") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth())
+            }
+            MediaSwitch(stringResource(R.string.setting_no_upscale), settings.preventUpscale) {
+                commit(settings.copy(preventUpscale = it))
+            }
         }
     }
-
-    val content: @Composable () -> Unit = {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-
-            // Quality & Compression Card
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Tune,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            stringResource(R.string.setting_quality_compression),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    when (draft.format) {
-                        "jpg", "jpeg" -> {
-                            Text(stringResource(R.string.setting_jpeg_quality, draft.jpegQuality),
-                                style = MaterialTheme.typography.bodyMedium)
-                            Slider(
-                                value = draft.jpegQuality.toFloat(),
-                                onValueChange = { update(draft.copy(jpegQuality = it.roundToInt())) },
-                                valueRange = 1f..100f
-                            )
-                            Text("JPEG chroma subsampling is selected by Android's encoder (not configurable).",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            MediaSwitch(
-                                stringResource(R.string.setting_jpeg_exif),
-                                draft.preserveMetadata
-                            ) { update(draft.copy(preserveMetadata = it)) }
-                            if (draft.preserveMetadata) {
-                                MediaSwitch("Include GPS location (privacy sensitive)", draft.preserveGps) {
-                                    update(draft.copy(preserveGps = it))
-                                }
-                            }
-                        }
-                        "webp" -> {
-                            val supportsLosslessWebp = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-                            MediaSwitch(
-                                stringResource(R.string.setting_lossless_webp),
-                                draft.webpLossless,
-                                enabled = supportsLosslessWebp
-                            ) { update(draft.copy(webpLossless = it)) }
-                            if (!supportsLosslessWebp) {
-                                Text(stringResource(R.string.setting_webp_lossless_unsupported),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.bodySmall)
-                            }
-                            if (!draft.webpLossless) {
-                                Text(stringResource(R.string.setting_webp_quality, draft.webpQuality),
-                                    style = MaterialTheme.typography.bodyMedium)
-                                Slider(
-                                    value = draft.webpQuality.toFloat(),
-                                    onValueChange = { update(draft.copy(webpQuality = it.roundToInt())) },
-                                    valueRange = 1f..100f
-                                )
-                            }
-                        }
-                        "heic", "avif" -> {
-                            Text("Image quality: ${draft.jpegQuality}%", style = MaterialTheme.typography.bodyMedium)
-                            Slider(
-                                value = draft.jpegQuality.toFloat(),
-                                onValueChange = { update(draft.copy(jpegQuality = it.roundToInt())) },
-                                valueRange = 1f..100f
-                            )
-                            Text("Device encoder required. Advanced EXIF preservation is not available for this output.",
-                                style = MaterialTheme.typography.bodySmall)
-                        }
-                        "gif" -> Text(
-                            "Still-frame GIF only: source dimensions are preserved (GIF limit: 65535 px per axis), 256 colors, white background for transparency. Very large files may exceed device memory. Animation is not preserved.",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        else -> {
-                            Text(stringResource(R.string.setting_png_lossless), style = MaterialTheme.typography.bodyMedium)
-                            Text("PNG uses platform lossless compression. Compression level cannot be configured.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-            }
-
-            if (draft.format in setOf("jpg", "jpeg", "heic", "gif")) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Transparency background", style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold)
-                        Text("Formats without alpha are flattened onto this background.",
-                            style = MaterialTheme.typography.bodySmall)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("white" to "White", "black" to "Black").forEach { (value, label) ->
-                                FilterChip(selected = draft.matteColor == value,
-                                    onClick = { update(draft.copy(matteColor = value)) },
-                                    label = { Text(label) })
-                            }
-                        }
-                    }
-                }
-            }
-            // Resize & Dimensions Card
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AspectRatio,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            stringResource(R.string.setting_resize),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        val presets = listOf(
-                            R.string.setting_preset_original to ("" to ""),
-                            R.string.setting_preset_1080p to ("1920" to "1080"),
-                            R.string.setting_preset_720p to ("1280" to "720"),
-                            R.string.setting_preset_square to ("1080" to "1080"),
-                            R.string.setting_preset_icon to ("512" to "512")
-                        )
-                        items(presets.size) { idx ->
-                            val (resId, dims) = presets[idx]
-                            val isSelected = widthText == dims.first && heightText == dims.second
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    widthText = dims.first
-                                    heightText = dims.second
-                                    update(draft.copy(
-                                        width = dims.first.toIntOrNull(), height = dims.second.toIntOrNull(),
-                                        cropToExactRatio = dims.first.isNotEmpty() && dims.first == dims.second
-                                    ))
-                                },
-                                label = { Text(stringResource(resId), style = MaterialTheme.typography.labelSmall) },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                    labelColor = MaterialTheme.colorScheme.onSurface,
-                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
-                                    selected = isSelected,
-                                    borderColor = MaterialTheme.colorScheme.outlineVariant,
-                                    selectedBorderColor = MaterialTheme.colorScheme.primary,
-                                    borderWidth = if (isSelected) 1.5.dp else 1.dp
-                                )
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = widthText,
-                            onValueChange = { input ->
-                                widthText = input.filter(Char::isDigit).take(5)
-                                val w = widthText.toIntOrNull()
-                                val h = heightText.toIntOrNull()
-                                if ((widthText.isEmpty() && heightText.isEmpty()) || (w != null && h != null)) update(draft.copy(width = w, height = h))
-                            },
-                            label = { Text("Width") },
-                            
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                        Icon(
-                            imageVector = if (draft.keepAspectRatio) Icons.Default.Link else Icons.Default.LinkOff,
-                            contentDescription = null,
-                            tint = if (draft.keepAspectRatio) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        OutlinedTextField(
-                            value = heightText,
-                            onValueChange = { input ->
-                                heightText = input.filter(Char::isDigit).take(5)
-                                val w = widthText.toIntOrNull()
-                                val h = heightText.toIntOrNull()
-                                if ((widthText.isEmpty() && heightText.isEmpty()) || (w != null && h != null)) update(draft.copy(width = w, height = h))
-                            },
-                            label = { Text("Height") },
-                            
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                    }
-
-                    Text("Resize mode", style = MaterialTheme.typography.titleSmall)
-                    Text("Original keeps source dimensions. Fit preserves the whole image; Fill & Crop trims the edges; Stretch changes proportions.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    val resizeMode = when {
-                        widthText.isBlank() && heightText.isBlank() -> "Original"
-                        !draft.keepAspectRatio -> "Stretch"
-                        draft.cropToExactRatio -> "Fill & Crop"
-                        else -> "Fit"
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        listOf("Original", "Fit", "Fill & Crop", "Stretch").chunked(2).forEach { row ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                row.forEach { mode ->
-                                    FilterChip(
-                                        selected = resizeMode == mode,
-                                        onClick = {
-                                            if (mode == "Original") {
-                                                widthText = ""
-                                                heightText = ""
-                                            } else {
-                                                if (widthText.isBlank()) widthText = "1920"
-                                                if (heightText.isBlank()) heightText = "1080"
-                                            }
-                                            update(draft.copy(
-                                                width = widthText.toIntOrNull(), height = heightText.toIntOrNull(),
-                                                keepAspectRatio = mode != "Stretch",
-                                                cropToExactRatio = mode == "Fill & Crop"
-                                            ))
-                                        },
-                                        label = { Text(mode) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    MediaSwitch(
-                        label = stringResource(R.string.setting_no_upscale),
-                        checked = draft.preventUpscale,
-                        subtitle = stringResource(R.string.setting_no_upscale_subtitle)
-                    ) {
-                        update(draft.copy(preventUpscale = it))
-                    }
-                }
-            }
-            val proposed = draft.copy(
-                width = widthText.toIntOrNull(),
-                height = heightText.toIntOrNull()
-            )
-            val invalidEntry = (widthText.isNotBlank() && proposed.width == null) ||
-                (heightText.isNotBlank() && proposed.height == null)
-            val validation = when {
-                invalidEntry -> stringResource(R.string.setting_custom_validation)
-                proposed.format == "webp" && proposed.webpLossless &&
-                    Build.VERSION.SDK_INT < Build.VERSION_CODES.R ->
-                    stringResource(R.string.setting_webp_lossless_unsupported)
-                else -> ImageSettingsValidator.validate(proposed)
-            }
-            if (validation != null) Text(validation, color = MaterialTheme.colorScheme.error)
-            Spacer(Modifier.height(12.dp))
-        }
-    }
-
-    content()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

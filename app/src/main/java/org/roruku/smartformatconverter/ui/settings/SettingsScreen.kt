@@ -141,6 +141,7 @@ fun SettingsScreenContent(
     val selectedFolderText = stringResource(R.string.settings_selected_folder)
     val notSelectedText = stringResource(R.string.settings_not_selected)
     var showPrivacyDialog by remember { mutableStateOf(false) }
+    var showCodecDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -307,6 +308,10 @@ fun SettingsScreenContent(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(onClick = { showCodecDialog = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Device Codec Capabilities")
+                }
             }
         }
 
@@ -404,6 +409,10 @@ fun SettingsScreenContent(
                 }
             }
         }
+    }
+
+    if (showCodecDialog) {
+        DeviceCodecCapabilitiesDialog(onDismiss = { showCodecDialog = false })
     }
 
     if (showPrivacyDialog) {

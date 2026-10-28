@@ -7,6 +7,8 @@ import android.text.format.Formatter
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.media.MediaMetadataRetriever
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -606,14 +608,34 @@ private fun readQueueTechnicalDetails(context: Context, job: ConversionJobEntity
     return try {
         retriever.setDataSource(context, uri)
         fun number(key: Int) = retriever.extractMetadata(key)?.toIntOrNull()
+        var channels: Int? = null
+        var actualCodec: String? = null
+        var actualSampleRate: Int? = null
+        val extractor = MediaExtractor()
+        try {
+            extractor.setDataSource(context, uri, null)
+            for (index in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(index)
+                val mime = format.getString(MediaFormat.KEY_MIME)
+                if (mime?.startsWith("audio/") == true || mime?.startsWith("video/") == true) {
+                    if (actualCodec == null || mime.startsWith("audio/")) actualCodec = mime
+                    if (mime.startsWith("audio/")) {
+                        if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                        if (format.containsKey(MediaFormat.KEY_SAMPLE_RATE)) actualSampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            // MetadataRetriever still provides the basic details for unsupported containers.
+        } finally { runCatching { extractor.release() } }
         QueueTechnicalDetails(
             name, retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull(),
             number(MediaMetadataRetriever.METADATA_KEY_BITRATE),
-            number(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE),
-            null,
+            actualSampleRate ?: number(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE),
+            channels,
             number(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH),
             number(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT),
-            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
+            actualCodec ?: retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
         )
     } catch (_: Exception) {
         QueueTechnicalDetails(name, null, null, null, null, null, null, null)

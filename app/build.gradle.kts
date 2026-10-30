@@ -29,6 +29,10 @@ android {
             "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    kotlin {
+        jvmToolchain(21) // atau 17
+    }
+    
     signingConfigs {
         create("release") {
             val localProps = Properties().apply {

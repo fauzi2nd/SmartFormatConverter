@@ -1665,7 +1665,7 @@ fun ConverterPreviewEditor(
                                 videoPreflight == null && !isPreview ->
                                     "Checking device limits and selecting a compatible resolution…"
                                 belowPresetTarget ->
-                                    "${resolvedVideoSettings.preset}: target ${presetRange!!.min}p–" +
+                                    "${resolvedVideoSettings.preset}: target ${presetRange.min}p–" +
                                         "${presetRange.max}p unsupported. Using ${selectedAutoResolution} " +
                                         "as a disclosed fallback. Source ratio preserved."
                                 autoDownscaled && presetRange != null ->

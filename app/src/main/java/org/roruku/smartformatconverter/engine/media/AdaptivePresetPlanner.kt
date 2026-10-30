@@ -70,8 +70,8 @@ object AdaptivePresetPlanner {
         val canApplyResize = settings.width != null && settings.height != null &&
             (!settings.preventUpscale || source.width <= 0 ||
                 (settings.width <= source.width && settings.height <= source.height))
-        val width = if (canApplyResize) settings.width!! else source.width
-        val height = if (canApplyResize) settings.height!! else source.height
+        val width = if (canApplyResize) settings.width else source.width
+        val height = if (canApplyResize) settings.height else source.height
         val pixels = width.toLong() * height.toLong()
         val fps = source.frameRate.takeIf { it in 1f..240f }?.toDouble() ?: 30.0
         // 60 FPS needs more bits than 30 FPS, but not a 2x increase.
